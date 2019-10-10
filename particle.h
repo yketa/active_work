@@ -49,26 +49,31 @@ class System {
    *
    *  Parameters are stored in a binary file with the following structure:
 
-   *  [HEADER (see System::saveInitialState)]
-   *  | (int) N | (double) lp | (double) L | (int) seed |
+   *  [HEADER (see System::System)]
+   *  | (int) N | (double) lp | (double) phi | (double) L | (int) seed |
    *
-   *  [BODY (see System::saveNewState)] (all double)
-   *  ||                              FRAME                               || ...
-   *  ||      ||              PARTICLE 1               | ... | PARTICLE N || ...
-   *  || STEP || WRAPPED R | UNWRAPPED R | ORIENTATION | ... |     ...    || ...
-   *  ||  dt  ||  x  |  y  |   x  |  y   |    theta    | ... |     ...    || ...
+   *  [BODY (see System::saveInitialState & System::saveNewState)] (all double)
+   *  ||                                    FRAME                                       || ...
+   *  ||      ||                     PARTICLE 1                      | ... | PARTICLE N || ...
+   *  || STEP || ACTIVE WORK | WRAPPED R | UNWRAPPED R | ORIENTATION | ... |     ...    || ...
+   *  ||  dt  ||      W      |  x  |  y  |   x  |  y   |    theta    | ... |     ...    || ...
    */
 
   public:
 
     // CONSTRUCTORS
 
-    System(int N, double lp, double L, int seed, std::string filename);
+    System(int N, double lp, double phi, int seed, std::string filename);
+
+    // DESTRUCTORS
+
+    ~System();
 
     // METHODS
 
     int getNumberParticles() const; // returns number of particles
     double getPersistenceLength() const; // returns dimensionless persistence length
+    double getPackingFraction() const; // returns packing fraction
     double getSystemSize() const; // returns system size
     int getRandomSeed() const; // returns random seed
     std::string getOutputFile() const; // returns output file name
@@ -89,12 +94,16 @@ class System {
     void saveNewState(Particle *newParticles, double const& dt);
       // Saves new state of particles to output file then copy it.
 
+    // FORCES OUTPUT
+    // std::ofstream outputFileForcesStream;
+
   private:
 
     // ATTRIBUTES
 
     int const numberParticles; // number of particles in the system
     double const persistenceLength; // dimensionless persistence length
+    double const packingFraction; // packing fraction
     double const systemSize; // system size
     int const randomSeed; // random seed
     std::string const outputFile; // output file name

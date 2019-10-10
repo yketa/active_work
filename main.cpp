@@ -13,7 +13,7 @@ int main() {
   // system
   double N = getEnvDouble("N", 1);
   double lp = getEnvDouble("LP", 1);
-  double L = getEnvDouble("L", 2);
+  double phi = getEnvDouble("PHI", 0.02);
   int seed = getEnvInt("SEED", 1);
   std::string filename = getEnvString("FILE", "out.dat");
 
@@ -23,7 +23,7 @@ int main() {
 
   // SYSTEM
 
-  System system(N, lp, L, seed, filename);
+  System system(N, lp, phi, seed, filename);
   system.saveInitialState();
 
   // ITERATION

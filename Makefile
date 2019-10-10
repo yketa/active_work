@@ -46,12 +46,18 @@ $(OB)/maths.o: maths.cpp maths.h
 $(OB)/particle.o: particle.cpp particle.h maths.h
 	$(CC) -o $(OB)/particle.o -c particle.cpp $(CFLAGS)
 
+$(OB)/read.o: read.cpp read.h
+	$(CC) -o $(OB)/read.o -c read.cpp $(CFLAGS)
+
+$(OB)/work.o: work.cpp work.h read.h
+	$(CC) -o $(OB)/work.o -c work.cpp $(CFLAGS)
+
 ##
 
-$(OB)/main.o: main.cpp env.h iteration.h maths.h particle.h
+$(OB)/main.o: main.cpp env.h iteration.h maths.h particle.h read.h work.h
 	$(CC) -o $(OB)/main.o -c main.cpp $(CFLAGS)
 
-$(OB)/test.o: test.cpp env.h iteration.h maths.h particle.h
+$(OB)/test.o: test.cpp env.h iteration.h maths.h particle.h read.h work.h
 	$(CC) -o $(OB)/test.o -c test.cpp $(CFLAGS)
 
 #### VALGRIND ####

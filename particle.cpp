@@ -1,6 +1,8 @@
 #include <cmath>
+#include <math.h>
 #include <vector>
 #include <string>
+#include <algorithm>
 
 #include "particle.h"
 #include "maths.h"
@@ -36,26 +38,45 @@ void Particle::copy(Particle *particle) {
 
 // CONSTRUCTORS
 
-System::System(int N, double lp, double L, int seed, std::string filename) :
-  numberParticles(N), persistenceLength(lp), systemSize(L), randomSeed(seed),
-    outputFile(filename),
+System::System(int N, double lp, double phi, int seed, std::string filename) :
+  // outputFileForcesStream((filename + ".forces").c_str(), std::ios::out | std::ios::binary), // FORCES OUTPUT
+  numberParticles(N), persistenceLength(lp), packingFraction(phi),
+    systemSize(sqrt(M_PI*N/phi)), randomSeed(seed), outputFile(filename),
   particles(N), randomGenerator(), outputFileStream(
     filename.c_str(), std::ios::out | std::ios::binary),
   increments(N, std::vector<double>(2, 0)) {
 
-    randomGenerator.setSeed(seed); // set random seed
+    // set seed of random generator
+    randomGenerator.setSeed(seed);
 
     // writing header with system parameters to output file
-    outputFileStream.write((char*) &N, sizeof(int));
-    outputFileStream.write((char*) &lp, sizeof(double));
-    outputFileStream.write((char*) &L, sizeof(double));
-    outputFileStream.write((char*) &seed, sizeof(int));
+    outputFileStream.write((char*) &numberParticles, sizeof(int));
+    outputFileStream.write((char*) &persistenceLength, sizeof(double));
+    outputFileStream.write((char*) &packingFraction, sizeof(double));
+    outputFileStream.write((char*) &systemSize, sizeof(double));
+    outputFileStream.write((char*) &randomSeed, sizeof(int));
+
+    // putting particles on a grid with random orientation
+    int gridSize = ceil(sqrt(numberParticles)); // size of the grid on which to put the particles
+    double gridSpacing = systemSize/gridSize;
+    for (int i=0; i < numberParticles; i++) { // loop over particles
+      // position on the grid
+      particles[i].position()[0] = (i%gridSize)*gridSpacing;
+      particles[i].position()[1] = (i/gridSize)*gridSpacing;
+      // random orientation
+      particles[i].orientation()[0] = 2*M_PI*randomGenerator.random01();
+    }
 }
+
+// DESTRUCTORS
+
+System::~System() { outputFileStream.close(); }
 
 // METHODS
 
 int System::getNumberParticles() const { return numberParticles; }
 double System::getPersistenceLength() const { return persistenceLength; }
+double System::getPackingFraction() const { return packingFraction; }
 double System::getSystemSize() const { return systemSize; }
 int System::getRandomSeed() const { return randomSeed; }
 std::string System::getOutputFile() const { return outputFile; }
@@ -68,11 +89,15 @@ double System::getDistance(int index1, int index2) {
   // Returns distance between two particles in a given system.
 
   double diff[2];
-  for (int i=0; i < 2; i++) {
-    diff[i] = fmod(
-      fabs(particles[index1].position()[i] - particles[index2].position()[i]),
-      systemSize/2
-    ); // separation in each direction accounting for periodic boundaries
+  double coord[2];
+  for (int dim=0; dim < 2; dim++) {
+    coord[0] = particles[index1].position()[dim];
+    coord[1] = particles[index2].position()[dim];
+    diff[dim] = std::min(
+      std::min(
+        fabs(coord[0]) + fabs(systemSize - coord[1]),
+        fabs(systemSize - coord[0]) + fabs(coord[1])),
+      fabs(coord[0] - coord[1])); // separation in each direction accounting for periodic boundaries
   }
   return sqrt(pow(diff[0], 2) + pow(diff[1], 2));
 }
@@ -83,13 +108,19 @@ void System::WCA_potential(int index1, int index2, double *force) {
 
   double dist = this->getDistance(index1, index2); // dimensionless distance between particles
 
-  if (dist < pow(2, 1./6.)) { // distance lower than cut-off radius
-    double coeff = 48/pow(dist, 14) - 24/pow(dist, 8);
-    for (int i=0; i < 2; i++) {
-      force[i] =
-        (particles[index1].position()[i] - particles[index2].position()[i])
-          *coeff;
+  if (dist < 2) { // distance lower than radii
+    double coeff = 3*(pow(2, 14)/pow(dist, 14) - pow(2, 8)/pow(dist, 8));
+    for (int dim=0; dim < 2; dim++) {
+      force[dim] =
+        remainder(
+          particles[index1].position()[dim] - particles[index2].position()[dim],
+          systemSize/2)
+        *coeff;
     }
+  }
+  else { // distance greater than cut-off radius
+    force[0] = 0;
+    force[1] = 0;
   }
 }
 
@@ -99,7 +130,9 @@ void System::saveInitialState() {
   double dt = 0;
   outputFileStream.write((char*) &dt, sizeof(double));
 
+  double work = 0;
   for (int i=0; i < numberParticles; i++) { // output all particles
+    outputFileStream.write((char*) &work, sizeof(double)); // output active work
     for (int j=0; j < 2; j++) { // output twice from wrapped and unwrapped coordinates
       for (int dim=0; dim < 2; dim++) { // output position in each dimension
         outputFileStream.write((char*) &(particles[i].position()[dim]),
@@ -119,11 +152,29 @@ void System::saveNewState(Particle *newParticles, double const& timeStep) {
   outputFileStream.write((char*) &timeStep, sizeof(double));
 
   double newPosition;
+  double work;
 
   for (int i=0; i < numberParticles; i++) { // output all particles
 
+    // ACTIVE WORK
+    work = 0;
+    for (int dim=0; dim < 2; dim++) {
+      work +=
+        (cos(newParticles[i].orientation()[0] - dim*M_PI/2)
+          + cos(particles[i].orientation()[0] - dim*M_PI/2))
+        *(newParticles[i].position()[dim] - particles[i].position()[dim]) // NOTE: at this stage, newPartices[i].position() are not rewrapped, so this difference is the actual displacement
+        /2;
+    }
+    outputFileStream.write((char*) &work, sizeof(double));
+
     // WRAPPED COORDINATES
     for (int dim=0; dim < 2; dim++) {
+      // keep particles in the box
+      newParticles[i].position()[dim] =
+        std::remainder(newParticles[i].position()[dim], systemSize);
+      if (newParticles[i].position()[dim] < 0) {
+        newParticles[i].position()[dim] += systemSize;
+      }
       // output wrapped position in each dimension
       outputFileStream.write((char*) &(newParticles[i].position()[dim]),
         sizeof(double));
@@ -148,9 +199,10 @@ void System::saveNewState(Particle *newParticles, double const& timeStep) {
         sizeof(double));
     }
 
-    // ORIENATION
+    // ORIENTATION
     outputFileStream.write((char*) newParticles[i].orientation(),
       sizeof(double));
+
   }
 
   // COPYING

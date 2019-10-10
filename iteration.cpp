@@ -9,12 +9,13 @@ void iterate_ABP_WCA(System *system, double const& timeStep) {
   // Updates system to next step according to the dynamics of active Brownian
   // particles with WCA potential.
 
-  std::vector<Particle> newParticles(system->getSystemSize());
+  std::vector<Particle> newParticles(system->getNumberParticles());
 
   // COMPUTATION
 
   for (int i=0; i < system->getNumberParticles(); i++) {
 
+    // POSITIONS
     for (int dim=0; dim < 2; dim++) {
       newParticles[i].position()[dim] =
         (system->getParticle(i))->position()[dim]; // initialise new positions with previous ones
@@ -25,16 +26,23 @@ void iterate_ABP_WCA(System *system, double const& timeStep) {
         timeStep*cos((system->getParticle(i))->orientation()[0] - dim*M_PI/2); // add self-propulsion
     }
 
+    // ORIENTATIONS
     newParticles[i].orientation()[0] =
       (system->getParticle(i))->orientation()[0]; // initialise new orientation with previous one
     newParticles[i].orientation()[0] +=
       sqrt(timeStep*2/system->getPersistenceLength())
         *(system->getRandomGenerator())->gauss_cutoff(); // add noise
+  }
 
-    double force[2];
+  double force[2];
+  for (int i=0; i < system->getNumberParticles(); i++) {
     for (int j=i+1; j < system->getNumberParticles(); j++) {
 
+      // INTERACTIONS
       system->WCA_potential(i, j, &force[0]); // force acting on i from j
+
+      // FORCES OUTPUT
+      // for (int dim=0; dim < 2; dim++) { system->outputFileForcesStream.write((char*) &(force[dim]), sizeof(double)); }
 
       for (int dim=0; dim < 2; dim++){
         newParticles[i].position()[dim] +=
@@ -42,18 +50,7 @@ void iterate_ABP_WCA(System *system, double const& timeStep) {
         newParticles[j].position()[dim] -=
           timeStep*force[dim]/3/system->getPersistenceLength(); // substract force to j
       }
-
     }
-
-    // keep particles in the box
-    for (int dim=0; dim < 2; dim++){
-      newParticles[i].position()[dim] =
-        std::remainder(newParticles[i].position()[dim], system->getSystemSize());
-      if (newParticles[i].position()[dim] < 0) {
-        newParticles[i].position()[dim] += system->getSystemSize();
-      }
-    }
-
   }
 
   // SAVE AND COPY
