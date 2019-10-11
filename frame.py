@@ -12,21 +12,15 @@ MODE : string
      _________________________________________________________________________
     | Mode           | Arrow direction        | Arrow length | Particle color |
     |________________|________________________|______________|________________|
-    | 'displacement' | Displacement direction | Relative to  | Amplitude of   |
-    |                |                        | diameter     | displacement   |
-    |________________|________________________|______________|________________|
     | 'orientation'  | Self-propulsion        | Relative to  | Orientation    |
     |                | direction              | diameter     |                |
     |________________|________________________|______________|________________|
-    DEFAULT: displacement
+    DEFAULT: orientation
 PLOT : bool
     Plot single frame.
     DEFAULT: False
 MOVIE : bool
     Make movie out of several plotted frames.
-    DEFAULT: False
-FIXED_FRAME [MOVIE mode] : bool
-    Keep initial frame fixed in movie and vary lag time.
     DEFAULT: False
 SHOW [PLOT mode] : bool
     Show figure.
@@ -219,7 +213,7 @@ class _Frame:
         self.ax.set_aspect('equal')
 
         self.positions = dat.getPositions(frame, centre=centre) # particles' positions at frame frame with centre as centre of frame
-        self.diameters = np.full((dat.N,), fill_value=2)        # particles' diameters at frame frame
+        self.diameters = np.full((dat.N,), fill_value=1)        # particles' diameters at frame frame
 
         self.particles = [particle for particle in range(len(self.positions))
             if (np.abs(self.positions[particle]) <= box_size/2).all()]  # particles inside box of centre centre and length box_size
@@ -302,89 +296,6 @@ class _Frame:
             size='5%', pad=0.05)
         self.colormap = mpl.colorbar.ColorbarBase(self.colormap_ax, cmap=cmap,
             norm=vNorm, orientation='vertical')
-
-class Displacement(_Frame):
-    """
-    Plotting class specific to 'displacement' mode.
-    """
-
-    def __init__(self, dat, frame, box_size, centre,
-        arrow_width=_arrow_width,
-        arrow_head_width=_arrow_head_width,
-        arrow_head_length=_arrow_head_length,
-        pad=_colormap_label_pad, dt=0,
-        label=False, **kwargs):
-        """
-        Initialises and plots figure.
-
-        Parameters
-        ----------
-        dat : active_particles.read.Dat
-    		Data object.
-        frame : int
-            Frame to render.
-        box_size : float
-            Length of the square box to render.
-        centre : 2-uple like
-            Centre of the box to render.
-        arrow_width : float
-            Width of the arrows.
-        arrow_head_width : float
-            Width of the arrows' head.
-        arrow_head_length : float
-            Length of the arrows' head.
-        pad : float
-            Separation between label and colormap.
-            (default: active_work.frame._colormap_label_pad)
-        dt : int
-            Lag time for displacement. (default=0)
-        label : bool
-            Write indexes of particles in circles. (default: False)
-
-        Optional keyword parameters
-        ---------------------------
-        vmin : float
-            Minimum value of the colorbar.
-        vmax : float
-            Maximum value of the colorbar.
-        """
-
-        super().__init__(dat, frame, box_size, centre,
-            arrow_width=arrow_width,
-            arrow_head_width=arrow_head_width,
-            arrow_head_length=arrow_head_length)    # initialise superclass
-
-        self.displacements = dat.getDisplacements(frame, frame + dt,
-            *self.particles)    # particles' displacements between frame and frame + dt
-
-        self.vmin, self.vmax = amplogwidth(self.displacements)
-        try:
-            self.vmin = np.log10(kwargs['vmin'])
-        except (KeyError, AttributeError): pass # 'vmin' not in keyword arguments or None
-        try:
-            self.vmax = np.log10(kwargs['vmax'])
-        except (KeyError, AttributeError): pass # 'vmax' not in keyword arguments or None
-
-        self.colorbar(self.vmin, self.vmax) # add colorbar to figure
-        self.colormap.set_label(r'$\log||\vec{u}(t, t+\Delta t)||$',
-            labelpad=pad, rotation=270)     # colorbar legend
-
-        self.label = label  # write labels
-
-        self.draw()
-
-    def draw(self):
-        """
-        Plots figure.
-        """
-
-        for particle, displacement in zip(self.particles,
-            self.displacements):                # for particle and particle's displacement in rendered box
-            self.draw_circle(particle, color=self.scalarMap.to_rgba(
-                np.log10(np.linalg.norm(displacement))), fill=True,
-                label=self.label)               # draw particle circle with color corresponding to displacement amplitude
-            self.draw_arrow(particle, *normalise1D(displacement)
-                *0.75*self.diameters[particle]) # draw displacement direction arrow
 
 class Orientation(_Frame):
     """
@@ -485,10 +396,8 @@ if __name__ == '__main__':  # executing as script
 
     # VARIABLE DEFINITIONS
 
-    mode = get_env('MODE', default='displacement')          # plotting mode
-    if mode == 'displacement':
-        plotting_object = Displacement
-    elif mode == 'orientation':
+    mode = get_env('MODE', default='orientation')           # plotting mode
+    if mode == 'orientation':
         plotting_object = Orientation
     else: raise ValueError('Mode %s is not known.' % mode)  # mode is not known
 
@@ -496,7 +405,6 @@ if __name__ == '__main__':  # executing as script
     dat = Dat(dat_file)                                                     # data object
 
     init_frame = get_env('INITIAL_FRAME', default=-1, vartype=int)  # initial frame to render
-    dt = get_env('DT', default=-1, vartype=int)                     # displacement lag time
 
     box_size = get_env('BOX_SIZE', default=dat.L, vartype=float)    # size of the square box to consider
     centre = (get_env('X_ZERO', default=0, vartype=float),
@@ -534,7 +442,7 @@ if __name__ == '__main__':  # executing as script
 
     display_suptitle = get_env('SUPTITLE', default=True, vartype=bool)  # display suptitle
 
-    def suptitle(frame, lag_time):
+    def suptitle(frame, lag_time=None):
         """
         Returns figure suptitle.
 
@@ -545,7 +453,7 @@ if __name__ == '__main__':  # executing as script
         frame : int
             Index of rendered frame.
         lag_time : int
-            Lag time.
+            Lag time between frames.
 
         Returns
         -------
@@ -564,10 +472,11 @@ if __name__ == '__main__':  # executing as script
         suptitle += '\n'
         if 'X_ZERO' in envvar or 'Y_ZERO' in envvar:
             suptitle += str(r'$x_0 = %.3e, y_0 = %.3e$' % centre) + '\n'
-        suptitle += str(r'$t = %.5e$'
-            % (frame*dat.getTimeStep(1)))
-        suptitle += str(r'$, \Delta t = %.5e$'
-            % (lag_time*dat.getTimeStep(1)))
+        suptitle += str(r'$t/(l_p/\sigma) = %.5e$'
+            % (frame*dat.dt/dat.lp))
+        if lag_time != None:
+            suptitle += str(r'$, \Delta t/(l_p/\sigma) = %.5e$'
+                % (lag_time*dat.dt/dat.lp))
 
         return suptitle
 
@@ -576,13 +485,12 @@ if __name__ == '__main__':  # executing as script
     if get_env('PLOT', default=False, vartype=bool):    # PLOT mode
 
         Nframes = Nentries - init_frame  # number of frames available for the calculation
-        dt = Nframes + dt if dt < 0 else dt
 
         figure = plotting_object(dat, init_frame, box_size, centre,
             arrow_width, arrow_head_width, arrow_head_length,
             pad=pad, dt=dt, vmin=vmin, vmax=vmax,
             label=get_env('LABEL', default=False, vartype=bool))
-        figure.fig.suptitle(suptitle(init_frame, dt))
+        figure.fig.suptitle(suptitle(init_frame))
 
         if get_env('SAVE', default=False, vartype=bool):    # SAVE mode
             figure_name, = naming_standard.filename(**attributes)
@@ -599,42 +507,23 @@ if __name__ == '__main__':  # executing as script
         mkdir(movie_dir)                                        # create movie directory
         mkdir(joinpath(movie_dir, 'frames'), replace=True)      # create frames directory (or replaces it if existing)
 
-        Nframes = np.min([Nentries, frame_fin]) - init_frame                    # number of frames available for the movie
-        Ntimes = Nframes//frame_per                                             # maximum number of rendered frames
-        frames = np.array(list(OrderedDict.fromkeys(map(int, init_frame +
-            np.linspace(0, Nframes - 1, Ntimes, endpoint=False, dtype=int)))))  # usable frames
-
-        if dt < 0: dt = np.min(np.abs(frames - np.roll(frames, shift=1)))
-
-        frames = frames[frames + dt < Nentries - 1][:frame_max] # rendered frames
-
-        fixed_frame = get_env('FIXED_FRAME', default=False, vartype=bool)   # FIXED_FRAME mode
+        frames = [init_frame + i*frame_per for i in range(frame_max)
+            if init_frame + i*frame_per <= frame_fin]   # rendered frames
 
         for frame in frames:    # for rendered frames
             sys.stdout.write(
-                'Frame: %d' % (frames.tolist().index(frame) + 1)
+                'Frame: %d' % (frames.index(frame) + 1)
                 + "/%d \r" % len(frames))
 
-            if fixed_frame: # FIXED_FRAME mode
-
-                figure = plotting_object(dat, init_frame, box_size, centre,
-                    arrow_width, arrow_head_width, arrow_head_length,
-                    pad=pad, dt=frame - init_frame, vmin=vmin, vmax=vmax,
-                    label=get_env('LABEL', default=False, vartype=bool))    # plot frame
-                figure.fig.suptitle(
-                    suptitle(init_frame, frame - init_frame))
-
-            else:   # not(FIXED_FRAME) mode
-
-                figure = plotting_object(dat, frame, box_size, centre,
-                    arrow_width, arrow_head_width, arrow_head_length,
-                    pad=pad, dt=dt, vmin=vmin, vmax=vmax,
-                    label=get_env('LABEL', default=False, vartype=bool))    # plot frame
-                figure.fig.suptitle(suptitle(frame, dt))
+            figure = plotting_object(dat, frame, box_size, centre,
+                arrow_width, arrow_head_width, arrow_head_length,
+                pad=pad, dt=frame_per, vmin=vmin, vmax=vmax,
+                label=get_env('LABEL', default=False, vartype=bool))    # plot frame
+            figure.fig.suptitle(suptitle(frame, frame_per))
 
             figure.fig.savefig(joinpath(movie_dir, 'frames',
-                '%010d' % frames.tolist().index(frame) + '.png'))   # save frame
-            del figure                                              # delete (close) figure
+                '%010d' % frames.index(frame) + '.png'))    # save frame
+            del figure                                      # delete (close) figure
 
         subprocess.call([
             'ffmpeg', '-r', '5', '-f', 'image2', '-s', '1280x960', '-i',

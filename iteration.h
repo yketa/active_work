@@ -8,8 +8,8 @@
 // PROTOTYPES //
 ////////////////
 
-void iterate_ABP_WCA(System *system, double const& timeStep);
+void iterate_ABP_WCA(System *system);
   // Updates system to next step according to the dynamics of active Brownian
-  // particles with WCA potential..
+  // particles with WCA potential.
 
 #endif

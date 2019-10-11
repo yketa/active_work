@@ -16,77 +16,67 @@ class Dat:
 
         self.filename = filename
         self.file = open(self.filename, 'rb')
+        self.fileSize = os.path.getsize(filename)
 
-        self.N = struct.unpack('i',
-            self.file.read(self._bytes_per_element('i')))[0]    # number of particles
-        self.lp = struct.unpack('d',
-            self.file.read(self._bytes_per_element('d')))[0]    # persistence length
-        self.phi = struct.unpack('d',
-            self.file.read(self._bytes_per_element('d')))[0]    # packing fraction
-        self.L = struct.unpack('d',
-            self.file.read(self._bytes_per_element('d')))[0]    # system size
-        self.seed = struct.unpack('i',
-            self.file.read(self._bytes_per_element('i')))[0]    # random seed
+        self.N = self._read('i')            # number of particles
+        self.lp = self._read('d')           # persistence length
+        self.phi = self._read('d')          # packing fraction
+        self.L = self._read('d')            # system size
+        self.seed = self._read('i')         # random seed
+        self.dt = self._read('d')           # time step
+        self.framesWork = self._read('i')   # number of frames on which to sum the active work before dumping
 
-        self.header_length = (              # length of header in bytes
-            self._bytes_per_element('i')    # N
-            + self._bytes_per_element('d')  # lp
-            + self._bytes_per_element('d')  # phi
-            + self._bytes_per_element('d')  # L
-            + self._bytes_per_element('i')) # seed
-        self.frames = (os.path.getsize(filename) - self.header_length)//(
-            (1 + self.N*6)*self._bytes_per_element('d'))                    # number of frames which the file contains
+        self.headerLength = self.file.tell()            # length of header in bytes
+        self.particleLength = 3*self._bpe('d')          # length the data of a single particle takes in a frame
+        self.frameLength = self.N*self.particleLength   # length the data of a single frame takes in a file
+
+        self.numberWork = (self.fileSize - self.headerLength)//(
+            self.framesWork*self.frameLength + self._bpe('d'))  # number of cumputed work sums
+        self.frames = (self.fileSize - self.headerLength
+            - self.numberWork*self._bpe('d'))//self.frameLength # number of frames which the file contains
+
+        if self.fileSize != (
+            self.headerLength                   # header
+            + self.frames*self.frameLength      # frames
+            + self.numberWork*self._bpe('d')):  # work sums
+            raise ValueError("Invalid file size.")
 
     def __del__(self):
         self.file.close()
 
-    def getTimeStep(self, time):
+    def getActiveWork(self):
         """
-        Returns time step at time.
-        """
-
-        self.file.seek(
-            self.header_length                                  # header
-            + time*(1 + 6*self.N)*self._bytes_per_element('d')) # frames
-
-        return struct.unpack('d',
-            self.file.read(self._bytes_per_element('d')))[0]
-
-    def getActiveWork(self, time, *particle):
-        """
-        Returns active work of particles between frames `time' - 1 and `time'.
+        Returns array of computed active work sums.
         """
 
-        if particle == (): particle = range(self.N)
+        try: return self.work
+        except AttributeError:
 
-        return np.array(list(map(
-            lambda index: self._active_work(time, index),
-            particle)))
+            self.work = np.empty(self.numberWork)
+            for i in range(self.numberWork):
+                self.file.seek(
+                    self.headerLength                           # header
+                    + self.frameLength                          # frame with index 0
+                    + (1 + i)*self.framesWork*self.frameLength  # all following packs of self.framesWork frames
+                    + i*self._bpe('d'))                         # previous values of the active work
+                self.work[i] = self._read('d')
 
-    def getPositions(self, time, *particle, wrapped=True, **kwargs):
+            return self.work
+
+    def getPositions(self, time, *particle, **kwargs):
         """
         Returns positions of particles at time.
         """
 
         if particle == (): particle = range(self.N)
-        if wrapped: position = self._wrapped_position
-        else: position = self._unwrapped_position
 
         positions = np.array(list(map(
-            lambda index: position(time, index),
+            lambda index: self._position(time, index),
             particle)))
 
         if 'centre' in kwargs:
             return relative_positions(positions, kwargs['centre'], self.L)
         return positions
-
-    def getDisplacements(self, time0, time1, *particle):
-        """
-        Returns displacements between time0 and time1.
-        """
-
-        return self.getPositions(time1, *particle, wrapped=False)\
-            - self.getPositions(time0, *particle, wrapped=False)
 
     def getOrientations(self, time, *particle):
         """
@@ -110,57 +100,17 @@ class Dat:
             lambda theta: np.array([np.cos(theta), np.sin(theta)]),
             self.getOrientations(time, *particle))))
 
-    def _active_work(self, time, particle):
+    def _position(self, time, particle):
         """
-        Returns active work of particle between frames `time' - 1 and `time'.
-        """
-
-        self.file.seek(
-            self.header_length                                  # header
-            + time*(1 + 6*self.N)*self._bytes_per_element('d')  # frames
-            + self._bytes_per_element('d')                      # time step
-            + particle*6*self._bytes_per_element('d'))          # active work
-
-        return struct.unpack('d',
-            self.file.read(self._bytes_per_element('d')))[0]
-
-    def _wrapped_position(self, time, particle):
-        """
-        Returns array of wrapped position of particle at time.
+        Returns array of position of particle at time.
         """
 
         self.file.seek(
-            self.header_length                                  # header
-            + time*(1 + 6*self.N)*self._bytes_per_element('d')  # frames
-            + self._bytes_per_element('d')                      # time step
-            + particle*6*self._bytes_per_element('d')           # other particles
-            + self._bytes_per_element('d'))                     # active work
-
-
-        return np.array(
-            [struct.unpack('d',
-                self.file.read(self._bytes_per_element('d')))[0],
-            struct.unpack('d',
-                self.file.read(self._bytes_per_element('d')))[0]])
-
-    def _unwrapped_position(self, time, particle):
-        """
-        Returns array of unwrapped position of particle.
-        """
-
-        self.file.seek(
-            self.header_length                                  # header
-            + time*(1 + 6*self.N)*self._bytes_per_element('d')  # frames
-            + self._bytes_per_element('d')                      # time step
-            + particle*6*self._bytes_per_element('d')           # other particles
-            + self._bytes_per_element('d')                      # active work
-            + 2*self._bytes_per_element('d'))                   # wrapped coordinates
-
-        return np.array(
-            [struct.unpack('d',
-                self.file.read(self._bytes_per_element('d')))[0],
-            struct.unpack('d',
-                self.file.read(self._bytes_per_element('d')))[0]])
+            self.headerLength                                           # header
+            + time*self.frameLength                                     # other frames
+            + particle*self.particleLength                              # other particles
+            + (np.max([time - 1, 0])//self.framesWork)*self._bpe('d'))  # active work sums (taking into account the frame with index 0)
+        return np.array([self._read('d'), self._read('d')])
 
     def _orientation(self, time, particle):
         """
@@ -168,44 +118,23 @@ class Dat:
         """
 
         self.file.seek(
-            self.header_length                                  # header
-            + time*(1 + 6*self.N)*self._bytes_per_element('d')  # frames
-            + self._bytes_per_element('d')                      # time step
-            + particle*6*self._bytes_per_element('d')           # other particles
-            + self._bytes_per_element('d')                      # active work
-            + 4*self._bytes_per_element('d'))                   # position coordinates
+            self.headerLength                                           # header
+            + time*self.frameLength                                     # other frames
+            + particle*self.particleLength                              # other particles
+            + 2*self._bpe('d')                                          # positions
+            + (np.max([time - 1, 0])//self.framesWork)*self._bpe('d'))  # active work sums (taking into account the frame with index 0)
+        return self._read('d')
 
-        return struct.unpack('d',
-            self.file.read(self._bytes_per_element('d')))[0]
-
-    def _bytes_per_element(self, type):
+    def _bpe(self, type):
         """
         Returns number of bytes corresponding to type.
         """
 
         return struct.calcsize(type)
 
-# # FORCES OUPUT
-# class DatForces:
-#     def __init__(self, filename, N):
-#         self.filename = filename
-#         self.file = open(self.filename, 'rb')
-#         self.N = N
-#     def __del__(self):
-#         self.file.close()
-#     def getForce(self, frame, i, j):
-#         frame = int(frame)
-#         i, j = sorted([i, j])
-#         self.file.seek(struct.calcsize('d')*2*(frame*int((self.N*(self.N - 1)/2)) + int((self.N*(self.N - 1) - (self.N - i)*(self.N - i - 1))/2) + (j - i - 1)))
-#         return np.array(
-#             [struct.unpack('d',
-#                 self.file.read(struct.calcsize('d')))[0],
-#             struct.unpack('d',
-#                 self.file.read(struct.calcsize('d')))[0]])
-#     def getForceSum(self, frame, *index):
-#         if index == (): index = range(self.N)
-#         force = lambda i: np.sum(np.array(list(map(
-#             lambda j: np.sign(j - i)*self.getForce(frame, i, j),
-#             np.delete(np.array(range(self.N)), i)))),
-#             axis=0)
-#         return np.array(list(map(force, index)))
+    def _read(self, type):
+        """
+        Read element from file with type.
+        """
+
+        return struct.unpack(type, self.file.read(self._bpe(type)))[0]

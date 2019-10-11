@@ -23,13 +23,13 @@ int main() {
 
   // SYSTEM
 
-  System system(N, lp, phi, seed, filename);
+  System system(N, lp, phi, seed, dt, filename);
   system.saveInitialState();
 
   // ITERATION
 
   for (int i=0; i < Niter; i++) {
-    iterate_ABP_WCA(&system, dt);
+    iterate_ABP_WCA(&system);
   }
 
 }
