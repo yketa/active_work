@@ -14,10 +14,12 @@ class Dat:
         Get data from header.
         """
 
+        # FILE
         self.filename = filename
         self.file = open(self.filename, 'rb')
         self.fileSize = os.path.getsize(filename)
 
+        # HEADER INFORMATION
         self.N = self._read('i')            # number of particles
         self.lp = self._read('d')           # persistence length
         self.phi = self._read('d')          # packing fraction
@@ -26,42 +28,51 @@ class Dat:
         self.dt = self._read('d')           # time step
         self.framesWork = self._read('i')   # number of frames on which to sum the active work before dumping
 
+        # FILE PARTS LENGTHS
         self.headerLength = self.file.tell()            # length of header in bytes
         self.particleLength = 3*self._bpe('d')          # length the data of a single particle takes in a frame
         self.frameLength = self.N*self.particleLength   # length the data of a single frame takes in a file
 
+        # ESTIMATION OF NUMBER OF COMPUTED WORK SUMS AND FRAMES
         self.numberWork = (self.fileSize - self.headerLength)//(
             self.framesWork*self.frameLength + self._bpe('d'))  # number of cumputed work sums
         self.frames = (self.fileSize - self.headerLength
             - self.numberWork*self._bpe('d'))//self.frameLength # number of frames which the file contains
 
+        # FILE CORRUPTION CHECK
         if self.fileSize != (
             self.headerLength                   # header
             + self.frames*self.frameLength      # frames
             + self.numberWork*self._bpe('d')):  # work sums
             raise ValueError("Invalid file size.")
 
+        # ACTIVE WORK
+        self.activeWork = np.empty(self.numberWork)
+        for i in range(self.numberWork):
+            self.file.seek(
+                self.headerLength                           # header
+                + self.frameLength                          # frame with index 0
+                + (1 + i)*self.framesWork*self.frameLength  # all following packs of self.framesWork frames
+                + i*self._bpe('d'))                         # previous values of the active work
+            self.activeWork[i] = self._read('d')
+
     def __del__(self):
         self.file.close()
 
-    def getActiveWork(self):
+    def getWork(self, time0, time1):
         """
-        Returns array of computed active work sums.
+        Returns normalised active work between frames `time0' and `time1'.
         """
 
-        try: return self.work
-        except AttributeError:
+        work = np.sum(list(map(
+            lambda t: np.sum(list(map(      # sum over time
+                lambda u, dr: np.dot(u,dr), # sum over particles
+                *(self.getDisplacements(t, t + 1),
+                    self.getDirections(t) + self.getDirections(t + 1))))),
+            range(int(time0), int(time1)))))
+        work /= 2*self.N*self.dt*(time1 - time0)
 
-            self.work = np.empty(self.numberWork)
-            for i in range(self.numberWork):
-                self.file.seek(
-                    self.headerLength                           # header
-                    + self.frameLength                          # frame with index 0
-                    + (1 + i)*self.framesWork*self.frameLength  # all following packs of self.framesWork frames
-                    + i*self._bpe('d'))                         # previous values of the active work
-                self.work[i] = self._read('d')
-
-            return self.work
+        return work
 
     def getPositions(self, time, *particle, **kwargs):
         """
@@ -77,6 +88,29 @@ class Dat:
         if 'centre' in kwargs:
             return relative_positions(positions, kwargs['centre'], self.L)
         return positions
+
+    def getDisplacements(self, time0, time1, *particle):
+        """
+        Returns displacements of particles between `time0' and `time1'.
+        """
+
+        if particle == (): particle = range(self.N)
+
+        displacements = -self.getPositions(time0, *particle)
+
+        increments = np.zeros((len(particle), 2))
+        positions1 = -displacements.copy()
+        for t in range(int(time0), int(time1)):
+            positions0 = positions1.copy()
+            positions1 = self.getPositions(t + 1, *particle)
+            increments += (
+                ((positions0 - self.L/2)*(positions1 - self.L/2) < 0)   # if position switches "sign"
+                *(np.abs(positions0 - self.L/2) > self.L/4)             # (and) if particle is not in the centre of the box
+                *np.sign(positions0 - self.L/2)                         # "sign" of position
+                *self.L)
+
+        displacements += positions1 + increments
+        return displacements
 
     def getOrientations(self, time, *particle):
         """

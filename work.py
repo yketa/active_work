@@ -3,30 +3,32 @@ from collections import OrderedDict
 
 from active_work.read import Dat
 
-class ActiveWork:
+class ActiveWork(Dat):
     """
     Compute and analyse active work from simulation data.
     """
 
-    def __init__(self, filename):
+    def __init__(self, filename, skip=1):
         """
         Loads file.
         """
 
-        # FILE
-        self.filename = filename
-        self.dat = Dat(self.filename)   # data object
+        super().__init__(filename)  # initialise with super class
 
-    def getWork(self, time0, time1):
+        self.skip = skip    # skip the `skip' first measurements of the active work in the analysis
+
+    def varWork(self, n):
         """
-        Returns normalised active work between frames `time0' and `time1'.
+        Computes variance of the active work sums averaged on packs of `n'.
         """
 
-        return np.sum(
-            list(map(
-                lambda t: np.sum(self.dat.getActiveWork(t + 1)),    # sum over particles
-                range(int(time0), int(time1))))                     # sum over time
-            )/(self.dat.N*self.dat.getTimeStep(1)*(time1 - time0))  # normalisation
+        workAvegared = []
+        for i in np.linspace(
+            self.skip, self.numberWork, int((self.numberWork - self.skip)//n),
+            endpoint=False, dtype=int):
+            workAvegared += [np.mean(self.activeWork[i:i + n])]
+
+        return np.var(workAvegared)
 
     def getWorks(self, tau, n_max=100, init=None):
         """
