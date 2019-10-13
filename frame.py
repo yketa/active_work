@@ -206,9 +206,10 @@ class _Frame:
         """
 
         self.fig, self.ax = plt.subplots()
-        self.ax.set_xlim([-1.1*box_size/2, 1.1*box_size/2])
+        self.box_size = box_size
+        self.ax.set_xlim([-self.box_size/2, self.box_size/2])
         self.ax.set_xlabel(r'$x$')
-        self.ax.set_ylim([-1.1*box_size/2, 1.1*box_size/2])
+        self.ax.set_ylim([-self.box_size/2, self.box_size/2])
         self.ax.set_ylabel(r'$y$')
         self.ax.set_aspect('equal')
 
@@ -246,8 +247,21 @@ class _Frame:
         """
 
         circle = plt.Circle(self.positions[particle],
-            self.diameters[particle]/2, color=color, fill=fill, zorder=0)   # circle artist representing particle
+            self.diameters[particle]/2, color=color, fill=fill,
+            zorder=0)   # circle artist representing particle
         self.ax.add_artist(circle)
+
+        for dim in range(2):
+            if (np.abs(self.positions[particle][dim]) >
+                self.box_size/2 - self.diameters[particle]/2):
+                newPosition = self.positions[particle].copy()
+                newPosition[dim] -= (np.sign(self.positions[particle][dim])
+                    *self.box_size)
+                circle = plt.Circle(newPosition,
+                    self.diameters[particle]/2, color=color, fill=fill,
+                    zorder=0)   # circle artist representing particle
+                self.ax.add_artist(circle)
+
         if label:
             self.ax.annotate(
                 "%i" % particle, xy=self.positions[particle], ha="center")
@@ -382,11 +396,12 @@ class Orientation(_Frame):
         """
 
         for particle, orientation in zip(self.particles,
-            self.orientations):                     # for particle and particle's displacement in rendered box
+            self.orientations):                                     # for particle and particle's displacement in rendered box
             self.draw_circle(particle,
-                color=self.scalarMap.to_rgba(orientation/np.pi), fill=True,
-                label=self.label)                   # draw particle circle with color corresponding to displacement amplitude
-            self.draw_arrow(particle, orientation)  # draw displacement direction arrow
+                color=self.scalarMap.to_rgba(orientation/np.pi), fill=False,
+                label=self.label)                                   # draw particle circle with color corresponding to displacement amplitude
+            self.draw_arrow(particle, orientation,
+                color=self.scalarMap.to_rgba(orientation/np.pi))    # draw displacement direction arrow
 
 # SCRIPT
 
@@ -488,7 +503,7 @@ if __name__ == '__main__':  # executing as script
 
         figure = plotting_object(dat, init_frame, box_size, centre,
             arrow_width, arrow_head_width, arrow_head_length,
-            pad=pad, dt=dt, vmin=vmin, vmax=vmax,
+            pad=pad, dt=None, vmin=vmin, vmax=vmax,
             label=get_env('LABEL', default=False, vartype=bool))
         figure.fig.suptitle(suptitle(init_frame))
 
