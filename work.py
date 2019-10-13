@@ -2,6 +2,7 @@ import numpy as np
 from collections import OrderedDict
 
 from active_work.read import Dat
+from active_work.scde import PDF
 
 class ActiveWork(Dat):
     """
@@ -17,9 +18,9 @@ class ActiveWork(Dat):
 
         self.skip = skip    # skip the `skip' first measurements of the active work in the analysis
 
-    def varWork(self, n):
+    def nWork(self, n):
         """
-        Computes variance of the active work sums averaged on packs of `n'.
+        Returns active work sums averaged on packs of `n'.
         """
 
         workAvegared = []
@@ -28,7 +29,16 @@ class ActiveWork(Dat):
             endpoint=False, dtype=int):
             workAvegared += [np.mean(self.activeWork[i:i + n])]
 
-        return np.var(workAvegared)
+        return np.array(workAvegared)
+
+    def nWorkPDF(self, n):
+        """
+        Returns probability density function of active work sums averaged on
+        packs of `n'.
+        """
+
+        pdf = PDF(self.nWork(n))
+        return pdf.axes[0], pdf.pdf
 
     def getWorks(self, tau, n_max=100, init=None):
         """
