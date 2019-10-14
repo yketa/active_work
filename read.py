@@ -34,7 +34,10 @@ class Dat:
         self.frameLength = self.N*self.particleLength   # length the data of a single frame takes in a file
 
         # ESTIMATION OF NUMBER OF COMPUTED WORK SUMS AND FRAMES
-        self.numberWork = (self.fileSize - self.headerLength)//(
+        self.numberWork = (self.fileSize
+            - self.headerLength                                 # header
+            - self.frameLength                                  # first frame
+            )//(
             self.framesWork*self.frameLength + self._bpe('d'))  # number of cumputed work sums
         self.frames = (self.fileSize - self.headerLength
             - self.numberWork*self._bpe('d'))//self.frameLength # number of frames which the file contains
