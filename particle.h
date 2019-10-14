@@ -64,6 +64,9 @@ class System {
     // CONSTRUCTORS
 
     System(
+      int N, double lp, double phi, int seed, double dt, std::string filename,
+      int nWork);
+    System(
       int N, double lp, double phi, int seed, double dt, std::string filename);
 
     // DESTRUCTORS

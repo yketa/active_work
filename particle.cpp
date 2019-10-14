@@ -39,11 +39,12 @@ void Particle::copy(Particle *particle) {
 // CONSTRUCTORS
 
 System::System(
-  int N, double lp, double phi, int seed, double dt, std::string filename) :
+  int N, double lp, double phi, int seed, double dt, std::string filename,
+  int nWork) :
   numberParticles(N), persistenceLength(lp), packingFraction(phi),
     systemSize(sqrt(M_PI*N/phi)/2), randomSeed(seed), timeStep(dt),
     outputFile(filename),
-  framesWork((int) lp/dt),
+  framesWork(nWork > 0 ? nWork : (int) lp/dt),
   randomGenerator(), particles(N), outputFileStream(
     filename.c_str(), std::ios::out | std::ios::binary),
   dumpFrame(-1), workSum(0) {
@@ -71,6 +72,11 @@ System::System(
       particles[i].orientation()[0] = 2*M_PI*randomGenerator.random01();
     }
 }
+
+System::System(
+  int N, double lp, double phi, int seed, double dt, std::string filename) :
+  // DELEGATING CONSTRUCTOR
+  System::System(N, lp, phi, seed, dt, filename, 0) {}
 
 // DESTRUCTORS
 
