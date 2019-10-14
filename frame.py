@@ -212,6 +212,8 @@ class _Frame:
         self.ax.set_ylim([-self.box_size/2, self.box_size/2])
         self.ax.set_ylabel(r'$y$')
         self.ax.set_aspect('equal')
+        self.ax.tick_params(axis='both', which='both', direction='in',
+            bottom=True, top=True, left=True, right=True)
 
         self.positions = dat.getPositions(frame, centre=centre) # particles' positions at frame frame with centre as centre of frame
         self.diameters = np.full((dat.N,), fill_value=1)        # particles' diameters at frame frame
