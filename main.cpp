@@ -25,7 +25,7 @@ int main() {
   int nWork = getEnvInt("NWORK", 0); // number of frames on which to compute active work
 
   // particle output
-  bool dump = getEnvBool("DUMP", true); // dump positions and orientations to output file
+  bool dump = getEnvBool("DUMP", 1); // dump positions and orientations to output file
 
   // SYSTEM
 
