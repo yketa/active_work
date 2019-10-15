@@ -3,6 +3,7 @@ from collections import OrderedDict
 
 from active_work.read import Dat
 from active_work.scde import PDF
+from active_work.maths import Histogram
 
 class ActiveWork(Dat):
     """
@@ -39,6 +40,42 @@ class ActiveWork(Dat):
 
         pdf = PDF(self.nWork(n))
         return pdf.axes[0], pdf.pdf
+
+    def nWorkHist(self, n, nBins, vmin=None, vmax=None, log=False,
+        rescaled_to_max=False):
+        """
+        Returns histogram with `nBins' bins of active work sums averaged on
+        packs of `n'.
+        """
+
+        workSums = self.nWork(n)
+
+        if vmin == None: vmin = workSums.min()
+        if vmax == None: vmax = workSums.max()
+        histogram = Histogram(nBins, vmin, vmax)
+        histogram.add_values(*workSums)
+
+        bins = histogram.bins
+        hist = histogram.get_histogram()
+        if rescaled_to_max: hist /= hist.max()
+        if not(log): return bins, hist
+        else: return bins[hist > 0], np.log(hist[hist > 0])
+
+    def nWorkGauss(self, n, *x,
+        rescaled_to_max=False):
+        """
+        Returns values of the Gaussian function corresponding to the mean and
+        variance of self.nWork(n).
+        """
+
+        workSums = self.nWork(n)
+        if rescaled_to_max: norm = 1
+        else: norm = np.sqrt(2*np.pi*workSums.var())
+        gauss = lambda y: (
+            np.exp(-((y - workSums.mean())**2)/(2*workSums.var()))
+            /norm)
+
+        return np.array(list(map(gauss, x)))
 
     def getWorks(self, tau, n_max=100, init=None):
         """
