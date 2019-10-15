@@ -17,7 +17,7 @@
 Dat::Dat(std::string filename) :
   inputFileStream(filename.c_str(), std::ios::in | std::ios::binary),
   numberParticles(), persistenceLength(), packingFraction(), systemSize(),
-    randomSeed(), timeStep(), framesWork() {
+    randomSeed(), timeStep(), framesWork(), dumpParticles() {
 
   // HEADER INFORMATION
   inputFileStream.read((char*) &numberParticles, sizeof(int));
@@ -27,19 +27,20 @@ Dat::Dat(std::string filename) :
   inputFileStream.read((char*) &randomSeed, sizeof(int));
   inputFileStream.read((char*) &timeStep, sizeof(double));
   inputFileStream.read((char*) &framesWork, sizeof(int));
+  inputFileStream.read((char*) &dumpParticles, sizeof(bool));
 
   // FILE PARTS LENGTHS
   headerLength = inputFileStream.tellg();
-  particleLength = 3*sizeof(double);
+  particleLength = 3*sizeof(double)*dumpParticles;
   frameLength = numberParticles*particleLength;
 
   // ESTIMATION OF NUMBER OF COMPUTED WORK SUMS AND FRAMES
   inputFileStream.seekg(0, std::ios_base::end);
   fileSize = inputFileStream.tellg();
-  std::cout << fileSize << std::endl;
   numberWork = (fileSize - headerLength - frameLength)/(
     framesWork*frameLength + sizeof(double));
-  frames = (fileSize - headerLength - numberWork*sizeof(double))/frameLength;
+  frames = !dumpParticles ? 0 :
+    (fileSize - headerLength - numberWork*sizeof(double))/frameLength;
 
   // FILE CORRUPTION CHECK
   if ( fileSize !=

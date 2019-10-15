@@ -24,9 +24,12 @@ int main() {
   // active work computation
   int nWork = getEnvInt("NWORK", 0); // number of frames on which to compute active work
 
+  // particle output
+  bool dump = getEnvBool("DUMP", true); // dump positions and orientations to output file
+
   // SYSTEM
 
-  System system(N, lp, phi, seed, dt, filename, nWork); // custom number of frames for active work computation
+  System system(N, lp, phi, seed, dt, filename, nWork, dump); // custom number of frames for active work computation
   system.saveInitialState(); // save first frame
 
   // ITERATION

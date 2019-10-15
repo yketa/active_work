@@ -20,18 +20,19 @@ class Dat:
         self.fileSize = os.path.getsize(filename)
 
         # HEADER INFORMATION
-        self.N = self._read('i')            # number of particles
-        self.lp = self._read('d')           # persistence length
-        self.phi = self._read('d')          # packing fraction
-        self.L = self._read('d')            # system size
-        self.seed = self._read('i')         # random seed
-        self.dt = self._read('d')           # time step
-        self.framesWork = self._read('i')   # number of frames on which to sum the active work before dumping
+        self.N = self._read('i')                # number of particles
+        self.lp = self._read('d')               # persistence length
+        self.phi = self._read('d')              # packing fraction
+        self.L = self._read('d')                # system size
+        self.seed = self._read('i')             # random seed
+        self.dt = self._read('d')               # time step
+        self.framesWork = self._read('i')       # number of frames on which to sum the active work before dumping
+        self.dumpParticles = self._read('b')    # dump positions and orientations to output file
 
         # FILE PARTS LENGTHS
-        self.headerLength = self.file.tell()            # length of header in bytes
-        self.particleLength = 3*self._bpe('d')          # length the data of a single particle takes in a frame
-        self.frameLength = self.N*self.particleLength   # length the data of a single frame takes in a file
+        self.headerLength = self.file.tell()                        # length of header in bytes
+        self.particleLength = 3*self._bpe('d')*self.dumpParticles   # length the data of a single particle takes in a frame
+        self.frameLength = self.N*self.particleLength               # length the data of a single frame takes in a file
 
         # ESTIMATION OF NUMBER OF COMPUTED WORK SUMS AND FRAMES
         self.numberWork = (self.fileSize
@@ -39,7 +40,8 @@ class Dat:
             - self.frameLength                                  # first frame
             )//(
             self.framesWork*self.frameLength + self._bpe('d'))  # number of cumputed work sums
-        self.frames = (self.fileSize - self.headerLength
+        self.frames = 0 if not(self.dumpParticles) else (
+            self.fileSize - self.headerLength
             - self.numberWork*self._bpe('d'))//self.frameLength # number of frames which the file contains
 
         # FILE CORRUPTION CHECK

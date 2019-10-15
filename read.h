@@ -59,6 +59,7 @@ class Dat {
     int const randomSeed; // random seed
     double const timeStep; // time step
     int const framesWork; // number of frames on which to sum the active work before dumping
+    bool const dumpParticles; // positions and orientations dumped in file
 
     std::ifstream inputFileStream; // input file stream
     long int fileSize; // size of file

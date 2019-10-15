@@ -40,11 +40,11 @@ void Particle::copy(Particle *particle) {
 
 System::System(
   int N, double lp, double phi, int seed, double dt, std::string filename,
-  int nWork) :
+  int nWork, bool dump) :
   numberParticles(N), persistenceLength(lp), packingFraction(phi),
     systemSize(sqrt(M_PI*N/phi)/2), randomSeed(seed), timeStep(dt),
     outputFile(filename),
-  framesWork(nWork > 0 ? nWork : (int) lp/dt),
+  framesWork(nWork > 0 ? nWork : (int) lp/dt), dumpParticles(dump),
   randomGenerator(), particles(N), outputFileStream(
     filename.c_str(), std::ios::out | std::ios::binary),
   dumpFrame(-1), workSum(0) {
@@ -60,6 +60,7 @@ System::System(
     outputFileStream.write((char*) &randomSeed, sizeof(int));
     outputFileStream.write((char*) &timeStep, sizeof(double));
     outputFileStream.write((char*) &framesWork, sizeof(int));
+    outputFileStream.write((char*) &dumpParticles, sizeof(bool));
 
     // putting particles on a grid with random orientation
     int gridSize = ceil(sqrt(numberParticles)); // size of the grid on which to put the particles
@@ -74,9 +75,10 @@ System::System(
 }
 
 System::System(
-  int N, double lp, double phi, int seed, double dt, std::string filename) :
+  int N, double lp, double phi, int seed, double dt, std::string filename,
+  bool dump) :
   // DELEGATING CONSTRUCTOR
-  System::System(N, lp, phi, seed, dt, filename, 0) {}
+  System::System(N, lp, phi, seed, dt, filename, 0, dump) {}
 
 // DESTRUCTORS
 
@@ -139,13 +141,16 @@ void System::saveInitialState() {
   // Saves initial state of particles to output file.
 
   // output
-  for (int i=0; i < numberParticles; i++) { // output all particles
-    for (int dim=0; dim < 2; dim++) { // output position in each dimension
-      outputFileStream.write((char*) &(particles[i].position()[dim]),
-        sizeof(double));
+  if ( dumpParticles ) {
+
+    for (int i=0; i < numberParticles; i++) { // output all particles
+      for (int dim=0; dim < 2; dim++) { // output position in each dimension
+        outputFileStream.write((char*) &(particles[i].position()[dim]),
+          sizeof(double));
+      }
+      outputFileStream.write((char*) particles[i].orientation(),
+        sizeof(double)); // output orientation
     }
-    outputFileStream.write((char*) particles[i].orientation(),
-      sizeof(double)); // output orientation
   }
 
   // last frame dumped
@@ -179,13 +184,17 @@ void System::saveNewState(Particle *newParticles) {
         newParticles[i].position()[dim] += systemSize;
       }
       // output wrapped position in each dimension
-      outputFileStream.write((char*) &(newParticles[i].position()[dim]),
-        sizeof(double));
+      if ( dumpParticles ) {
+        outputFileStream.write((char*) &(newParticles[i].position()[dim]),
+          sizeof(double));
+      }
     }
 
     // ORIENTATION
-    outputFileStream.write((char*) newParticles[i].orientation(),
-      sizeof(double));
+    if ( dumpParticles ) {
+      outputFileStream.write((char*) newParticles[i].orientation(),
+        sizeof(double));
+    }
   }
 
   // ACTIVE WORK (output)
