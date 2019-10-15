@@ -3,6 +3,7 @@
 
 #include <fstream>
 #include <string>
+#include <vector>
 
 /////////////
 // CLASSES //
@@ -32,21 +33,20 @@ class Dat {
     double getPackingFraction() const; // returns packing fraction
     double getSystemSize() const; // returns system size
     int getRandomSeed() const; // returns random seed
+    double getTimeStep() const; // returns time step
+    int getFramesWork() const; // returns number of frames on which to sum the active work before dumping
 
-    int getFrames() const; // returns total number of frames
+    long int getNumberWork() const; // returns number of computed work sums
+    long int getFrames() const; // returns number of frames
 
-    void getActiveWork(double* work, int const& frame, int const& particle);
-      // Returns work of particle between frames `frame' - 1 and `frame'.
-    double getActiveWork(int const& frame, int const& particle);
-      // Returns work of particle between frames `frame' - 1 and `frame'.
+    std::vector<double> getActiveWork();
+      // Returns vector of computed active work sums.
+
     double getPosition(
-      int const& frame, int const& particle, int const& dimension,
-      bool const& wrapped = true);
+      int const& frame, int const& particle, int const& dimension);
       // Returns position of a given particle at a given frame.
     double getOrientation(int const& frame, int const& particle);
       // Returns position of a given particle at a given frame.
-    double getTimeStep(int const& frame);
-      // Returns time step at a given frame.
 
   private:
 
@@ -57,10 +57,20 @@ class Dat {
     double const packingFraction; // packing fraction
     double const systemSize; // size of the system
     int const randomSeed; // random seed
+    double const timeStep; // time step
+    int const framesWork; // number of frames on which to sum the active work before dumping
 
     std::ifstream inputFileStream; // input file stream
-    int headerLength; // length of header in input file
-    int frames; // number of frames
+    long int fileSize; // size of file
+
+    long int headerLength; // length of header in input file
+    long int particleLength; // length the data of a single particle takes in a frame
+    long int frameLength; // length the data of a single frame takes in a file
+
+    long int numberWork; // number of computed work sums
+    long int frames; // number of frames
+
+    std::vector<double> activeWork; // computed active work sums
 
 };
 
