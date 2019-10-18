@@ -5,8 +5,8 @@ Module maths provides useful mathematic tools.
 """
 
 import numpy as np
-
 import math
+from collections import OrderedDict
 
 def relative_positions(positions, point, box_size):
     """
@@ -232,3 +232,37 @@ class Histogram:
         if binned_values == 0: return self.hist # no binned value
         else: self.hist /= np.sum(self.hist)
         return self.hist
+
+def linspace(init, fin, number):
+    """
+    Returns linearly spaced integer between `init' and `fin' with a maximum of
+    `number' of them.
+    """
+
+    return np.array(list(OrderedDict.fromkeys(np.linspace(
+        init, fin, number,
+        endpoint=True, dtype=int))))
+
+def logspace(init, fin, number):
+    """
+    Returns logarithmically spaced integer between `init' and `fin' with a
+    maximum of `number' of them.
+    """
+
+    return np.array(list(OrderedDict.fromkeys(map(lambda x: int(round(x)),
+        np.exp(np.linspace(
+            np.log(init), np.log(fin), number,
+            endpoint=True))))))
+
+def meanStdCut(array, cut):
+    """
+    Returns mean and standard deviation of array with values farther than
+    `cut' * array.std() if the mean removed.
+    """
+
+    array = np.array(array)
+
+    if cut == None: return array.mean(), array.std()
+
+    array = array[np.abs(array - array.mean()) < cut*array.std()]
+    return array.mean(), array.std()
