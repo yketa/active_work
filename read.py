@@ -1,6 +1,7 @@
 import struct
 import numpy as np
 import os
+from tempfile import TemporaryFile
 
 from active_work.maths import relative_positions
 
@@ -28,6 +29,7 @@ class Dat:
         self.dt = self._read('d')               # time step
         self.framesWork = self._read('i')       # number of frames on which to sum the active work before dumping
         self.dumpParticles = self._read('b')    # dump positions and orientations to output file
+        # self.dumpParticles = True
 
         # FILE PARTS LENGTHS
         self.headerLength = self.file.tell()                        # length of header in bytes
@@ -51,7 +53,7 @@ class Dat:
             + self.numberWork*self._bpe('d')):  # work sums
             raise ValueError("Invalid file size.")
 
-        # ACTIVE WORK
+        # COMPUTED NORMALISED RATE OF ACTIVE WORK
         self.activeWork = np.empty(self.numberWork)
         for i in range(self.numberWork):
             self.file.seek(
@@ -61,8 +63,13 @@ class Dat:
                 + i*self._bpe('d'))                         # previous values of the active work
             self.activeWork[i] = self._read('d')
 
+        # ACTIVE WORK
+        self.tempFileActiveWork = TemporaryFile(mode='w+b')
+        self.computedActiveWork = []
+
     def __del__(self):
         self.file.close()
+        self.tempFileActiveWork.close()
 
     def getWork(self, time0, time1):
         """
@@ -70,12 +77,14 @@ class Dat:
         """
 
         work = np.sum(list(map(
-            lambda t: np.sum(list(map(      # sum over time
-                lambda u, dr: np.dot(u,dr), # sum over particles
-                *(self.getDisplacements(t, t + 1),
-                    self.getDirections(t) + self.getDirections(t + 1))))),
+            lambda t: self._work(t),
+            # lambda t: np.sum(list(map(      # sum over time
+            #     lambda u, dr: np.dot(u,dr), # sum over particles
+            #     *(self.getDisplacements(t, t + 1),
+            #         self.getDirections(t) + self.getDirections(t + 1))))),
             range(int(time0), int(time1)))))
-        work /= 2*self.N*self.dt*(time1 - time0)
+        # work /= 2*self.N*self.dt*(time1 - time0)
+        work /= self.N*self.dt*(time1 - time0)
 
         return work
 
@@ -139,6 +148,15 @@ class Dat:
             lambda theta: np.array([np.cos(theta), np.sin(theta)]),
             self.getOrientations(time, *particle))))
 
+    def getOrderParameter(self, time, norm=False):
+        """
+        Returns order parameter, i.e. mean direction, at time.
+        """
+
+        orderParameter = np.sum(self.getDirections(time), axis=0)/self.N
+        if norm: return np.sqrt(np.sum(orderParameter**2))
+        return orderParameter
+
     def _position(self, time, particle):
         """
         Returns array of position of particle at time.
@@ -163,6 +181,34 @@ class Dat:
             + 2*self._bpe('d')                                          # positions
             + (np.max([time - 1, 0])//self.framesWork)*self._bpe('d'))  # active work sums (taking into account the frame with index 0)
         return self._read('d')
+
+    def _work(self, time):
+        """
+        Returns active work between `time' and `time' + 1.
+        """
+
+        time = int(time)
+
+        if time in self.computedActiveWork: # active work has already been computed
+
+            self.tempFileActiveWork.seek(self._bpe('d')*
+                self.computedActiveWork.index(time))
+            return struct.unpack('d',
+                self.tempFileActiveWork.read(self._bpe('d')))[0]
+
+        else:   # active work has to be computed and dumped
+
+            work = np.sum(list(map(         # sum over time
+                lambda u, dr: np.dot(u,dr), # sum over particles
+                *(self.getDisplacements(time, time + 1),
+                    self.getDirections(time)
+                        + self.getDirections(time + 1)))))/2
+
+            self.tempFileActiveWork.seek(0, 2)                      # go to end of file
+            self.tempFileActiveWork.write(struct.pack('d', work))   # dump
+            self.computedActiveWork += [time]
+
+            return work
 
     def _bpe(self, type):
         """
