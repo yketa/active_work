@@ -107,13 +107,13 @@ class ActiveWork(Dat):
 
         return np.array(cor)
 
-    def corWorkOrder(self, n_max=100, int_max=None, max=None):
+    def corWorkOrder(self, n_max=100, int_max=None, max=None, log=False):
         """
 
         """
 
         cor = []
-        for n in self._n(n_max=n_max, max=max, log=True):
+        for n in self._n(n_max=n_max, max=max, log=log):
             works = (lambda l: l - np.mean(l))(self.nWork(n, int_max=int_max))  # fluctuations of the active wok on intervals of size n
             orders = (lambda l: l - np.mean(l))(np.array(list(map(              # fluctations of the order parameter norm at the beginning of these intervals
                 lambda t: self.getOrderParameter(t, norm=True),
@@ -124,7 +124,7 @@ class ActiveWork(Dat):
         return np.array(cor)
 
     def corOrderOrder(self, n_max=100, int_max=100, max=None, norm=False,
-        log=True):
+        log=False):
         """
 
         """
