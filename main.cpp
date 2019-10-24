@@ -26,10 +26,11 @@ int main() {
 
   // particle output
   bool dump = getEnvBool("DUMP", 1); // dump positions and orientations to output file
+  int period = getEnvInt("PERIOD", 1); // period of dumping of positions and orientations in number of frames
 
   // SYSTEM
 
-  System system(N, lp, phi, seed, dt, filename, nWork, dump); // custom number of frames for active work computation
+  System system(N, lp, phi, seed, dt, filename, nWork, dump, period); // custom number of frames for active work computation
   system.saveInitialState(); // save first frame
 
   // ITERATION

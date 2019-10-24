@@ -29,7 +29,7 @@ class Dat:
         self.dt = self._read('d')               # time step
         self.framesWork = self._read('i')       # number of frames on which to sum the active work before dumping
         self.dumpParticles = self._read('b')    # dump positions and orientations to output file
-        # self.dumpParticles = True
+        self.dumpPeriod = self._read('i')       # period of dumping of positions and orientations in number of frames
 
         # FILE PARTS LENGTHS
         self.headerLength = self.file.tell()                        # length of header in bytes

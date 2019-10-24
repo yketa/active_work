@@ -65,10 +65,7 @@ class System {
 
     System(
       int N, double lp, double phi, int seed, double dt, std::string filename,
-      int nWork, bool dump = true);
-    System(
-      int N, double lp, double phi, int seed, double dt, std::string filename,
-      bool dump = true);
+      int nWork = 0, bool dump = true, int period = 1);
 
     // DESTRUCTORS
 
@@ -114,6 +111,7 @@ class System {
     int const framesWork; // number of frames on which to sum the active work before dumping
       // taken roughly equal to lp/dt
     bool const dumpParticles; // dump positions and orientations to output file
+    int const dumpPeriod; // period of dumping of positions and orientations in number of frames
 
     rnd randomGenerator; // random number generator
     std::vector<Particle> particles; // vector of particles
@@ -122,6 +120,29 @@ class System {
 
     int dumpFrame; // index of last frame dumped
     double workSum; // sum of the active works since the last dump
+
+};
+
+
+// CELL LIST
+
+class CellList {
+
+  public:
+
+    // CONSTRUCTORS
+
+    CellList();
+
+    // DESTRUCTORS
+
+    ~CellList();
+
+    // METHODS
+
+  private:
+
+    // ATTRIBUTES
 
 };
 

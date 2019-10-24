@@ -40,11 +40,12 @@ void Particle::copy(Particle *particle) {
 
 System::System(
   int N, double lp, double phi, int seed, double dt, std::string filename,
-  int nWork, bool dump) :
+  int nWork, bool dump, int period) :
   numberParticles(N), persistenceLength(lp), packingFraction(phi),
     systemSize(sqrt(M_PI*N/phi)/2), randomSeed(seed), timeStep(dt),
     outputFile(filename),
-  framesWork(nWork > 0 ? nWork : (int) lp/dt), dumpParticles(dump),
+  framesWork(nWork > 0 ? nWork : (int) lp/(dt*period)), dumpParticles(dump),
+    dumpPeriod(period),
   randomGenerator(), particles(N), outputFileStream(
     filename.c_str(), std::ios::out | std::ios::binary),
   dumpFrame(-1), workSum(0) {
@@ -61,6 +62,7 @@ System::System(
     outputFileStream.write((char*) &timeStep, sizeof(double));
     outputFileStream.write((char*) &framesWork, sizeof(int));
     outputFileStream.write((char*) &dumpParticles, sizeof(bool));
+    outputFileStream.write((char*) &dumpPeriod, sizeof(int));
 
     // putting particles on a grid with random orientation
     int gridSize = ceil(sqrt(numberParticles)); // size of the grid on which to put the particles
@@ -73,12 +75,6 @@ System::System(
       particles[i].orientation()[0] = 2*M_PI*randomGenerator.random01();
     }
 }
-
-System::System(
-  int N, double lp, double phi, int seed, double dt, std::string filename,
-  bool dump) :
-  // DELEGATING CONSTRUCTOR
-  System::System(N, lp, phi, seed, dt, filename, 0, dump) {}
 
 // DESTRUCTORS
 
@@ -184,22 +180,22 @@ void System::saveNewState(Particle *newParticles) {
         newParticles[i].position()[dim] += systemSize;
       }
       // output wrapped position in each dimension
-      if ( dumpParticles ) {
+      if ( dumpParticles && dumpFrame % dumpPeriod == 0 ) {
         outputFileStream.write((char*) &(newParticles[i].position()[dim]),
           sizeof(double));
       }
     }
 
     // ORIENTATION
-    if ( dumpParticles ) {
+    if ( dumpParticles && dumpFrame % dumpPeriod == 0 ) {
       outputFileStream.write((char*) newParticles[i].orientation(),
         sizeof(double));
     }
   }
 
   // ACTIVE WORK (output)
-  if (dumpFrame % framesWork == 0) {
-    workSum /= numberParticles*timeStep*framesWork;
+  if ( dumpFrame % (framesWork*dumpPeriod) == 0 ) {
+    workSum /= numberParticles*timeStep*framesWork*dumpPeriod;
     outputFileStream.write((char*) &workSum, sizeof(double));
     workSum = 0;
   }

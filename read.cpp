@@ -17,7 +17,7 @@
 Dat::Dat(std::string filename) :
   inputFileStream(filename.c_str(), std::ios::in | std::ios::binary),
   numberParticles(), persistenceLength(), packingFraction(), systemSize(),
-    randomSeed(), timeStep(), framesWork(), dumpParticles() {
+    randomSeed(), timeStep(), framesWork(), dumpParticles(), dumpPeriod() {
 
   // HEADER INFORMATION
   inputFileStream.read((char*) &numberParticles, sizeof(int));
@@ -28,6 +28,7 @@ Dat::Dat(std::string filename) :
   inputFileStream.read((char*) &timeStep, sizeof(double));
   inputFileStream.read((char*) &framesWork, sizeof(int));
   inputFileStream.read((char*) &dumpParticles, sizeof(bool));
+  inputFileStream.read((char*) &dumpPeriod, sizeof(int));
 
   // FILE PARTS LENGTHS
   headerLength = inputFileStream.tellg();
