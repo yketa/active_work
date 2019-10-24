@@ -11,8 +11,9 @@
 // CLASSES //
 /////////////
 
-
-// PARTICLE
+/************
+ * PARTICLE *
+ ************/
 
 // CONSTRUCTORS
 
@@ -34,7 +35,93 @@ void Particle::copy(Particle *particle) {
   theta = particle->orientation()[0];
 }
 
-// SYSTEM
+
+/*************
+ * CELL LIST *
+ *************/
+
+// CONSTRUCTORS
+
+CellList::CellList() {}
+
+// DESTRUCTORS
+
+CellList::~CellList() {}
+
+// METHODS
+
+void CellList::initialise(System *system, double const& rcut) {
+  // Initialise cell list.
+
+  // parameters of cell list
+  cutOff = rcut;
+  numberBoxes = std::max((int) (system->getSystemSize()/rcut), 1);
+  sizeBox = system->getSystemSize()/numberBoxes;
+
+  // set size of cell list
+  for (int i=0; i < pow(numberBoxes, 2); i++) {
+    cellList.push_back(std::vector<int>());
+  }
+
+  // set number of neighbours to explore
+  if ( numberBoxes == 1 ) { dmin = 1; }
+  else if ( numberBoxes == 2 ) { dmin = 0; }
+  else { dmin = -1; }
+
+  // put particles in the boxes
+  update(system);
+}
+
+void CellList::update(System *system) {
+  // Put particles in the cell list.
+
+  // flush old lists
+  for (int i=0; i < cellList.size(); i++) {
+    cellList[i].clear();
+  }
+
+  // create new lists
+  for (int i=0; i < system->getNumberParticles(); i++) {
+    cellList[index(system->getParticle(i))].push_back(i);
+  }
+}
+
+int CellList::index(Particle *particle) {
+  // Index of the box corresponding to a given particle.
+
+  return (int) ((particle->position())[0]/sizeBox)
+    + numberBoxes*((int) ((particle->position())[1]/sizeBox));
+}
+
+std::vector<int> CellList::getNeighbours(Particle *particle) {
+  // Returns vector of indexes of neighbouring particles.
+
+  std::vector<int> neighbours; // vector of neighbouring particles
+
+  int indexParticle = index(particle);
+  int x = indexParticle%numberBoxes;
+  int y = indexParticle/numberBoxes;
+
+  int neighbourIndex;
+  for (int dx=dmin; dx < 2; dx++) {
+    for (int dy=dmin; dy < 2; dy++) {
+      neighbourIndex =
+        (numberBoxes + (x + dx))%numberBoxes
+          + numberBoxes*((numberBoxes + (y + dy))%numberBoxes); // index of neighbouring cell
+      neighbours.insert(
+        std::end(neighbours),
+        std::begin(cellList[neighbourIndex]),
+        std::end(cellList[neighbourIndex])); // add particle indexes of neighbouring cell
+    }
+  }
+
+  return neighbours;
+}
+
+
+/**********
+ * SYSTEM *
+ **********/
 
 // CONSTRUCTORS
 
@@ -46,8 +133,9 @@ System::System(
     outputFile(filename),
   framesWork(nWork > 0 ? nWork : (int) lp/(dt*period)), dumpParticles(dump),
     dumpPeriod(period),
-  randomGenerator(), particles(N), outputFileStream(
-    filename.c_str(), std::ios::out | std::ios::binary),
+  randomGenerator(), particles(N),
+    outputFileStream(filename.c_str(), std::ios::out | std::ios::binary),
+    cellList(),
   dumpFrame(-1), workSum(0) {
 
     // set seed of random generator
@@ -74,6 +162,9 @@ System::System(
       // random orientation
       particles[i].orientation()[0] = 2*M_PI*randomGenerator.random01();
     }
+
+    // initialise cell list
+    cellList.initialise(this, pow(2., 1./6.));
 }
 
 // DESTRUCTORS
@@ -94,42 +185,70 @@ rnd* System::getRandomGenerator() { return &randomGenerator; }
 Particle* System::getParticle(int index) { return &(particles[index]); }
 std::ofstream* System::getOutputFileStream() { return &outputFileStream; }
 
-double System::getDistance(int index1, int index2) {
-  // Returns distance between two particles in a given system.
+std::vector<int> System::getNeighbours(int const& index) {
+  // Returns vector of indexes of neighbouring particles.
 
-  double diff[2];
-  double coord[2];
-  for (int dim=0; dim < 2; dim++) {
-    coord[0] = particles[index1].position()[dim];
-    coord[1] = particles[index2].position()[dim];
-    diff[dim] = std::min(
-      std::min(
-        fabs(coord[0]) + fabs(systemSize - coord[1]),
-        fabs(systemSize - coord[0]) + fabs(coord[1])),
-      fabs(coord[0] - coord[1])); // separation in each direction accounting for periodic boundaries
-  }
-  return sqrt(pow(diff[0], 2) + pow(diff[1], 2));
+  return cellList.getNeighbours(&(particles[index]));
 }
 
-void System::WCA_potential(int index1, int index2, double *force) {
+double System::diffPeriodic(double const& x1, double const& x2) {
+  // Returns algebraic distance from `x1' to `x2' on a line taking into account
+  // periodic boundary condition of the system.
+
+  double diff = x2 - x1;
+
+  if ( fabs(diff) > systemSize/2 ) {
+    double diff1 = fabs(x1) + fabs(systemSize - x2);
+    double diff2 = fabs(systemSize - x1) + fabs(x2);
+    if ( diff1 < diff2 ) { diff = diff1; }
+    else { diff = diff2; }
+    diff *= (diff > 0 ? -1 : 1);
+  }
+
+  return diff;
+}
+
+double System::getDistance(int const& index1, int const& index2) {
+  // Returns distance between two particles in a given system.
+
+  return sqrt(
+      pow(
+        diffPeriodic( // separation in x position
+          particles[index1].position()[0],
+          particles[index2].position()[0]),
+        2)
+      + pow( // separation in y position
+        diffPeriodic(
+          particles[index1].position()[1],
+          particles[index2].position()[1]),
+        2));
+}
+
+void System::WCA_potential(int const& index1, int const& index2,
+  double *force) {
   // Writes WCA force acting on particles[index1] by particles[index2] onto
   // `force`.
 
-  double dist = this->getDistance(index1, index2); // dimensionless distance between particles
+  if ( index1 == index2 ) { force[0] = 0; force[1] = 0; } // same particle
+  else {
 
-  if (dist < pow(2, 1./6.)) { // distance lower than cut-off
-    double coeff = 48/pow(dist, 14) - 24/pow(dist, 8);
-    for (int dim=0; dim < 2; dim++) {
-      force[dim] =
-        remainder(
-          particles[index1].position()[dim] - particles[index2].position()[dim],
-          systemSize/2)
-        *coeff;
+    double dist = this->getDistance(index1, index2); // dimensionless distance between particles
+
+    double diff;
+    if (dist < pow(2, 1./6.)) { // distance lower than cut-off
+      double coeff = 48/pow(dist, 14) - 24/pow(dist, 8);
+      for (int dim=0; dim < 2; dim++) {
+        force[dim] =
+          diffPeriodic(
+            particles[index2].position()[dim],
+            particles[index1].position()[dim])
+          *coeff;
+      }
     }
-  }
-  else { // distance greater than cut-off
-    force[0] = 0;
-    force[1] = 0;
+    else { // distance greater than cut-off
+      force[0] = 0;
+      force[1] = 0;
+    }
   }
 }
 
@@ -204,4 +323,6 @@ void System::saveNewState(Particle *newParticles) {
   for (int i=0; i < numberParticles; i++) {
     particles[i].copy(&(newParticles[i]));
   }
+  // UPDATING CELL LIST
+  cellList.update(this);
 }

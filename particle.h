@@ -11,8 +11,15 @@
 // CLASSES //
 /////////////
 
+class Particle;
+class System;
+class CellList;
 
-// PARTICLE
+
+/*  PARTICLE
+ *  --------
+ *  Store positions and orientation of a given particle.
+ */
 
 class Particle {
 
@@ -41,7 +48,58 @@ class Particle {
 };
 
 
-// SYSTEM
+/*  CELL LIST
+ *  --------
+ *  Speed up computation by storing closest neighbours.
+ */
+
+class CellList {
+
+  public:
+
+    // CONSTRUCTORS
+
+    CellList();
+
+    // DESTRUCTORS
+
+    ~CellList();
+
+    // METHODS
+
+    void initialise(System *system, double const& rcut);
+      // Initialise cell list.
+
+    void update(System *system);
+      // Put particles in the cell list.
+
+    int index(Particle *particle);
+      // Index of the box corresponding to a given particle.
+
+    std::vector<int> getNeighbours(Particle *particle);
+      // Returns vector of indexes of neighbouring particles.
+
+  private:
+
+    // ATTRIBUTES
+
+    double cutOff; // cut-off radius of the interactions
+
+    int numberBoxes; // number of boxes in each dimension
+    double sizeBox; // size of each box
+    int dmin; // trick to avoid putting too much neighbours when rcut is large
+
+    std::vector<std::vector<int>> cellList; // cells with indexes of particles
+
+};
+
+
+/*  SYSTEM
+ *  --------
+ *  Store physical and integration parameter.
+ *  Access to distance and potentials.
+ *  Save system state to output file.
+ */
 
 class System {
   /*  Contains all the details to simulate a system of active particles.
@@ -50,13 +108,19 @@ class System {
    *  Parameters are stored in a binary file with the following structure:
    *
    *  [HEADER (see System::System)]
-   *  | (int) N | (double) lp | (double) phi | (double) L | (int) seed | (double) dt | (int) framesWork |
+   *  | (int) N | (double) lp | (double) phi | (double) L | (int) seed | (double) dt | (int) framesWork | (bool) dump | (int) period |
+   *
+   *  [INITIAL FRAME]
+   *  ||                FRAME 0                 ||
+   *  ||      PARTICLE 1     | ... | PARTICLE N ||
+   *  ||   R   | ORIENTATION | ... |     ...    ||
+   *  || X | Y |    theta    | ... |     ...    ||
    *
    *  [BODY (see System::saveInitialState & System::saveNewState)] (all double)
-   *  ||                FRAME 1                 || ... || FRAME framesWork ||                    || ...
-   *  ||      PARTICLE 1     | ... | PARTICLE N || ... ||        ...       ||                    || ...
-   *  ||   R   | ORIENTATION | ... |     ...    || ... ||        ...       || SUMMED ACTIVE WORK || ...
-   *  || X | Y |    theta    | ... |     ...    || ... ||        ...       ||          W         || ...
+   *  ||             FRAME period*1             || ... || FRAME period*framesWork ||                    || ...
+   *  ||      PARTICLE 1     | ... | PARTICLE N || ... ||        ...              ||                    || ...
+   *  ||   R   | ORIENTATION | ... |     ...    || ... ||        ...              || SUMMED ACTIVE WORK || ...
+   *  || X | Y |    theta    | ... |     ...    || ... ||        ...              ||          W         || ...
    */
 
   public:
@@ -85,9 +149,15 @@ class System {
     Particle* getParticle(int index); // returns pointer to given particle
     std::ofstream* getOutputFileStream(); // returns pointer to output file stream
 
-    double getDistance(int index1, int index2);
+    std::vector<int> getNeighbours(int const& index);
+      // Returns vector of indexes of neighbouring particles.
+    double diffPeriodic(double const& x1, double const& x2);
+      // Returns distance between two pointson a line taking into account periodic
+      // boundary condition.
+    double getDistance(int const& index1, int const& index2);
       // Returns distance between two particles in a given system.
-    void WCA_potential(int index1, int index2, double *force);
+    void WCA_potential(int const& index1, int const& index2,
+      double *force);
       // Writes WCA force acting on particles[index1] by particles[index2] onto
       // `force`.
 
@@ -117,32 +187,10 @@ class System {
     std::vector<Particle> particles; // vector of particles
     std::ofstream outputFileStream; // output file stream
       // WARNING: Content of file is erased.
+    CellList cellList; // cell list
 
     int dumpFrame; // index of last frame dumped
     double workSum; // sum of the active works since the last dump
-
-};
-
-
-// CELL LIST
-
-class CellList {
-
-  public:
-
-    // CONSTRUCTORS
-
-    CellList();
-
-    // DESTRUCTORS
-
-    ~CellList();
-
-    // METHODS
-
-  private:
-
-    // ATTRIBUTES
 
 };
 

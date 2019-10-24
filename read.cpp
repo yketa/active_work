@@ -5,11 +5,6 @@
 
 #include "read.h"
 
-/////////////
-// CLASSES //
-/////////////
-
-
 // DAT
 
 // CONSTRUCTORS

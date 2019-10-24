@@ -5,11 +5,6 @@
 #include <string>
 #include <vector>
 
-/////////////
-// CLASSES //
-/////////////
-
-
 // DAT
 
 class Dat {

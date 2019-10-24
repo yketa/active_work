@@ -4,10 +4,6 @@
 #include <random>
 #include <cmath>
 
-/////////////
-// CLASSES //
-/////////////
-
 class rnd {
   // This simple rnd class is a wrapper for the built-in c++ random number
   // generator.

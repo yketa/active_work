@@ -35,17 +35,17 @@ void iterate_ABP_WCA(System *system) {
   }
 
   double force[2];
+  std::vector<int> neighbours;
   for (int i=0; i < system->getNumberParticles(); i++) {
-    for (int j=i+1; j < system->getNumberParticles(); j++) {
+
+    neighbours = system->getNeighbours(i); // neighbour list
+    for (int j=0; j < neighbours.size(); j++) {
 
       // INTERACTIONS
-      system->WCA_potential(i, j, &force[0]); // force acting on i from j
-
+      system->WCA_potential(i, neighbours[j], &force[0]); // force acting on i from j
       for (int dim=0; dim < 2; dim++){
         newParticles[i].position()[dim] +=
           system->getTimeStep()*force[dim]/3/system->getPersistenceLength(); // add force to i
-        newParticles[j].position()[dim] -=
-          system->getTimeStep()*force[dim]/3/system->getPersistenceLength(); // substract force to j
       }
     }
   }
