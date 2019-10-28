@@ -1,3 +1,8 @@
+"""
+Module work provides classes to compute and analyse active work and active work
+autocorrelations and correlations with order parameter.
+"""
+
 import numpy as np
 from collections import OrderedDict
 from operator import itemgetter
@@ -15,28 +20,72 @@ class ActiveWork(Dat):
     def __init__(self, filename, skip=1):
         """
         Loads file.
+
+        Parameters
+        ----------
+        filename : string
+            Name of input data file.
+        skip : int
+            Skip the `skip' first computed values of the active work in the
+            following calculations. (default: 1)
+            NOTE: This can be changed at any time by setting self.skip.
         """
 
         super().__init__(filename)  # initialise with super class
 
         self.skip = skip    # skip the `skip' first measurements of the active work in the analysis
 
-    def nWork(self, n, int_max=None, sum=False):
+    def nWork(self, n, int_max=None):
         """
-        Returns active work sums averaged (or not) on packs of `n'.
+        Returns normalised rate of active work averaged on packs of size `n' of
+        consecutive individual active works.
+
+        NOTE: Individual active work refers to the normalised rate of active
+              work on self.dumpPeriod*self.framesWork consecutive frames and
+              stored as element of self.activeWork.
+
+        Parameters
+        ----------
+        n : int
+            Size of packs on which to average active work.
+        int_max : int or None
+            Maximum number of packs consider. (default: None)
+            NOTE: If int_max == None, then take the maximum number of packs.
+                  int_max cannot exceed the maximum number of nonoverlapping
+                  packs.
+
+        Returns
+        -------
+        workAvegared : float numpy array
+            Array of computed active works.
         """
 
         workAvegared = []
         for i in self._time0(n, int_max=int_max):
-            if sum: workAvegared += [self.activeWork[i:i + n].sum()]
-            else: workAvegared += [self.activeWork[i:i + n].mean()]
+            workAvegared += [self.activeWork[i:i + n].mean()]
 
         return np.array(workAvegared)
 
     def nWorkPDF(self, n):
         """
-        Returns probability density function of active work sums averaged on
-        packs of `n'.
+        Returns probability density function of normalised  rate ofactive work
+        on packs of `n' of consecutive individual active works.
+
+        NOTE: Individual active work refers to the normalised rate of active
+              work on self.dumpPeriod*self.framesWork consecutive frames and
+              stored as element of self.activeWork.
+
+        Parameters
+        ----------
+        n : int
+            Size of packs on which to average active work.
+
+        Returns
+        -------
+        axes : numpy array
+            Values at which the probability density function is evaluated.
+        pdf : float numpy array
+            Values of the probability density function.
         """
 
         pdf = PDF(self.nWork(n))
@@ -45,8 +94,34 @@ class ActiveWork(Dat):
     def nWorkHist(self, n, nBins, vmin=None, vmax=None, log=False,
         rescaled_to_max=False):
         """
-        Returns histogram with `nBins' bins of active work sums averaged on
-        packs of `n'.
+        Returns histogram with `nBins' bins of normalised rate of active work on packs of `n' of consecutive individual active works.
+
+        NOTE: Individual active work refers to the normalised rate of active
+              work on self.dumpPeriod*self.framesWork consecutive frames and
+              stored as element of self.activeWork.
+
+        Parameters
+        ----------
+        n : int
+            Size of packs on which to average active work.
+        nBins : int
+            Number of bins of the histogram.
+        vmin : float
+            Minimum value of the bins. (default: self.nWork(n).min())
+        vmax : float
+            Maximum value of the bins. (default: self.nWork(n).max())
+        log : bool
+            Consider the log of the occupancy of the bins. (default: False)
+        rescaled_to_max : bool
+            Rescale occupancy of the bins by its maximum over bins.
+            (default: False)
+
+        Returns
+        -------
+        bins : float numpy array
+            Values of the bins.
+        hist : float numpy array
+            Occupancy of the bins.
         """
 
         workSums = self.nWork(n)
@@ -67,6 +142,26 @@ class ActiveWork(Dat):
         """
         Returns values of the Gaussian function corresponding to the mean and
         variance of self.nWork(n).
+
+        Parameters
+        ----------
+        n : int
+            Size of packs on which to average active work.
+        x : float
+            Values at which to evaluate the Gaussian function.
+        cut : float or None
+            Width in units of self.nWork(n).std() to consider when computing
+            mean and standard deviation. (see active_work.maths.meanStdCut)
+            (default: None)
+            NOTE: if cut == None, the width is taken to infinity, i.e. no value
+                  is excluded.
+        rescaled_to_max : bool
+            Rescale function by its computed maximum. (default: False)
+
+        Returns
+        -------
+        gauss : float numpy array
+            Values of the Gaussian function at x.
         """
 
         workSums = self.nWork(n)
@@ -82,28 +177,193 @@ class ActiveWork(Dat):
 
         return np.array(list(map(gauss, x)))
 
-    def corWorkWork(self, tau0=1, n_max=100, int_max=None, max=None, sum=False,
-        log=True):
-        """
 
+    def corWorkWorkAve(self,
+        tau0=1, n_max=100, int_max=None, min=None, max=None, log=True):
+        """
+        Compute correlations of work averaged over `tau0' at the beginning of
+        an interval and work averaged over the whole interval.
+        (see https://yketa.github.io/DAMTP_2019_Wiki/#Active%20Brownian%20particles)
+
+        Parameters
+        ----------
+        tau0 : int
+            Number of consecutive individual active works on which to average
+            it. (default: 1)
+        n_max : int
+            Maximum number of values at which to evaluate the correlation.
+            (default: 100)
+        int_max : int or None
+            Maximum number of different intervals to consider in order to
+            compute the mean which appears in the correlation expression.
+            (default: None)
+            NOTE: if int_max == None, then a maximum number of disjoint
+                     intervals will be considered.
+        min : int or None
+            Minimum value at which to compute the correlation. (default: None)
+            NOTE: if min == None then this value is passed as `min' to self.n,
+                  otherwise the minimum of `tau0' and `min' is taken.
+        max : int or None
+            Maximum value at which to compute the correlation. (default: None)
+            NOTE: this value is passed as `max' to self.n.
+        log : bool
+            Logarithmically space values at which the correlations are
+            computed. (default: True)
+
+        Returns
+        -------
+        cor : (5, *) numpy array
+            Array of:
+                (0) value at which the correlation is computed,
+                (1) mean of the computed correlation,
+                (2) standard error of the computed correlation,
+                (3) standard deviation of the active work computed at the
+                    beginning of the interval,
+                (4) standard deviation of the active work computed over the
+                    interval.
         """
 
         cor = []
-        for n in self._n(n_max=n_max, min=tau0, max=max, log=log):
-            if sum == None: worksTot = (lambda l: l - np.mean(l))(
-                itemgetter(*(self._time0(n, int_max=int_max) + n))(
-                    self.activeWork))
-            else: worksTot = (lambda l: l - np.mean(l))(
-                self.nWork(n, int_max=int_max, sum=sum))                             # fluctuations of the active wok on intervals of size n
+        for n in self._n(n_max=n_max, max=max, log=log,
+            min=(None if min == None else np.max([min, tau0]))):
+            worksTot = (lambda l: l - np.mean(l))(
+                self.nWork(n, int_max=int_max))                     # fluctuations of the active wok on intervals of size n
             worksIni = (lambda l: l - np.mean(l))(
                 list(map(
-                    lambda t: (self.activeWork[t:t + tau0].sum() if sum
-                        else self.activeWork[t:t + tau0].mean()),    # fluctuations of the active work averaged on tau0 at the beginning of these intervals
+                    lambda t: self.activeWork[t:t + tau0].mean(),   # fluctuations of the active work averaged on tau0 at the beginning of these intervals
                     self._time0(n, int_max=int_max))))
-            # worksIni = (lambda l: l - np.mean(l))(  # fluctuations of the active work at the beginning of these intervals
-            #     itemgetter(*self._time0(n, int_max=int_max))(self.activeWork))
             workWork = worksTot*worksIni
-            cor += [[n, *mean_sterr(workWork)]]
+            cor += [[n, *mean_sterr(workWork),
+                np.std(worksTot), np.std(worksIni)]]
+
+        return np.array(cor)
+
+    def corWorkWorkIns(self,
+        tau0=1, n_max=100, int_max=None, min=None, max=None, log=True):
+        """
+        Compute correlations of work averaged over `tau0' between different
+        times.
+        (see https://yketa.github.io/DAMTP_2019_Wiki/#Correlations)
+
+        Parameters
+        ----------
+        tau0 : int
+            Number of consecutive individual active works on which to average
+            it. (default: 1)
+        n_max : int
+            Maximum number of values at which to evaluate the correlation.
+            (default: 100)
+        int_max : int or None
+            Maximum number of different intervals to consider in order to
+            compute the mean which appears in the correlation expression.
+            (default: None)
+            NOTE: if int_max == None, then a maximum number of disjoint
+                  intervals will be considered.
+        min : int or None
+            Minimum value at which to compute the correlation. (default: None)
+            NOTE: if min == None then min = `tau0', otherwise the minimum of
+                  `tau0' and `min' is taken.
+        max : int or None
+            Maximum value at which to compute the correlation. (default: None)
+            NOTE: this value is passed as `max' to self.n.
+        log : bool
+            Logarithmically space values at which the correlations are
+            computed. (default: True)
+
+        Returns
+        -------
+        cor : (5, *) numpy array
+            Array of:
+                (0) value at which the correlation is computed,
+                (1) mean of the computed correlation,
+                (2) standard error of the computed correlation,
+                (3) standard deviation of the active work computed at the
+                    beginning of the interval,
+                (4) standard deviation of the active work computed at the end
+                    of the interval.
+        """
+
+        cor = []
+        for n in self._n(n_max=n_max, log=log,
+            min=(2*tau0 if min == None else np.max([tau0 + min, 2*tau0])),
+            max=(None if max == None else tau0 + max)):
+            worksIni = (lambda l: l - np.mean(l))(
+                list(map(
+                    lambda t: self.activeWork[t:t + tau0].mean(),   # fluctuations of the active work averaged between t0 and t0 + tau0
+                    self._time0(n, int_max=int_max))))
+            worksFin = (lambda l: l - np.mean(l))(
+                list(map(
+                    lambda t: self.activeWork[t + n - tau0:t + n].mean(),       # fluctuations of the active work averaged between t0 and t0 + tau0
+                    self._time0(n, int_max=int_max))))
+            workWork = worksIni*worksFin
+            cor += [[n - tau0, *mean_sterr(workWork),
+                np.std(worksIni), np.std(worksFin)]]
+
+        return np.array(cor)
+
+    def corWorkWorkInsBruteForce(self,
+        tau0, n_max=100, int_max=1e6, max=None, log=True):
+        """
+        Compute correlations of work averaged over `tau0' between different
+        times.
+        (see https://yketa.github.io/DAMTP_2019_Wiki/#Correlations)
+
+        This algorithm computes the correlations more quickly by averaging over
+        successive couples of initial and final values of the active work.
+        Results of this function should then be taken with care as some other
+        unwanted low-time correlations could be picked.
+
+        Parameters
+        ----------
+        tau0 : int
+            Number of consecutive individual active works on which to average
+            it. (default: 1)
+        n_max : int
+            Maximum number of values at which to evaluate the correlation.
+            (default: 100)
+        int_max : int or None
+            Maximum number of different intervals to consider in order to
+            compute the mean which appears in the correlation expression.
+            (default: None)
+            NOTE: if int_max == None, then a maximum number of intervals will
+                  intervals will be considered.
+        max : int or None
+            Maximum value at which to compute the correlation. (default: None)
+            NOTE: if max == None, the maximum number of values is computed.
+        log : bool
+            Logarithmically space values at which the correlations are
+            computed. (default: True)
+
+        Returns
+        -------
+        cor : (3, *) numpy array
+            Array of:
+                (0) value at which the correlation is computed,
+                (1) mean of the computed correlation,
+                (2) standard error of the computed correlation.
+        """
+
+        if log: space = logspace
+        else: linspace
+
+        Nsample = int(np.min([(self.frames - self.skip)//tau0, int_max]))   # size of the sample of consecutive normalised rates of active work to consider
+        activeWork = np.array(list(map(                                     # array of consecutive normalised rate of active work averaged of time tau0
+            lambda t: self.activeWork[
+                self.skip + t*tau0:self.skip + t*tau0 + tau0].mean(),
+            range(Nsample))))
+        activeWork -= activeWork.mean()                                     # only considering fluctuations to the mean
+
+        lagTimes = space( # array of lag times considered
+            1,
+            (Nsample - 1) if max == None else int(np.min([max, Nsample - 1])),
+            n_max)
+
+        cor = list(map(
+            lambda dt: [
+                tau0*dt,
+                *mean_sterr(
+                    (activeWork*np.roll(activeWork, -dt))[:Nsample - dt])],
+            lagTimes))
 
         return np.array(cor)
 
@@ -169,7 +429,7 @@ class ActiveWork(Dat):
     def _time0(self, n, int_max=None):
         """
         Returns list of initial times to coarse-grain the list of active work
-        sums in `n' packs.
+        sums in packs of `n'.
         """
 
         time0 = np.linspace(
