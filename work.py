@@ -243,7 +243,7 @@ class ActiveWork(Dat):
         """
         Compute correlations of work averaged over `tau0' between different
         times.
-        (see https://yketa.github.io/DAMTP_2019_Wiki/#Correlations)
+        (see https://yketa.github.io/DAMTP_2019_Wiki/#Active%20Brownian%20particles)
 
         Parameters
         ----------
@@ -306,7 +306,7 @@ class ActiveWork(Dat):
         """
         Compute correlations of work averaged over `tau0' between different
         times.
-        (see https://yketa.github.io/DAMTP_2019_Wiki/#Correlations)
+        (see https://yketa.github.io/DAMTP_2019_Wiki/#Active%20Brownian%20particles)
 
         This algorithm computes the correlations more quickly by averaging over
         successive couples of initial and final values of the active work.
