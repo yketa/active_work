@@ -202,7 +202,7 @@ double System::diffPeriodic(double const& x1, double const& x2) {
     double diff2 = fabs(systemSize - x1) + fabs(x2);
     if ( diff1 < diff2 ) { diff = diff1; }
     else { diff = diff2; }
-    diff *= (diff > 0 ? -1 : 1);
+    diff *= (x2 > x1 ? -1 : 1);
   }
 
   return diff;
