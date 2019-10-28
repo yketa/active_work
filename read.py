@@ -103,18 +103,21 @@ class Dat:
             return relative_positions(positions, kwargs['centre'], self.L)
         return positions
 
-    def getDisplacements(self, time0, time1, *particle):
+    def getDisplacements(self, time0, time1, *particle, jump=1):
         """
         Returns displacements of particles between `time0' and `time1'.
         """
 
         if particle == (): particle = range(self.N)
+        time0 = int(time0)
+        time1 = int(time1)
+        jump = int(jump)
 
         displacements = -self.getPositions(time0, *particle)
 
         increments = np.zeros((len(particle), 2))
         positions1 = -displacements.copy()
-        for t in range(int(time0), int(time1)):
+        for t in list(range(time0, time1, jump)) + [time1 - 1]:
             positions0 = positions1.copy()
             positions1 = self.getPositions(t + 1, *particle)
             increments += (
