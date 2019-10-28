@@ -1,7 +1,7 @@
 import struct
 import numpy as np
 import os
-from tempfile import TemporaryFile
+import pickle
 
 from active_work.maths import relative_positions
 
@@ -51,25 +51,13 @@ class Dat:
             self.headerLength                   # header
             + self.frames*self.frameLength      # frames
             + self.numberWork*self._bpe('d')):  # work sums
-            raise ValueError("Invalid file size.")
+            raise ValueError("Invalid data file size.")
 
         # COMPUTED NORMALISED RATE OF ACTIVE WORK
-        self.activeWork = np.empty(self.numberWork)
-        for i in range(self.numberWork):
-            self.file.seek(
-                self.headerLength                           # header
-                + self.frameLength                          # frame with index 0
-                + (1 + i)*self.framesWork*self.frameLength  # all following packs of self.framesWork frames
-                + i*self._bpe('d'))                         # previous values of the active work
-            self.activeWork[i] = self._read('d')
-
-        # ACTIVE WORK
-        self.tempFileActiveWork = TemporaryFile(mode='w+b')
-        self.computedActiveWork = []
+        self._loadWork()
 
     def __del__(self):
-        self.file.close()
-        self.tempFileActiveWork.close()
+        self.file.close() 
 
     def getWork(self, time0, time1):
         """
@@ -78,12 +66,7 @@ class Dat:
 
         work = np.sum(list(map(
             lambda t: self._work(t),
-            # lambda t: np.sum(list(map(      # sum over time
-            #     lambda u, dr: np.dot(u,dr), # sum over particles
-            #     *(self.getDisplacements(t, t + 1),
-            #         self.getDirections(t) + self.getDirections(t + 1))))),
             range(int(time0), int(time1)))))
-        # work /= 2*self.N*self.dt*(time1 - time0)
         work /= self.N*self.dt*(time1 - time0)
 
         return work
@@ -160,6 +143,36 @@ class Dat:
         if norm: return np.sqrt(np.sum(orderParameter**2))
         return orderParameter
 
+    def _loadWork(self):
+        """
+        Load work from file self.filename + '.work.pickle' if it exists or
+        extract it from self.filename and pickle it to
+        self.filename + '.work.pickle.
+        """
+
+        try:    # try loading
+
+            with open(self.filename + '.work.pickle', 'rb') as workFile:
+                self.activeWork = pickle.load(workFile)
+                if self.activeWork.size != self.numberWork:
+                    raise ValueError("Invalid active work array size.")
+
+        except (FileNotFoundError, EOFError):   # active work does not exist or file is empty
+
+            # COMPUTE
+            self.activeWork = np.empty(self.numberWork)
+            for i in range(self.numberWork):
+                self.file.seek(
+                    self.headerLength                           # header
+                    + self.frameLength                          # frame with index 0
+                    + (1 + i)*self.framesWork*self.frameLength  # all following packs of self.framesWork frames
+                    + i*self._bpe('d'))                         # previous values of the active work
+                self.activeWork[i] = self._read('d')
+
+            # DUMP
+            with open(self.filename + '.work.pickle', 'wb') as workFile:
+                pickle.dump(self.activeWork, workFile)
+
     def _position(self, time, particle):
         """
         Returns array of position of particle at time.
@@ -192,26 +205,13 @@ class Dat:
 
         time = int(time)
 
-        if time in self.computedActiveWork: # active work has already been computed
+        work = np.sum(list(map(         # sum over time
+            lambda u, dr: np.dot(u,dr), # sum over particles
+            *(self.getDisplacements(time, time + 1),
+                self.getDirections(time)
+                    + self.getDirections(time + 1)))))/2
 
-            self.tempFileActiveWork.seek(self._bpe('d')*
-                self.computedActiveWork.index(time))
-            return struct.unpack('d',
-                self.tempFileActiveWork.read(self._bpe('d')))[0]
-
-        else:   # active work has to be computed and dumped
-
-            work = np.sum(list(map(         # sum over time
-                lambda u, dr: np.dot(u,dr), # sum over particles
-                *(self.getDisplacements(time, time + 1),
-                    self.getDirections(time)
-                        + self.getDirections(time + 1)))))/2
-
-            self.tempFileActiveWork.seek(0, 2)                      # go to end of file
-            self.tempFileActiveWork.write(struct.pack('d', work))   # dump
-            self.computedActiveWork += [time]
-
-            return work
+        return work
 
     def _bpe(self, type):
         """
