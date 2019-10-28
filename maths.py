@@ -237,6 +237,20 @@ def linspace(init, fin, number):
     """
     Returns linearly spaced integer between `init' and `fin' with a maximum of
     `number' of them.
+
+    Parameters
+    ----------
+    init : int
+        Minimum value.
+    fin : int
+        Maximum value.
+    number : int
+        Number of values.
+
+    Returns
+    -------
+    values : numpy array
+        Array of values.
     """
 
     return np.array(list(OrderedDict.fromkeys(np.linspace(
@@ -247,6 +261,20 @@ def logspace(init, fin, number):
     """
     Returns logarithmically spaced integer between `init' and `fin' with a
     maximum of `number' of them.
+
+    Parameters
+    ----------
+    init : int
+        Minimum value.
+    fin : int
+        Maximum value.
+    number : int
+        Number of values.
+
+    Returns
+    -------
+    values : numpy array
+        Array of values.
     """
 
     return np.array(list(OrderedDict.fromkeys(map(lambda x: int(round(x)),
@@ -258,6 +286,20 @@ def meanStdCut(array, cut):
     """
     Returns mean and standard deviation of array with values farther than
     `cut' * array.std() if the mean removed.
+
+    Parameters
+    ----------
+    array : array-like
+        Array of values.
+    cut : float
+        Width in units of array.std() to consider.
+
+    Returns
+    -------
+    mean : float
+        Mean of the truncated ensemble.
+    std : float
+        Standard deviation of the truncated ensemble.
     """
 
     array = np.array(array)
