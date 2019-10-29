@@ -233,7 +233,7 @@ class Histogram:
         else: self.hist /= np.sum(self.hist)
         return self.hist
 
-def linspace(init, fin, number):
+def linspace(init, fin, number, endpoint=True):
     """
     Returns linearly spaced integer between `init' and `fin' with a maximum of
     `number' of them.
@@ -246,6 +246,8 @@ def linspace(init, fin, number):
         Maximum value.
     number : int
         Number of values.
+    endpoint : bool
+        Include `number' in the array.
 
     Returns
     -------
@@ -255,9 +257,9 @@ def linspace(init, fin, number):
 
     return np.array(list(OrderedDict.fromkeys(np.linspace(
         init, fin, number,
-        endpoint=True, dtype=int))))
+        endpoint=endpoint, dtype=int))))
 
-def logspace(init, fin, number):
+def logspace(init, fin, number, endpoint=True):
     """
     Returns logarithmically spaced integer between `init' and `fin' with a
     maximum of `number' of them.
@@ -270,6 +272,8 @@ def logspace(init, fin, number):
         Maximum value.
     number : int
         Number of values.
+    endpoint : bool
+        Include `number' in the array.
 
     Returns
     -------
@@ -280,7 +284,7 @@ def logspace(init, fin, number):
     return np.array(list(OrderedDict.fromkeys(map(lambda x: int(round(x)),
         np.exp(np.linspace(
             np.log(init), np.log(fin), number,
-            endpoint=True))))))
+            endpoint=endpoint))))))
 
 def meanStdCut(array, cut):
     """
