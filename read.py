@@ -57,7 +57,7 @@ class Dat:
         self._loadWork()
 
     def __del__(self):
-        self.file.close() 
+        self.file.close()
 
     def getWork(self, time0, time1):
         """
@@ -111,6 +111,57 @@ class Dat:
 
         displacements += positions1 + increments
         return displacements
+
+    def getDistancePositions(self, time, particle0, particle1):
+        """
+        Returns distance between particles with indexes `particle0' and
+        `particle1' at time `time' and their respective positions.
+
+        Parameters
+        ----------
+        time : int
+            Index of frame.
+        particle0 : int
+            Index of first particle.
+        particle1 : int
+            Index of second particle.
+
+        Returns
+        -------
+        dist : float
+            Distance between particles.
+        pos0 : (2,) float numpy array
+            Position of particle0.
+        pos1 : (2,) float numpy array
+            Position of particle1.
+        """
+
+        pos0, pos1 = self.getPositions(time, particle0, particle1)
+        return np.sqrt(
+            self._diffPeriodic(pos0[0], pos1[0])**2
+            + self._diffPeriodic(pos0[1], pos1[1])**2), pos0, pos1
+
+    def getDistance(self, time, particle0, particle1):
+        """
+        Returns distance between particles with indexes `particle0' and
+        `particle1' at time `time'.
+
+        Parameters
+        ----------
+        time : int
+            Index of frame.
+        particle0 : int
+            Index of first particle.
+        particle1 : int
+            Index of second particle.
+
+        Returns
+        -------
+        dist : float
+            Distance between particles.
+        """
+
+        return self.getDistancePositions(time, particle0, particle1)[0]
 
     def getOrientations(self, time, *particle):
         """
@@ -212,6 +263,31 @@ class Dat:
                     + self.getDirections(time + 1)))))/2
 
         return work
+
+    def _diffPeriodic(self, x0, x1):
+        """
+        Returns algebraic distance from x0 to x1 taking into account periodic
+        boundary conditions.
+
+        Parameters
+        ----------
+        x0 : float
+            Coordinate of first point.
+        x1 : float
+            Coordinate of second point.
+
+        Returns
+        -------
+        diff : float
+            Algebraic distance from x0 to x1.
+        """
+
+        diff = x1 - x0
+        if np.abs(diff) <= self.L/2: return diff
+
+        diff = (1 - 2*(diff > 0))*np.min([
+            np.abs(x0) + np.abs(self.L - x1), np.abs(self.L - x0) + np.abs(x1)])
+        return diff
 
     def _bpe(self, type):
         """
