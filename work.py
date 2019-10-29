@@ -302,7 +302,7 @@ class ActiveWork(Dat):
         return np.array(cor)
 
     def corWorkWorkInsBruteForce(self,
-        tau0, n_max=100, int_max=1e6, max=None, log=True):
+        tau0, n_max=100, int_max=None, max=None, log=True):
         """
         Compute correlations of work averaged over `tau0' between different
         times.
@@ -328,7 +328,8 @@ class ActiveWork(Dat):
             NOTE: if int_max == None, then a maximum number of intervals will
                   intervals will be considered.
         max : int or None
-            Maximum value at which to compute the correlation. (default: None)
+            Maximum value at which to compute the correlation in units of tau0.
+            (default: None)
             NOTE: if max == None, the maximum number of values is computed.
         log : bool
             Logarithmically space values at which the correlations are
@@ -344,10 +345,11 @@ class ActiveWork(Dat):
         """
 
         if log: space = logspace
-        else: linspace
+        else: space = linspace
 
-        Nsample = int(np.min([(self.frames - self.skip)//tau0, int_max]))   # size of the sample of consecutive normalised rates of active work to consider
-        activeWork = np.array(list(map(                                     # array of consecutive normalised rate of active work averaged of time tau0
+        if int_max == None: int_max = (self.frames - self.skip)//tau0
+        Nsample = int(np.min([(self.frames - self.skip)//tau0, int_max*tau0]))  # size of the sample of consecutive normalised rates of active work to consider
+        activeWork = np.array(list(map(                                         # array of consecutive normalised rate of active work averaged of time tau0
             lambda t: self.activeWork[
                 self.skip + t*tau0:self.skip + t*tau0 + tau0].mean(),
             range(Nsample))))
@@ -366,6 +368,66 @@ class ActiveWork(Dat):
             lagTimes))
 
         return np.array(cor)
+
+    def varWorkFromCorWork(self, tau0, n=100, int_max=None, bruteForce=True):
+        """
+        Compute variance of the active work from its "instantaneous"
+        correlations.
+        (see https://yketa.github.io/DAMTP_2019_Wiki/#Active%20Brownian%20particles)
+
+        This function is primarily for consistency testing of
+        the correlations functions.
+
+        Parameters
+        ----------
+        tau0 : int
+            Number of consecutive individual active works on which to average
+            it, and for which correlations will be computed. (default: 1)
+        n : int
+            Compute variance for tau = i*tau0 with i in {1, ..., n}.
+            (default: 100)
+        int_max : int or None
+            Maximum number of different intervals to consider in order to
+            compute the mean which appears in the correlation expression.
+            (default: None)
+            NOTE: if int_max == None, then a maximum number of intervals will
+                  intervals will be considered (joint if bruteForce else
+                  disjoint).
+        bruteForce : bool
+            Use self.corWorkWorkInsBruteForce rather than self.corWorkWorkIns.
+            (default: True)
+
+        Returns
+        -------
+        var : (3, *) numpy array
+            Array of:
+                (0) value at which the variance is computed,
+                (1) mean of the computed variance,
+                (2) standard error of the computed variance.
+        """
+
+        if bruteForce: corWorkWorkIns = self.corWorkWorkInsBruteForce
+        else: corWorkWorkIns = self.corWorkWorkIns
+
+        if bruteForce:
+            cor = self.corWorkWorkInsBruteForce(tau0,
+                n_max=n, int_max=int_max, max=n - 1, log=False)
+        else:
+            cor = self.corWorkWorkIns(tau0,
+                n_max=n, int_max=int_max, min=tau0, max=(n - 1)*tau0, log=False)
+
+        var0 = mean_sterr((lambda l: (l - l.mean())**2)
+            (self.nWork(tau0, int_max=int_max)))
+
+        var = []
+        for n0 in range(1, n + 1):
+            var += [[n0*tau0, var0[0]/n0, (var0[1]/n0)**2]]
+            for i in range(1, n0):
+                var[-1][1] += 2*(n0 - i)*cor[i - 1, 1]/(n0**2)
+                var[-1][2] += (2*(n0 - i)*cor[i - 1, 2]/(n0**2))**2
+            var[-1][2] = np.sqrt(var[-1][2])
+
+        return np.array(var)
 
     def corWorkOrder(self, n_max=100, int_max=None, min=None, max=None, log=False):
         """
