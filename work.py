@@ -467,7 +467,6 @@ class ActiveWork(Dat):
                 lambda t: self.getOrderParameter(t + tau, norm=norm), time0)))
             orderOrder = list(map(lambda x, y: np.dot(x, y),
                 *(ordersIni, ordersFin)))
-            # return ordersIni, ordersFin, orderOrder
             cor += [[tau, *mean_sterr(orderOrder)]]
 
         return np.array(cor)
