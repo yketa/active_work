@@ -58,7 +58,7 @@ class Force(Dat):
     def corForceForce(self,
         n_max=100, int_max=None, min=1, max=None, log=False):
         """
-        Returns force autocorrelation function.
+        Returns fluctuations of the force autocorrelations.
 
         Parameters
         ----------
@@ -86,7 +86,8 @@ class Force(Dat):
             Array of:
                 (0) value at which the correlation is computed,
                 (1) mean of the computed correlation,
-                (2) standard error of the computed correlation.
+                (2) standard error of the computed correlation,
+                (3) mean of the squared norm of the flucuations of the force.
         """
 
         min = 1 if min == None else int(min)
@@ -114,14 +115,18 @@ class Force(Dat):
                     (self.N*time0.size, 2))
             forcesForces = list(map(lambda x, y: np.dot(x, y),
                 *(forcesIni, forcesFin)))
-            cor += [[tau, *mean_sterr(forcesForces)]]
+            forcesNormSq = (list(map(lambda x, y: np.dot(x, y),
+                *(forcesIni, forcesIni)))
+                + list(map(lambda x, y: np.dot(x, y),
+                    *(forcesFin, forcesFin))))
+            cor += [[tau, *mean_sterr(forcesForces), np.mean(forcesNormSq)]]
 
         return np.array(cor)
 
     def corForceForceOrientation(self,
         n_max=100, int_max=None, min=1, max=None, log=False):
         """
-        Returns force scalar orientation autocorrelation function.
+        Returns fluctuations of the force scalar orientation autocorrelations.
 
         Parameters
         ----------
@@ -149,7 +154,8 @@ class Force(Dat):
             Array of:
                 (0) value at which the correlation is computed,
                 (1) mean of the computed correlation,
-                (2) standard error of the computed correlation.
+                (2) standard error of the computed correlation,
+                (3) variance of the force scalar orientation.
         """
 
         min = 1 if min == None else int(min)
@@ -184,7 +190,8 @@ class Force(Dat):
                                 self.getDirections(t + tau)))),
                         time0))))
             forcesForces = forcesIni*forcesFin
-            cor += [[tau, *mean_sterr(forcesForces)]]
+            cor += [[tau, *mean_sterr(forcesForces),
+                np.append(forcesIni, forcesFin).var()]]
 
         return np.array(cor)
 

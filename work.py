@@ -15,6 +15,8 @@ from active_work.maths import Histogram, mean_sterr, linspace, logspace,\
 class ActiveWork(Dat):
     """
     Compute and analyse active work from simulation data.
+
+    (see https://yketa.github.io/DAMTP_2019_Wiki/#Active%20Brownian%20particles)
     """
 
     def __init__(self, filename, skip=1):
@@ -181,9 +183,9 @@ class ActiveWork(Dat):
     def corWorkWorkAve(self,
         tau0=1, n_max=100, int_max=None, min=None, max=None, log=True):
         """
-        Compute correlations of work averaged over `tau0' at the beginning of
-        an interval and work averaged over the whole interval.
-        (see https://yketa.github.io/DAMTP_2019_Wiki/#Active%20Brownian%20particles)
+        Compute correlations of the fluctuations of the work averaged over
+        `tau0' at the beginning of an interval and the fluctuations of the work
+        averaged over the whole interval.
 
         Parameters
         ----------
@@ -241,9 +243,8 @@ class ActiveWork(Dat):
     def corWorkWorkIns(self,
         tau0=1, n_max=100, int_max=None, min=None, max=None, log=True):
         """
-        Compute correlations of work averaged over `tau0' between different
-        times.
-        (see https://yketa.github.io/DAMTP_2019_Wiki/#Active%20Brownian%20particles)
+        Compute correlations of the fluctuations of the work averaged over
+        `tau0' between different times.
 
         Parameters
         ----------
@@ -302,11 +303,10 @@ class ActiveWork(Dat):
         return np.array(cor)
 
     def corWorkWorkInsBruteForce(self,
-        tau0, n_max=100, int_max=None, max=None, log=True):
+        tau0=1, n_max=100, int_max=None, max=None, log=True):
         """
-        Compute correlations of work averaged over `tau0' between different
-        times.
-        (see https://yketa.github.io/DAMTP_2019_Wiki/#Active%20Brownian%20particles)
+        Compute correlations of the fluctuations of the work averaged over
+        `tau0' between different times.
 
         This algorithm computes the correlations more quickly by averaging over
         successive couples of initial and final values of the active work.
@@ -369,11 +369,10 @@ class ActiveWork(Dat):
 
         return np.array(cor)
 
-    def varWorkFromCorWork(self, tau0, n=100, int_max=None, bruteForce=True):
+    def varWorkFromCorWork(self, tau0=1, n=100, int_max=None, bruteForce=True):
         """
         Compute variance of the active work from its "instantaneous"
-        correlations.
-        (see https://yketa.github.io/DAMTP_2019_Wiki/#Active%20Brownian%20particles)
+        fluctuations correlations.
 
         This function is primarily for consistency testing of
         the correlations functions.
@@ -429,26 +428,149 @@ class ActiveWork(Dat):
 
         return np.array(var)
 
-    def corWorkOrder(self, n_max=100, int_max=None, min=None, max=None, log=False):
+    def corWorkOrderAve(self,
+        n_max=100, int_max=None, min=None, max=None, log=False):
         """
+        Compute correlations of the fluctuations of the work averaged over an
+        interval of length `tau' and the fluctuations of the order parameter norm
+        at the beginning of the interval.
 
+        Parameters
+        ----------
+        n_max : int
+            Maximum number of values at which to evaluate the correlation.
+            (default: 100)
+        int_max : int or None
+            Maximum number of different intervals to consider in order to
+            compute the mean which appears in the correlation expression.
+            (default: None)
+            NOTE: if int_max == None, then a maximum number of disjoint
+                     intervals will be considered.
+        min : int or None
+            Minimum value at which to compute the correlation. (default: None)
+            NOTE: this value is passed as `min' to self.n.
+        max : int or None
+            Maximum value at which to compute the correlation. (default: None)
+            NOTE: this value is passed as `max' to self.n.
+        log : bool
+            Logarithmically space values at which the correlations are
+            computed. (default: True)
+
+        Returns
+        -------
+        cor : (5, *) numpy array
+            Array of:
+                (0) value at which the correlation is computed,
+                (1) mean of the computed correlation,
+                (2) standard error of the computed correlation,
+                (3) standard deviation of the active work,
+                (4) standard deviation of the order parameter norm.
         """
 
         cor = []
         for n in self._n(n_max=n_max, min=min, max=max, log=log):
             works = (lambda l: l - np.mean(l))(self.nWork(n, int_max=int_max))  # fluctuations of the active wok on intervals of size n
-            orders = (lambda l: l - np.mean(l))(np.array(list(map(              # fluctations of the order parameter norm at the beginning of these intervals
+            orders = (lambda l: l - np.mean(l))(np.array(list(map(              # fluctuations of the order parameter norm at the beginning of these intervals
                 lambda t: self.getOrderParameter(t, norm=True),
                 self.framesWork*self._time0(n, int_max=int_max)))))
             workOrder = works*orders
-            cor += [[n, *mean_sterr(workOrder)]]
+            cor += [[n, *mean_sterr(workOrder),
+                np.std(works), np.std(orders)]]
 
         return np.array(cor)
 
-    def corOrderOrder(self, n_max=100, int_max=100, max=None, norm=False,
-        log=False):
+    def corWorkOrderIns(self,
+        tau0=1, n_max=100, int_max=None, min=None, max=None, log=False):
+        """
+        Compute correlations of the fluctuations of the order parameter norm
+        at a given time and the fluctuations of the active work averaged over
+        a time `tau0' at a later time.
+
+        Parameters
+        ----------
+        tau0 : int
+            Number of consecutive individual active works on which to average
+            it. (default: 1)
+        n_max : int
+            Maximum number of values at which to evaluate the correlation.
+            (default: 100)
+        int_max : int or None
+            Maximum number of different intervals to consider in order to
+            compute the mean which appears in the correlation expression.
+            (default: None)
+            NOTE: if int_max == None, then a maximum number of disjoint
+                     intervals will be considered.
+        min : int or None
+            Minimum value at which to compute the correlation. (default: None)
+            NOTE: if min == None then min = `tau0', otherwise the minimum of
+                  `tau0' and `min' is taken.
+        max : int or None
+            Maximum value at which to compute the correlation. (default: None)
+            NOTE: this value is passed as `max' to self.n.
+        log : bool
+            Logarithmically space values at which the correlations are
+            computed. (default: True)
+
+        Returns
+        -------
+        cor : (5, *) numpy array
+            Array of:
+                (0) value at which the correlation is computed,
+                (1) mean of the computed correlation,
+                (2) standard error of the computed correlation,
+                (3) standard deviation of the active work,
+                (4) standard deviation of the order parameter norm.
         """
 
+        cor = []
+        for n in self._n(n_max=n_max, log=log,
+            min=(2*tau0 if min == None else np.max([tau0 + min, 2*tau0])),
+            max=(None if max == None else tau0 + max)):
+            ordersIni = (lambda l: l - np.mean(l))(
+                list(map(
+                    lambda t: self.getOrderParameter(t, norm=True),         # fluctuations of the active work averaged between t0 and t0 + tau0
+                    self._time0(n, int_max=int_max))))
+            worksFin = (lambda l: l - np.mean(l))(
+                list(map(
+                    lambda t: self.activeWork[t + n - tau0:t + n].mean(),   # fluctuations of the active work averaged between t0 and t0 + tau0
+                    self._time0(n, int_max=int_max))))
+            workOrder = ordersIni*worksFin
+            cor += [[n - tau0, *mean_sterr(workOrder),
+                np.std(ordersIni), np.std(worksFin)]]
+
+        return np.array(cor)
+
+    def corOrderOrder(self,
+        n_max=100, int_max=100, max=None, norm=False, log=False):
+        """
+        Compute autocorrelations of the fluctuations of the order parameter.
+
+        Parameters
+        ----------
+        n_max : int
+            Maximum number of values at which to evaluate the correlation.
+            (default: 100)
+        int_max : int
+            Maximum number of different intervals to consider in order to
+            compute the mean which appears in the correlation expression.
+            (default: 100)
+        max : int or None
+            Maximum value at which to compute the correlation. (default: None)
+            NOTE: if max == None, then max = self.frames - 1.
+        norm : bool
+            Consider the norm of the order parameter rather than its vector
+            form. (default: False)
+        log : bool
+            Logarithmically space values at which the correlations are
+            computed. (default: True)
+
+        Returns
+        -------
+        cor : (3, *) numpy array
+            Array of:
+                (0) value at which the correlation is computed,
+                (1) mean of the computed correlation,
+                (2) standard error of the computed correlation.
         """
 
         if max == None: max = self.frames - 1
@@ -473,8 +595,28 @@ class ActiveWork(Dat):
 
     def getWorks(self, tau, n_max=100, init=None):
         """
+        [DEPRECATED — Directly manipulate the array self.activeWork now.]
+
         Returns array of normalised active works for periods of `tau' frames,
         with a maximum of `n_max', dumping `init' initial frames.
+
+        Parameters
+        ----------
+        tau : int
+            Number of consecutive individual active works on which to average
+            it.
+        n_max : int
+            Maximum number of values at which to evaluate the active work.
+            (default: 100)
+        init : int or None
+            Number of initial frames to dump. (default: None)
+            NOTE: if init == None, then half of the frames of the simulation is
+                  dumped.
+
+        Returns
+        -------
+        activeWork : (*,) float numpy array
+            Array of active works.
         """
 
         if init == None: init = int(self.frames/2)
@@ -491,6 +633,19 @@ class ActiveWork(Dat):
         """
         Returns list of initial times to coarse-grain the list of active work
         sums in packs of `n'.
+
+        Parameters
+        ----------
+        n : int
+            Size of the packs of "instantaneous" active work.
+        int_max : int or None
+            Maximum number of initial times to return. (default: None)
+            NOTE: if int_max == None, a maximum number of them are returned.
+
+        Returns
+        -------
+        time0 : (*,) float numpy array
+            Array of initial times.
         """
 
         time0 = np.linspace(
@@ -506,6 +661,25 @@ class ActiveWork(Dat):
         Returns integers linearly or logarithmically scaled between `min' or 1
         and `max' or int((self.numberWork - self.skip)/2) with `n_max' maximum
         of them.
+
+        Parameters
+        ----------
+        n_max : int
+            Maximum number of integers to return. (default: 100)
+        min : int or None
+            Minimum integer. (default: None)
+            NOTE: if min == None, then min = 1.
+        max : int or None
+            Maximum integer. (default: None)
+            NOTE: if max == None, then max =
+                  int((self.numberWork - self.skip)/2).
+        log : bool
+            Logarithmically space integers. (default: False)
+
+        Returns
+        -------
+        space : (*,) int numpy array
+            Array of spaced integers.
         """
 
         if max == None: max = int((self.numberWork - self.skip)/2)
