@@ -17,23 +17,16 @@
 
 // CONSTRUCTORS
 
-Particle::Particle() : r {0, 0}, theta (0) {}
+Particle::Particle() : r {0, 0}, theta (0), f {0, 0} {}
 Particle::Particle(double x, double y, double ang) :
-  r {x, y}, theta (ang) {}
+  r {x, y}, theta (ang), f {0, 0} {}
 
 // METHODS
 
 double* Particle::position() { return &r[0]; } // returns pointer to position
 double* Particle::orientation() { return &theta; } // returns pointer to orientation
 
-void Particle::copy(Particle *particle) {
-  // Copy content of other particle.
-
-  for (int dim=0; dim < 2; dim++) {
-    r[dim] = particle->position()[dim];
-  }
-  theta = particle->orientation()[0];
-}
+double* Particle::force() {return &f[0]; }; // returns pointer to force
 
 
 /*************
@@ -49,6 +42,9 @@ CellList::CellList() {}
 CellList::~CellList() {}
 
 // METHODS
+
+int CellList::getNumberBoxes() { return numberBoxes; } // return number of boxes in each dimension
+std::vector<int> CellList::getCell(int const &index) { return cellList[index]; } // return vector of indexes in cell
 
 void CellList::initialise(System *system, double const& rcut) {
   // Initialise cell list.
@@ -82,7 +78,7 @@ void CellList::update(System *system) {
 
   // create new lists
   for (int i=0; i < system->getNumberParticles(); i++) {
-    cellList[index(system->getParticle(i))].push_back(i);
+    cellList[index(system->getParticle(i))].push_back(i); // particles are in increasing order of indexes
   }
 }
 
@@ -184,12 +180,7 @@ std::string System::getOutputFile() const { return outputFile; }
 rnd* System::getRandomGenerator() { return &randomGenerator; }
 Particle* System::getParticle(int index) { return &(particles[index]); }
 std::ofstream* System::getOutputFileStream() { return &outputFileStream; }
-
-std::vector<int> System::getNeighbours(int const& index) {
-  // Returns vector of indexes of neighbouring particles.
-
-  return cellList.getNeighbours(&(particles[index]));
-}
+CellList* System::getCellList() { return &cellList; } // returns pointer to CellList object
 
 double System::diffPeriodic(double const& x1, double const& x2) {
   // Returns algebraic distance from `x1' to `x2' on a line taking into account
@@ -225,31 +216,47 @@ double System::getDistance(int const& index1, int const& index2) {
 }
 
 void System::WCA_potential(int const& index1, int const& index2,
-  double *force) {
-  // Writes WCA force acting on particles[index1] by particles[index2] onto
-  // `force`.
+  std::vector<Particle>& newParticles) {
+  // Compute WCA forces between particles[index1] and particles[index2],
+  // add to particles[index1].force() and particles[index2].force(), and
+  // increments positions in particles[index1].position() and
+  // particles[index2].position().
 
-  if ( index1 == index2 ) { force[0] = 0; force[1] = 0; } // same particle
-  else {
+  if ( index1 != index2 ) { // only consider different particles
 
     double dist = this->getDistance(index1, index2); // dimensionless distance between particles
 
-    double diff;
     if (dist < pow(2, 1./6.)) { // distance lower than cut-off
+
       double coeff = 48/pow(dist, 14) - 24/pow(dist, 8);
+      double force;
+
       for (int dim=0; dim < 2; dim++) {
-        force[dim] =
-          diffPeriodic(
+
+        // compute force
+        force = diffPeriodic(
             particles[index2].position()[dim],
             particles[index1].position()[dim])
           *coeff;
+
+        // update force arrays
+        particles[index1].force()[dim] += force;
+        particles[index2].force()[dim] -= force;
+
+        // increment positions
+        newParticles[index1].position()[dim] +=
+          timeStep*force/3/persistenceLength;
+        newParticles[index2].position()[dim] -=
+          timeStep*force/3/persistenceLength;
       }
     }
-    else { // distance greater than cut-off
-      force[0] = 0;
-      force[1] = 0;
-    }
   }
+}
+
+void System::copyParticles(std::vector<Particle>& newParticles) {
+  // Replace vector particles by newParticles.
+
+  particles = newParticles;
 }
 
 void System::saveInitialState() {
@@ -272,7 +279,7 @@ void System::saveInitialState() {
   dumpFrame = 0;
 }
 
-void System::saveNewState(Particle *newParticles) {
+void System::saveNewState(std::vector<Particle>& newParticles) {
   // Saves new state of particles to output file then copy it.
 
   // DUMP FRAME
@@ -286,7 +293,7 @@ void System::saveNewState(Particle *newParticles) {
       workSum +=
         (cos(newParticles[i].orientation()[0] - dim*M_PI/2)
           + cos(particles[i].orientation()[0] - dim*M_PI/2))
-        *(newParticles[i].position()[dim] - particles[i].position()[dim]) // NOTE: at this stage, newPartices[i].position() are not rewrapped, so this difference is the actual displacement
+        *(newParticles[i].position()[dim] - particles[i].position()[dim]) // NOTE: at this stage, newParticles[i].position() are not rewrapped, so this difference is the actual displacement
         /2;
     }
 
@@ -320,9 +327,7 @@ void System::saveNewState(Particle *newParticles) {
   }
 
   // COPYING
-  for (int i=0; i < numberParticles; i++) {
-    particles[i].copy(&(newParticles[i]));
-  }
+  copyParticles(newParticles);
   // UPDATING CELL LIST
   cellList.update(this);
 }

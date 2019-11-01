@@ -17,6 +17,10 @@ else
 	SRC=$(filter-out test.cpp, $(wildcard *.cpp))
 endif
 
+ifeq ($(CELLLIST),yes)
+	CFLAGS+= -DUSE_CELL_LIST
+endif
+
 OBJ=$(addprefix $(OB)/, $(SRC:.cpp=.o))
 
 .PHONY: all clean mrproper
@@ -75,4 +79,3 @@ clean:
 
 mrproper: clean
 	@rm -rf $(BU)
-

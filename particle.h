@@ -35,8 +35,7 @@ class Particle {
     double* position(); // returns pointer to position
     double* orientation(); // returns pointer to orientation
 
-    void copy(Particle *particle);
-      // Copy content of other particle.
+    double* force(); // returns pointer to force
 
   private:
 
@@ -44,6 +43,8 @@ class Particle {
 
     double r[2]; // position (2D)
     double theta; // orientation
+
+    double f[2]; // force exerted on particle (2D)
 
 };
 
@@ -66,6 +67,9 @@ class CellList {
     ~CellList();
 
     // METHODS
+
+    int getNumberBoxes(); // return number of boxes in each dimension
+    std::vector<int> getCell(int const &index); // return vector of indexes in cell
 
     void initialise(System *system, double const& rcut);
       // Initialise cell list.
@@ -148,22 +152,27 @@ class System {
     rnd* getRandomGenerator(); // returns pointer to random generator
     Particle* getParticle(int index); // returns pointer to given particle
     std::ofstream* getOutputFileStream(); // returns pointer to output file stream
+    CellList* getCellList(); // returns pointer to CellList object
 
-    std::vector<int> getNeighbours(int const& index);
-      // Returns vector of indexes of neighbouring particles.
     double diffPeriodic(double const& x1, double const& x2);
       // Returns distance between two pointson a line taking into account periodic
       // boundary condition.
     double getDistance(int const& index1, int const& index2);
       // Returns distance between two particles in a given system.
+
     void WCA_potential(int const& index1, int const& index2,
-      double *force);
-      // Writes WCA force acting on particles[index1] by particles[index2] onto
-      // `force`.
+      std::vector<Particle>& newParticles);
+      // Compute WCA forces between particles[index1] and particles[index2],
+      // add to particles[index1].force() and particles[index2].force(), and
+      // increments positions in particles[index1].position() and
+      // particles[index2].position().
+
+    void copyParticles(std::vector<Particle>& newParticles);
+      // Replace vector particles by newParticles.
 
     void saveInitialState();
       // Saves initial state of particles to output file.
-    void saveNewState(Particle *newParticles);
+    void saveNewState(std::vector<Particle>& newParticles);
       // Saves new state of particles to output file then copy it.
 
   private:
