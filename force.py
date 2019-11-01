@@ -175,25 +175,40 @@ class Force(Dat):
                 (lambda l: (np.array(l)
                     - np.mean(l, axis=1).reshape(time0.size, 1)).flatten())(    # fluctuations of the force scalar the orientation at t0
                     list(map(
-                        lambda t: list(map(
-                            lambda x, y: np.dot(x, y),
-                            *(self.getForce(t),
-                                self.getDirections(t)))),
+                        lambda t: self._ForceOrientation(t),
                         time0))))
             forcesFin = (
                 (lambda l: (np.array(l)
                     - np.mean(l, axis=1).reshape(time0.size, 1)).flatten())(    # fluctuations of the force scalar the orientation at t0 + tau
                     list(map(
-                        lambda t: list(map(
-                            lambda x, y: np.dot(x, y),
-                            *(self.getForce(t + tau),
-                                self.getDirections(t + tau)))),
+                        lambda t: self._ForceOrientation(t + tau),
                         time0))))
             forcesForces = forcesIni*forcesFin
             cor += [[tau, *mean_sterr(forcesForces),
                 np.append(forcesIni, forcesFin).var()]]
 
         return np.array(cor)
+
+    def _ForceOrientation(self, time):
+        """
+        Returns scalar products of force and particle directions at a given
+        time.
+
+        Parameters
+        ----------
+        time : int
+            Frame index.
+
+        Returns
+        -------
+        forceOrientation : (self.N,) float numpy array
+            Array of scalar products.
+        """
+
+        return np.array(list(map(
+            lambda x, y: np.dot(x, y),
+            *(self.getForce(time),
+                self.getDirections(time)))))
 
     def _WCA(self, time, particle0, particle1):
         """
