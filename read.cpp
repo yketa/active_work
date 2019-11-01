@@ -29,18 +29,19 @@ Dat::Dat(std::string filename) :
   headerLength = inputFileStream.tellg();
   particleLength = 3*sizeof(double)*dumpParticles;
   frameLength = numberParticles*particleLength;
+  workLength = 2*sizeof(double);
 
   // ESTIMATION OF NUMBER OF COMPUTED WORK SUMS AND FRAMES
   inputFileStream.seekg(0, std::ios_base::end);
   fileSize = inputFileStream.tellg();
   numberWork = (fileSize - headerLength - frameLength)/(
-    framesWork*frameLength + sizeof(double));
+    framesWork*frameLength + workLength);
   frames = !dumpParticles ? 0 :
-    (fileSize - headerLength - numberWork*sizeof(double))/frameLength;
+    (fileSize - headerLength - numberWork*workLength)/frameLength;
 
   // FILE CORRUPTION CHECK
   if ( fileSize !=
-    headerLength + frames*frameLength + numberWork*sizeof(double) ) {
+    headerLength + frames*frameLength + numberWork*workLength ) {
     std::cout << "Invalid file size." << std::endl;
     exit(0);
   }
@@ -52,9 +53,11 @@ Dat::Dat(std::string filename) :
       headerLength // header
       + frameLength // frame with index 0
       + (1 + i)*framesWork*frameLength // all following packs of framesWork frames
-      + i*sizeof(double)); // previous values of the active work
+      + i*workLength); // previous values of the active work
     inputFileStream.read((char*) &work, sizeof(double));
     activeWork.push_back(work);
+    inputFileStream.read((char*) &work, sizeof(double));
+    activeWorkForce.push_back(work);
   }
 }
 
@@ -76,6 +79,7 @@ long int Dat::getNumberWork() const { return numberWork; }
 long int Dat::getFrames() const { return frames; }
 
 std::vector<double> Dat::getActiveWork() { return activeWork; }
+std::vector<double> Dat::getActiveWorkForce() { return activeWorkForce; }
 
 double Dat::getPosition(
   int const& frame, int const& particle, int const& dimension) {

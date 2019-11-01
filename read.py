@@ -13,6 +13,11 @@ class Dat:
     def __init__(self, filename):
         """
         Get data from header.
+
+        Parameters
+        ----------
+        filename : string
+            Path to data file.
         """
 
         # FILE
@@ -35,22 +40,23 @@ class Dat:
         self.headerLength = self.file.tell()                        # length of header in bytes
         self.particleLength = 3*self._bpe('d')*self.dumpParticles   # length the data of a single particle takes in a frame
         self.frameLength = self.N*self.particleLength               # length the data of a single frame takes in a file
+        self.workLength = 2*self._bpe('d')                          # length the data of a single work dump take in a file
 
         # ESTIMATION OF NUMBER OF COMPUTED WORK SUMS AND FRAMES
         self.numberWork = (self.fileSize
-            - self.headerLength                                 # header
-            - self.frameLength                                  # first frame
+            - self.headerLength                                     # header
+            - self.frameLength                                      # first frame
             )//(
-            self.framesWork*self.frameLength + self._bpe('d'))  # number of cumputed work sums
+            self.framesWork*self.frameLength + self.workLength)     # number of cumputed work sums
         self.frames = 0 if not(self.dumpParticles) else (
             self.fileSize - self.headerLength
-            - self.numberWork*self._bpe('d'))//self.frameLength # number of frames which the file contains
+            - self.numberWork*self.workLength)//self.frameLength    # number of frames which the file contains
 
         # FILE CORRUPTION CHECK
         if self.fileSize != (
             self.headerLength                   # header
             + self.frames*self.frameLength      # frames
-            + self.numberWork*self._bpe('d')):  # work sums
+            + self.numberWork*self.workLength): # work sums
             raise ValueError("Invalid data file size.")
 
         # COMPUTED NORMALISED RATE OF ACTIVE WORK
@@ -201,6 +207,8 @@ class Dat:
         self.filename + '.work.pickle.
         """
 
+        # ACTIVE WORK
+
         try:    # try loading
 
             with open(self.filename + '.work.pickle', 'rb') as workFile:
@@ -208,7 +216,7 @@ class Dat:
                 if self.activeWork.size != self.numberWork:
                     raise ValueError("Invalid active work array size.")
 
-        except (FileNotFoundError, EOFError):   # active work does not exist or file is empty
+        except (FileNotFoundError, EOFError):   # active work file does not exist or file is empty
 
             # COMPUTE
             self.activeWork = np.empty(self.numberWork)
@@ -217,12 +225,38 @@ class Dat:
                     self.headerLength                           # header
                     + self.frameLength                          # frame with index 0
                     + (1 + i)*self.framesWork*self.frameLength  # all following packs of self.framesWork frames
-                    + i*self._bpe('d'))                         # previous values of the active work
+                    + i*self.workLength)                        # previous values of the active work
                 self.activeWork[i] = self._read('d')
 
             # DUMP
             with open(self.filename + '.work.pickle', 'wb') as workFile:
                 pickle.dump(self.activeWork, workFile)
+
+        # ACTIVE WORK (FORCE)
+
+        try:    # try loading
+
+            with open(self.filename + '.work.force.pickle', 'rb') as workFile:
+                self.activeWorkForce = pickle.load(workFile)
+                if self.activeWorkForce.size != self.numberWork:
+                    raise ValueError("Invalid active work (force) array size.")
+
+        except (FileNotFoundError, EOFError):   # active work (force) file does not exist or file is empty
+
+            # COMPUTE
+            self.activeWorkForce = np.empty(self.numberWork)
+            for i in range(self.numberWork):
+                self.file.seek(
+                    self.headerLength                           # header
+                    + self.frameLength                          # frame with index 0
+                    + (1 + i)*self.framesWork*self.frameLength  # all following packs of self.framesWork frames
+                    + i*self.workLength                         # previous values of the active work
+                    + self._bpe('d'))                           # value of active work
+                self.activeWorkForce[i] = self._read('d')
+
+            # DUMP
+            with open(self.filename + '.work.force.pickle', 'wb') as workFile:
+                pickle.dump(self.activeWorkForce, workFile)
 
     def _position(self, time, particle):
         """
@@ -233,7 +267,7 @@ class Dat:
             self.headerLength                                           # header
             + time*self.frameLength                                     # other frames
             + particle*self.particleLength                              # other particles
-            + (np.max([time - 1, 0])//self.framesWork)*self._bpe('d'))  # active work sums (taking into account the frame with index 0)
+            + (np.max([time - 1, 0])//self.framesWork)*self.workLength) # active work sums (taking into account the frame with index 0)
         return np.array([self._read('d'), self._read('d')])
 
     def _orientation(self, time, particle):
@@ -246,7 +280,7 @@ class Dat:
             + time*self.frameLength                                     # other frames
             + particle*self.particleLength                              # other particles
             + 2*self._bpe('d')                                          # positions
-            + (np.max([time - 1, 0])//self.framesWork)*self._bpe('d'))  # active work sums (taking into account the frame with index 0)
+            + (np.max([time - 1, 0])//self.framesWork)*self.workLength) # active work sums (taking into account the frame with index 0)
         return self._read('d')
 
     def _work(self, time):

@@ -36,6 +36,8 @@ class Dat {
 
     std::vector<double> getActiveWork();
       // Returns vector of computed active work sums.
+    std::vector<double> getActiveWorkForce();
+      // Returns vector of computed active work (force) sums.
 
     double getPosition(
       int const& frame, int const& particle, int const& dimension);
@@ -63,11 +65,13 @@ class Dat {
     long int headerLength; // length of header in input file
     long int particleLength; // length the data of a single particle takes in a frame
     long int frameLength; // length the data of a single frame takes in a file
+    long int workLength; // length the data of a single work dump take in a file
 
     long int numberWork; // number of computed work sums
     long int frames; // number of frames
 
     std::vector<double> activeWork; // computed active work sums
+    std::vector<double> activeWorkForce; // computed active work (force) sums
 
 };
 
