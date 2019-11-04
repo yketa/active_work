@@ -43,6 +43,12 @@ class ActiveWork(Dat):
 
         super().__init__(filename)  # initialise with super class
 
+        self.workDict = {   # hash table of active work parts
+            'all': self.activeWork,
+            'force': self.activeWorkForce,
+            'orientation': self.activeWorkOri,
+            'noise':
+                self.activeWork - self.activeWorkForce - self.activeWorkOri}
         self._setWorkPart(workPart)
 
         self.skip = skip    # skip the `skip' first measurements of the active work in the analysis
@@ -250,14 +256,26 @@ class ActiveWork(Dat):
 
         return np.array(cor)
 
-    def corWorkWorkIns(self,
+    def corWorkWorkIns(self, workPart1=None, workPart2=None,
         tau0=1, n_max=100, int_max=None, min=None, max=None, log=True):
         """
-        Compute correlations of the fluctuations of the work averaged over
-        `tau0' between different times.
+        Compute (cross) correlations of the fluctuations of the work averaged
+        over `tau0' between different times.
 
         Parameters
         ----------
+        workPart1 : string or None
+            First part of the active work to consider in computations:
+                * 'all': active work,
+                * 'force': force part of the active work,
+                * 'orientation': orientation part of the active work,
+                * 'noise': noise part of the active work.
+            (default: None)
+            NOTE: if workPart1 == None, then self.workArray is taken.
+        workPart2 : string or None
+            Second part of the active work to consider in computations.
+            (default: None)
+            NOTE: if workPart2 == None, then self.workArray is taken.
         tau0 : int
             Number of consecutive individual active works on which to average
             it. (default: 1)
@@ -294,17 +312,22 @@ class ActiveWork(Dat):
                     of the interval.
         """
 
+        work1 = (self.workArray if workPart1 == None else
+            self.workDict[workPart1])
+        work2 = (self.workArray if workPart2 == None else
+            self.workDict[workPart2])
+
         cor = []
         for n in self._n(n_max=n_max, log=log,
             min=(2*tau0 if min == None else np.max([tau0 + min, 2*tau0])),
             max=(None if max == None else tau0 + max)):
             worksIni = (lambda l: l - np.mean(l))(
                 list(map(
-                    lambda t: self.workArray[t:t + tau0].mean(),            # fluctuations of the active work averaged between t0 and t0 + tau0
+                    lambda t: work1[t:t + tau0].mean(),         # fluctuations of the active work averaged between t0 and t0 + tau0
                     self._time0(n, int_max=int_max))))
             worksFin = (lambda l: l - np.mean(l))(
                 list(map(
-                    lambda t: self.workArray[t + n - tau0:t + n].mean(),    # fluctuations of the active work averaged between t0 and t0 + tau0
+                    lambda t: work2[t + n - tau0:t + n].mean(), # fluctuations of the active work averaged between t0 and t0 + tau0
                     self._time0(n, int_max=int_max))))
             workWork = worksIni*worksFin
             cor += [[n - tau0, *mean_sterr(workWork),
@@ -312,11 +335,11 @@ class ActiveWork(Dat):
 
         return np.array(cor)
 
-    def corWorkWorkInsBruteForce(self,
+    def corWorkWorkInsBruteForce(self, workPart1=None, workPart2=None,
         tau0=1, n_max=100, int_max=None, max=None, log=True):
         """
-        Compute correlations of the fluctuations of the work averaged over
-        `tau0' between different times.
+        Compute (cross) correlations of the fluctuations of the work averaged
+        over `tau0' between different times.
 
         This algorithm computes the correlations more quickly by averaging over
         successive couples of initial and final values of the active work.
@@ -325,6 +348,18 @@ class ActiveWork(Dat):
 
         Parameters
         ----------
+        workPart1 : string
+            First part of the active work to consider in computations:
+                * 'all': active work,
+                * 'force': force part of the active work,
+                * 'orientation': orientation part of the active work,
+                * 'noise': noise part of the active work.
+            (default: None)
+            NOTE: if workPart1 == None, then self.workArray is taken.
+        workPart2 : string
+            Second part of the active work to consider in computations.
+            (default: None)
+            NOTE: if workPart2 == None, then self.workArray is taken.
         tau0 : int
             Number of consecutive individual active works on which to average
             it. (default: 1)
@@ -354,17 +389,29 @@ class ActiveWork(Dat):
                 (2) standard error of the computed correlation.
         """
 
+        work1 = (self.workArray if workPart1 == None else
+            self.workDict[workPart1])
+        work2 = (self.workArray if workPart2 == None else
+            self.workDict[workPart2])
+
         if log: space = logspace
         else: space = linspace
 
         if int_max == None: int_max = (self.numberWork - self.skip)//tau0
         Nsample = int(np.min(
             [(self.numberWork - self.skip)//tau0, int_max*tau0]))   # size of the sample of consecutive normalised rates of active work to consider
-        activeWork = np.array(list(map(                             # array of consecutive normalised rate of active work averaged of time tau0
-            lambda t: self.workArray[
+        workArray1 = np.array(list(map(                             # array of consecutive normalised rate of active work averaged of time tau0
+            lambda t: work1[
                 self.skip + t*tau0:self.skip + t*tau0 + tau0].mean(),
             range(Nsample))))
-        activeWork -= activeWork.mean()                             # only considering fluctuations to the mean
+        workArray1 -= workArray1.mean()                             # only considering fluctuations to the mean
+        if workPart1 == workPart2: workArray2 = workArray1
+        else:
+            workArray2 = np.array(list(map(                         # array of consecutive normalised rate of active work averaged of time tau0
+                lambda t: work2[
+                    self.skip + t*tau0:self.skip + t*tau0 + tau0].mean(),
+                range(Nsample))))
+            workArray2 -= workArray2.mean()                         # only considering fluctuations to the mean
 
         lagTimes = space( # array of lag times considered
             1,
@@ -375,7 +422,7 @@ class ActiveWork(Dat):
             lambda dt: [
                 tau0*dt,
                 *mean_sterr(
-                    (activeWork*np.roll(activeWork, -dt))[:Nsample - dt])],
+                    (workArray1*np.roll(workArray2, -dt))[:Nsample - dt])],
             lagTimes))
 
         return np.array(cor)
@@ -720,13 +767,6 @@ class ActiveWork(Dat):
             (default: 'all')
         """
 
-        if workPart == 'all':
-            self.workArray = self.activeWork
-        elif workPart == 'force':
-            self.workArray = self.activeWorkForce
-        elif workPart == 'orientation':
-            self.workArray = self.activeWorkOri
-        elif workPart == 'noise':
-            self.workArray = (self.activeWork
-                - self.activeWorkForce - self.activeWorkOri)
-        else: raise ValueError('Part \'%s\' is not known.' % workPart)
+        try: self.workArray = self.workDict[workPart]
+        except KeyError: raise ValueError(
+            'Part \'%s\' is not known.' % workPart)
