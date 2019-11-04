@@ -38,6 +38,8 @@ class Dat {
       // Returns vector of computed active work sums.
     std::vector<double> getActiveWorkForce();
       // Returns vector of computed active work (force) sums.
+    std::vector<double> getActiveWorkOri();
+      // Returns vector of computed active work (orientation) sums.
 
     double getPosition(
       int const& frame, int const& particle, int const& dimension);
@@ -72,6 +74,7 @@ class Dat {
 
     std::vector<double> activeWork; // computed active work sums
     std::vector<double> activeWorkForce; // computed active work (force) sums
+    std::vector<double> activeWorkOri; // computed active work (orientation) sums
 
 };
 

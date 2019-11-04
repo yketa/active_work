@@ -132,7 +132,7 @@ System::System(
   randomGenerator(), particles(N),
     outputFileStream(filename.c_str(), std::ios::out | std::ios::binary),
     cellList(),
-  dumpFrame(-1), workSum(0), workForceSum(0) {
+  dumpFrame(-1), workSum(0), workForceSum(0), workOrientationSum(0) {
 
     // set seed of random generator
     randomGenerator.setSeed(seed);
@@ -290,17 +290,23 @@ void System::saveNewState(std::vector<Particle>& newParticles) {
 
     // ACTIVE WORK (computation)
     for (int dim=0; dim < 2; dim++) {
+      // active work
       workSum +=
         (cos(newParticles[i].orientation()[0] - dim*M_PI/2)
           + cos(particles[i].orientation()[0] - dim*M_PI/2))
         *(newParticles[i].position()[dim] - particles[i].position()[dim]) // NOTE: at this stage, newParticles[i].position() are not rewrapped, so this difference is the actual displacement
         /2;
-    }
-    for (int dim=0; dim < 2; dim++) {
+      // force part of the active work
       workForceSum +=
         (cos(newParticles[i].orientation()[0] - dim*M_PI/2)
           + cos(particles[i].orientation()[0] - dim*M_PI/2))
         *timeStep*particles[i].force()[dim]/3/persistenceLength
+        /2;
+      // orientation part of the active work
+      workOrientationSum +=
+        (cos(newParticles[i].orientation()[0] - dim*M_PI/2)
+          + cos(particles[i].orientation()[0] - dim*M_PI/2))
+        *timeStep*cos(particles[i].orientation()[0] - dim*M_PI/2)
         /2;
     }
 
@@ -330,10 +336,13 @@ void System::saveNewState(std::vector<Particle>& newParticles) {
   if ( dumpFrame % (framesWork*dumpPeriod) == 0 ) {
     workSum /= numberParticles*timeStep*framesWork*dumpPeriod;
     workForceSum /= numberParticles*timeStep*framesWork*dumpPeriod;
+    workOrientationSum /= numberParticles*timeStep*framesWork*dumpPeriod;
     outputFileStream.write((char*) &workSum, sizeof(double));
     outputFileStream.write((char*) &workForceSum, sizeof(double));
+    outputFileStream.write((char*) &workOrientationSum, sizeof(double));
     workSum = 0;
     workForceSum = 0;
+    workOrientationSum = 0;
   }
 
   // COPYING

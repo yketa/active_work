@@ -19,7 +19,7 @@ class ActiveWork(Dat):
     (see https://yketa.github.io/DAMTP_2019_Wiki/#Active%20Brownian%20particles)
     """
 
-    def __init__(self, filename, skip=1):
+    def __init__(self, filename, workPart='all', skip=1):
         """
         Loads file.
 
@@ -27,6 +27,14 @@ class ActiveWork(Dat):
         ----------
         filename : string
             Name of input data file.
+        workPart : string
+            Part of the active work to consider in computations:
+                * 'all': active work,
+                * 'force': force part of the active work,
+                * 'orientation': orientation part of the active work,
+                * 'noise': noise part of the active work.
+            (default: 'all')
+            NOTE: This can be changed at any time by calling self._setWorkPart.
         skip : int
             Skip the `skip' first computed values of the active work in the
             following calculations. (default: 1)
@@ -34,6 +42,8 @@ class ActiveWork(Dat):
         """
 
         super().__init__(filename)  # initialise with super class
+
+        self._setWorkPart(workPart)
 
         self.skip = skip    # skip the `skip' first measurements of the active work in the analysis
 
@@ -44,7 +54,7 @@ class ActiveWork(Dat):
 
         NOTE: Individual active work refers to the normalised rate of active
               work on self.dumpPeriod*self.framesWork consecutive frames and
-              stored as element of self.activeWork.
+              stored as element of self.workArray.
 
         Parameters
         ----------
@@ -64,7 +74,7 @@ class ActiveWork(Dat):
 
         workAvegared = []
         for i in self._time0(n, int_max=int_max):
-            workAvegared += [self.activeWork[i:i + n].mean()]
+            workAvegared += [self.workArray[i:i + n].mean()]
 
         return np.array(workAvegared)
 
@@ -75,7 +85,7 @@ class ActiveWork(Dat):
 
         NOTE: Individual active work refers to the normalised rate of active
               work on self.dumpPeriod*self.framesWork consecutive frames and
-              stored as element of self.activeWork.
+              stored as element of self.workArray.
 
         Parameters
         ----------
@@ -100,7 +110,7 @@ class ActiveWork(Dat):
 
         NOTE: Individual active work refers to the normalised rate of active
               work on self.dumpPeriod*self.framesWork consecutive frames and
-              stored as element of self.activeWork.
+              stored as element of self.workArray.
 
         Parameters
         ----------
@@ -232,7 +242,7 @@ class ActiveWork(Dat):
                 self.nWork(n, int_max=int_max))                     # fluctuations of the active wok on intervals of size n
             worksIni = (lambda l: l - np.mean(l))(
                 list(map(
-                    lambda t: self.activeWork[t:t + tau0].mean(),   # fluctuations of the active work averaged on tau0 at the beginning of these intervals
+                    lambda t: self.workArray[t:t + tau0].mean(),    # fluctuations of the active work averaged on tau0 at the beginning of these intervals
                     self._time0(n, int_max=int_max))))
             workWork = worksTot*worksIni
             cor += [[n, *mean_sterr(workWork),
@@ -290,11 +300,11 @@ class ActiveWork(Dat):
             max=(None if max == None else tau0 + max)):
             worksIni = (lambda l: l - np.mean(l))(
                 list(map(
-                    lambda t: self.activeWork[t:t + tau0].mean(),   # fluctuations of the active work averaged between t0 and t0 + tau0
+                    lambda t: self.workArray[t:t + tau0].mean(),            # fluctuations of the active work averaged between t0 and t0 + tau0
                     self._time0(n, int_max=int_max))))
             worksFin = (lambda l: l - np.mean(l))(
                 list(map(
-                    lambda t: self.activeWork[t + n - tau0:t + n].mean(),       # fluctuations of the active work averaged between t0 and t0 + tau0
+                    lambda t: self.workArray[t + n - tau0:t + n].mean(),    # fluctuations of the active work averaged between t0 and t0 + tau0
                     self._time0(n, int_max=int_max))))
             workWork = worksIni*worksFin
             cor += [[n - tau0, *mean_sterr(workWork),
@@ -347,13 +357,14 @@ class ActiveWork(Dat):
         if log: space = logspace
         else: space = linspace
 
-        if int_max == None: int_max = (self.frames - self.skip)//tau0
-        Nsample = int(np.min([(self.frames - self.skip)//tau0, int_max*tau0]))  # size of the sample of consecutive normalised rates of active work to consider
-        activeWork = np.array(list(map(                                         # array of consecutive normalised rate of active work averaged of time tau0
-            lambda t: self.activeWork[
+        if int_max == None: int_max = (self.numberWork - self.skip)//tau0
+        Nsample = int(np.min(
+            [(self.numberWork - self.skip)//tau0, int_max*tau0]))   # size of the sample of consecutive normalised rates of active work to consider
+        activeWork = np.array(list(map(                             # array of consecutive normalised rate of active work averaged of time tau0
+            lambda t: self.workArray[
                 self.skip + t*tau0:self.skip + t*tau0 + tau0].mean(),
             range(Nsample))))
-        activeWork -= activeWork.mean()                                     # only considering fluctuations to the mean
+        activeWork -= activeWork.mean()                             # only considering fluctuations to the mean
 
         lagTimes = space( # array of lag times considered
             1,
@@ -532,7 +543,7 @@ class ActiveWork(Dat):
                     self._time0(n, int_max=int_max))))
             worksFin = (lambda l: l - np.mean(l))(
                 list(map(
-                    lambda t: self.activeWork[t + n - tau0:t + n].mean(),   # fluctuations of the active work averaged between t0 and t0 + tau0
+                    lambda t: self.workArray[t + n - tau0:t + n].mean(),    # fluctuations of the active work averaged between t0 and t0 + tau0
                     self._time0(n, int_max=int_max))))
             workOrder = ordersIni*worksFin
             cor += [[n - tau0, *mean_sterr(workOrder),
@@ -595,7 +606,7 @@ class ActiveWork(Dat):
 
     def getWorks(self, tau, n_max=100, init=None):
         """
-        [DEPRECATED — Directly manipulate the array self.activeWork now.]
+        [DEPRECATED — Directly manipulate the array self.workArray now.]
 
         Returns array of normalised active works for periods of `tau' frames,
         with a maximum of `n_max', dumping `init' initial frames.
@@ -693,3 +704,29 @@ class ActiveWork(Dat):
         else: space = linspace
 
         return space(min, max, n_max)
+
+    def _setWorkPart(self, workPart='all'):
+        """
+        Set part of the active work to consider in computations.
+
+        Parameters
+        ----------
+        workPart : string
+            Part of the active work to consider in computations:
+                * 'all': active work,
+                * 'force': force part of the active work,
+                * 'orientation': orientation part of the active work,
+                * 'noise': noise part of the active work.
+            (default: 'all')
+        """
+
+        if workPart == 'all':
+            self.workArray = self.activeWork
+        elif workPart == 'force':
+            self.workArray = self.activeWorkForce
+        elif workPart == 'orientation':
+            self.workArray = self.activeWorkOri
+        elif workPart == 'noise':
+            self.workArray = (self.activeWork
+                - self.activeWorkForce - self.activeWorkOri)
+        else: raise ValueError('Part \'%s\' is not known.' % workPart)

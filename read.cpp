@@ -29,13 +29,13 @@ Dat::Dat(std::string filename) :
   headerLength = inputFileStream.tellg();
   particleLength = 3*sizeof(double)*dumpParticles;
   frameLength = numberParticles*particleLength;
-  workLength = 2*sizeof(double);
+  workLength = 3*sizeof(double);
 
   // ESTIMATION OF NUMBER OF COMPUTED WORK SUMS AND FRAMES
   inputFileStream.seekg(0, std::ios_base::end);
   fileSize = inputFileStream.tellg();
   numberWork = (fileSize - headerLength - frameLength)/(
-    framesWork*frameLength + workLength);
+    framesWork*frameLength*dumpParticles + workLength);
   frames = !dumpParticles ? 0 :
     (fileSize - headerLength - numberWork*workLength)/frameLength;
 
@@ -58,6 +58,8 @@ Dat::Dat(std::string filename) :
     activeWork.push_back(work);
     inputFileStream.read((char*) &work, sizeof(double));
     activeWorkForce.push_back(work);
+    inputFileStream.read((char*) &work, sizeof(double));
+    activeWorkOri.push_back(work);
   }
 }
 
@@ -80,6 +82,7 @@ long int Dat::getFrames() const { return frames; }
 
 std::vector<double> Dat::getActiveWork() { return activeWork; }
 std::vector<double> Dat::getActiveWorkForce() { return activeWorkForce; }
+std::vector<double> Dat::getActiveWorkOri() { return activeWorkOri; }
 
 double Dat::getPosition(
   int const& frame, int const& particle, int const& dimension) {
@@ -89,7 +92,7 @@ double Dat::getPosition(
     headerLength // header
     + frame*frameLength // other frames
     + particle*particleLength // other particles
-    + (std::max(frame - 1, 0)/framesWork)*sizeof(double) // active work sums (taking into account the frame with index 0)
+    + (std::max(frame - 1, 0)/framesWork)*workLength // active work sums (taking into account the frame with index 0)
     + dimension*sizeof(double)); // dimension
   double position;
   inputFileStream.read((char*) &position, sizeof(double));
@@ -104,7 +107,7 @@ double Dat::getOrientation(int const& frame, int const& particle){
     headerLength // header
     + frame*frameLength // other frames
     + particle*particleLength // other particles
-    + (std::max(frame - 1, 0)/framesWork)*sizeof(double) // active work sums (taking into account the frame with index 0)
+    + (std::max(frame - 1, 0)/framesWork)*workLength // active work sums (taking into account the frame with index 0)
     + 2*sizeof(double)); // positions
   double orientation;
   inputFileStream.read((char*) &orientation, sizeof(double));

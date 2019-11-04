@@ -40,14 +40,15 @@ class Dat:
         self.headerLength = self.file.tell()                        # length of header in bytes
         self.particleLength = 3*self._bpe('d')*self.dumpParticles   # length the data of a single particle takes in a frame
         self.frameLength = self.N*self.particleLength               # length the data of a single frame takes in a file
-        self.workLength = 2*self._bpe('d')                          # length the data of a single work dump take in a file
+        self.workLength = 3*self._bpe('d')                          # length the data of a single work dump take in a file
 
         # ESTIMATION OF NUMBER OF COMPUTED WORK SUMS AND FRAMES
         self.numberWork = (self.fileSize
             - self.headerLength                                     # header
             - self.frameLength                                      # first frame
             )//(
-            self.framesWork*self.frameLength + self.workLength)     # number of cumputed work sums
+            self.framesWork*self.frameLength*self.dumpParticles
+                + self.workLength)                                  # number of cumputed work sums
         self.frames = 0 if not(self.dumpParticles) else (
             self.fileSize - self.headerLength
             - self.numberWork*self.workLength)//self.frameLength    # number of frames which the file contains
@@ -257,6 +258,32 @@ class Dat:
             # DUMP
             with open(self.filename + '.work.force.pickle', 'wb') as workFile:
                 pickle.dump(self.activeWorkForce, workFile)
+
+        # ACTIVE WORK (ORIENTATION)
+
+        try:    # try loading
+
+            with open(self.filename + '.work.ori.pickle', 'rb') as workFile:
+                self.activeWorkOri = pickle.load(workFile)
+                if self.activeWorkOri.size != self.numberWork:
+                    raise ValueError("Invalid active work (ori) array size.")
+
+        except (FileNotFoundError, EOFError):   # active work (orientation) file does not exist or file is empty
+
+            # COMPUTE
+            self.activeWorkOri = np.empty(self.numberWork)
+            for i in range(self.numberWork):
+                self.file.seek(
+                    self.headerLength                           # header
+                    + self.frameLength                          # frame with index 0
+                    + (1 + i)*self.framesWork*self.frameLength  # all following packs of self.framesWork frames
+                    + i*self.workLength                         # previous values of the active work
+                    + 2*self._bpe('d'))                         # value of active work and force part of active work
+                self.activeWorkOri[i] = self._read('d')
+
+            # DUMP
+            with open(self.filename + '.work.ori.pickle', 'wb') as workFile:
+                pickle.dump(self.activeWorkOri, workFile)
 
     def _position(self, time, particle):
         """
