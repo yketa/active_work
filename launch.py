@@ -10,6 +10,32 @@ from numpy.random import randint
 from os import path, getcwd
 from subprocess import run
 
+# FUNCTIONS AND CLASSES
+
+def filename(N, phi, lp, launch):
+    """
+    Name of simulation output files.
+
+    Parameters
+    ----------
+    N : int
+        Number of particles in the system.
+    phi : float
+        Packing fraction.
+    lp : float
+        Dimensionless persistence length.
+    launch : int
+        Launch identifier.
+
+    Returns
+    -------
+    name : str
+        File name.
+    """
+
+    return 'N%s_D%s_L%s_E%s.dat' % (*map(float_to_letters,
+        (N, phi, lp, launch)),)
+
 # DEFAULT VARIABLES
 
 _N = 10     # default number of particles in the system
@@ -63,11 +89,7 @@ if __name__ == '__main__':
 
     # OUTPUT FILE PARAMETERS
     out_dir = get_env('OUT_DIR', default=_out_dir, vartype=str) # simulation output directory
-
-    # NAMING
-
-    out_file = 'N%s_D%s_L%s_E%s.dat' % (*map(float_to_letters,  # simulation output file name
-        (N, phi, lp, launch)),)
+    out_file = filename(N, phi, lp, launch)                     # simulation output file name
 
     # LAUNCH
 
