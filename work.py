@@ -264,16 +264,17 @@ class ActiveWork(Dat):
 
         Parameters
         ----------
-        workPart1 : string or None
-            First part of the active work to consider in computations:
+        workPart1 : string
+            Part of the active work to consider at the beginning of the
+            interval:
                 * 'all': active work,
                 * 'force': force part of the active work,
                 * 'orientation': orientation part of the active work,
                 * 'noise': noise part of the active work.
             (default: None)
             NOTE: if workPart1 == None, then self.workArray is taken.
-        workPart2 : string or None
-            Second part of the active work to consider in computations.
+        workPart2 : string
+            Part of the active work to consider at the end of the interval.
             (default: None)
             NOTE: if workPart2 == None, then self.workArray is taken.
         tau0 : int
@@ -349,7 +350,8 @@ class ActiveWork(Dat):
         Parameters
         ----------
         workPart1 : string
-            First part of the active work to consider in computations:
+            Part of the active work to consider at the beginning of the
+            interval:
                 * 'all': active work,
                 * 'force': force part of the active work,
                 * 'orientation': orientation part of the active work,
@@ -357,7 +359,7 @@ class ActiveWork(Dat):
             (default: None)
             NOTE: if workPart1 == None, then self.workArray is taken.
         workPart2 : string
-            Second part of the active work to consider in computations.
+            Part of the active work to consider at the end of the interval.
             (default: None)
             NOTE: if workPart2 == None, then self.workArray is taken.
         tau0 : int
