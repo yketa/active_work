@@ -71,7 +71,7 @@ if __name__ == '__main__':
 
     # SIMULATION PARAMETERS
     seed = get_env('SEED', default=_seed, vartype=int)      # random seed
-    dt = get_env('DT', default=_dt, vartype=int)            # time step
+    dt = get_env('DT', default=_dt, vartype=float)          # time step
     Niter = get_env('NITER', default=_Niter, vartype=int)   # number of iterations
 
     # NAMING PARAMETERS
