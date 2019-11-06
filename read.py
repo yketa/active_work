@@ -47,7 +47,7 @@ class Dat:
             - self.headerLength                                     # header
             - self.frameLength                                      # first frame
             )//(
-            self.framesWork*self.frameLength*self.dumpParticles
+            self.framesWork*self.frameLength
                 + self.workLength)                                  # number of cumputed work sums
         self.frames = 0 if not(self.dumpParticles) else (
             self.fileSize - self.headerLength
