@@ -40,9 +40,9 @@ class Dat:
         self.headerLength = self.file.tell()                        # length of header in bytes
         self.particleLength = 3*self._bpe('d')*self.dumpParticles   # length the data of a single particle takes in a frame
         self.frameLength = self.N*self.particleLength               # length the data of a single frame takes in a file
-        self.workLength = 3*self._bpe('d')                          # length the data of a single work dump take in a file
+        self.workLength = 4*self._bpe('d')                          # length the data of a single work and order parameter dump take in a file
 
-        # ESTIMATION OF NUMBER OF COMPUTED WORK SUMS AND FRAMES
+        # ESTIMATION OF NUMBER OF COMPUTED WORK AND ORDER SUMS AND FRAMES
         self.numberWork = (self.fileSize
             - self.headerLength                                     # header
             - self.frameLength                                      # first frame
@@ -284,6 +284,32 @@ class Dat:
             # DUMP
             with open(self.filename + '.work.ori.pickle', 'wb') as workFile:
                 pickle.dump(self.activeWorkOri, workFile)
+
+        # ORDER PARAMETER
+
+        try:    # try loading
+
+            with open(self.filename + '.order.pickle', 'rb') as workFile:
+                self.orderParameter = pickle.load(workFile)
+                if self.orderParameter.size != self.numberWork:
+                    raise ValueError("Invalid order parameter array size.")
+
+        except (FileNotFoundError, EOFError):   # order parameter file does not exist or file is empty
+
+            # COMPUTE
+            self.orderParameter = np.empty(self.numberWork)
+            for i in range(self.numberWork):
+                self.file.seek(
+                    self.headerLength                           # header
+                    + self.frameLength                          # frame with index 0
+                    + (1 + i)*self.framesWork*self.frameLength  # all following packs of self.framesWork frames
+                    + i*self.workLength                         # previous values of the active work
+                    + 3*self._bpe('d'))                         # values of the different parts of active work
+                self.orderParameter[i] = self._read('d')
+
+            # DUMP
+            with open(self.filename + '.order.pickle', 'wb') as workFile:
+                pickle.dump(self.orderParameter, workFile)
 
     def _position(self, time, particle):
         """

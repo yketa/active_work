@@ -29,9 +29,9 @@ Dat::Dat(std::string filename) :
   headerLength = inputFileStream.tellg();
   particleLength = 3*sizeof(double)*dumpParticles;
   frameLength = numberParticles*particleLength;
-  workLength = 3*sizeof(double);
+  workLength = 4*sizeof(double);
 
-  // ESTIMATION OF NUMBER OF COMPUTED WORK SUMS AND FRAMES
+  // ESTIMATION OF NUMBER OF COMPUTED WORK AND ORDER PARAMETER SUMS AND FRAMES
   inputFileStream.seekg(0, std::ios_base::end);
   fileSize = inputFileStream.tellg();
   numberWork = (fileSize - headerLength - frameLength)/(
@@ -46,7 +46,7 @@ Dat::Dat(std::string filename) :
     exit(0);
   }
 
-  // ACTIVE WORK
+  // ACTIVE WORK AND ORDER PARAMETER
   double work;
   for (int i=0; i < numberWork; i++) {
     inputFileStream.seekg(
@@ -60,6 +60,8 @@ Dat::Dat(std::string filename) :
     activeWorkForce.push_back(work);
     inputFileStream.read((char*) &work, sizeof(double));
     activeWorkOri.push_back(work);
+    inputFileStream.read((char*) &work, sizeof(double));
+    orderParameter.push_back(work);
   }
 }
 
@@ -83,6 +85,7 @@ long int Dat::getFrames() const { return frames; }
 std::vector<double> Dat::getActiveWork() { return activeWork; }
 std::vector<double> Dat::getActiveWorkForce() { return activeWorkForce; }
 std::vector<double> Dat::getActiveWorkOri() { return activeWorkOri; }
+std::vector<double> Dat::getOrderParameter() { return orderParameter; }
 
 double Dat::getPosition(
   int const& frame, int const& particle, int const& dimension) {

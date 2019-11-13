@@ -132,7 +132,8 @@ System::System(
   randomGenerator(), particles(N),
     outputFileStream(filename.c_str(), std::ios::out | std::ios::binary),
     cellList(),
-  dumpFrame(-1), workSum(0), workForceSum(0), workOrientationSum(0) {
+  dumpFrame(-1),
+    workSum(0), workForceSum(0), workOrientationSum(0), orderSum(0) {
 
     // set seed of random generator
     randomGenerator.setSeed(seed);
@@ -286,9 +287,10 @@ void System::saveNewState(std::vector<Particle>& newParticles) {
   dumpFrame++;
 
   // SAVING
+  double orderParameterIn[2] {0, 0}, orderParameterFin[2] {0, 0};
   for (int i=0; i < numberParticles; i++) { // output all particles
 
-    // ACTIVE WORK (computation)
+    // ACTIVE WORK and ORDER PARAMETER (computation)
     for (int dim=0; dim < 2; dim++) {
       // active work
       workSum +=
@@ -308,6 +310,11 @@ void System::saveNewState(std::vector<Particle>& newParticles) {
           + cos(particles[i].orientation()[0] - dim*M_PI/2))
         *timeStep*cos(particles[i].orientation()[0] - dim*M_PI/2)
         /2;
+      // order parameter
+      orderParameterIn[dim] +=
+        cos(particles[i].orientation()[0] - dim*M_PI/2);
+      orderParameterFin[dim] +=
+        cos(newParticles[i].orientation()[0] - dim*M_PI/2);
     }
 
     // WRAPPED COORDINATES
@@ -331,18 +338,25 @@ void System::saveNewState(std::vector<Particle>& newParticles) {
         sizeof(double));
     }
   }
+  orderSum +=
+    (sqrt(pow(orderParameterIn[0], 2) + pow(orderParameterIn[1], 2))
+      + sqrt(pow(orderParameterFin[0], 2) + pow(orderParameterFin[1], 2)))
+    /2;
 
-  // ACTIVE WORK (output)
+  // ACTIVE WORK and ORDER PARAMETER (output)
   if ( dumpFrame % (framesWork*dumpPeriod) == 0 ) {
     workSum /= numberParticles*timeStep*framesWork*dumpPeriod;
     workForceSum /= numberParticles*timeStep*framesWork*dumpPeriod;
     workOrientationSum /= numberParticles*timeStep*framesWork*dumpPeriod;
+    orderSum /= numberParticles*framesWork*dumpPeriod;
     outputFileStream.write((char*) &workSum, sizeof(double));
     outputFileStream.write((char*) &workForceSum, sizeof(double));
     outputFileStream.write((char*) &workOrientationSum, sizeof(double));
+    outputFileStream.write((char*) &orderSum, sizeof(double));
     workSum = 0;
     workForceSum = 0;
     workOrientationSum = 0;
+    orderSum = 0;
   }
 
   // COPYING
