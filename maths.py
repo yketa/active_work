@@ -233,6 +233,109 @@ class Histogram:
         else: self.hist /= np.sum(self.hist)
         return self.hist
 
+class Histogram3D:
+    """
+    Make 3D histogram from lists of float 2-uples-like.
+    """
+
+    def __init__(self, Nbins, vmin, vmax, log=False):
+        """
+        Parameters
+        ----------
+        Nbins : int or 2-uple-like of int
+            Number of histogram bins in each direction.
+        vmin : float or 2-uple like of float
+            Minimum included value for histogram bins.
+            NOTE: values lesser than vmin will be ignored.
+        vmax : float or 2-uple like of float
+            Maximum excluded value for histogram bins.
+            NOTE: values greater or equal to vmax will be ignored.
+        log : bool.
+            Logarithmically spaced histogram values. (default: False)
+        """
+
+        Nbins = np.array(Nbins, ndmin=1, dtype=int)
+        self.Nbins = np.array([Nbins[0], Nbins[-1]])
+
+        vmin, vmax = np.array(vmin, ndmin=1), np.array(vmax, ndmin=1)
+        self.vmin = np.array([vmin[0], vmin[-1]])
+        self.vmax = np.array([vmax[0], vmax[-1]])
+
+        self.bins = []
+        for dim in range(2):
+            if log:
+                self.bins += [np.logspace(
+                    np.log10(self.vmin[dim]), np.log10(self.vmax[dim]),
+                    self.Nbins[dim], endpoint=False, base=10)]  # histogram bins
+            else:
+                self.bins += [np.linspace(
+                    self.vmin[dim], self.vmax[dim],
+                    self.Nbins[dim], endpoint=False)]           # histogram bins
+
+        self.reset_values()                             # reset values from which to compute the histogram
+        self.hist = np.empty((self.Nbins.prod(), 3))    # values of the histogram at bins
+        for bin0 in range(self.bins[0].size):
+            self.hist[
+                bin0*self.bins[1].size:(bin0 + 1)*self.bins[1].size, 0] = (
+                self.bins[0][bin0])
+            self.hist[
+                bin0*self.bins[1].size:(bin0 + 1)*self.bins[1].size, 1] = (
+                self.bins[1])
+
+    def add_values(self, *values, replace=False):
+        """
+        Add values from which to compute the histogram.
+
+        Parameters
+        ----------
+        values : float or float array-like
+            Values to add.
+        replace : bool
+            Replace existing values. (default: False)
+        """
+
+        if replace: self.reset_values()
+        for value in values: self.values += [tuple(value)]
+
+    def reset_values(self):
+        """
+        Delete values from which to compute the histogram (self.values).
+        """
+
+        self.values = []
+
+    def get_histogram(self):
+        """
+        Get histogram from values in self.values.
+
+        Returns
+        -------
+        hist : (self.Nbins.prod(), 3) float Numpy array
+            Values of the histogram:
+                (0) Value of first axis bin.
+                (1) Value of second axis bin.
+                (2) Proportion.
+        """
+
+        values_array = np.array(self.values)
+        for bin0 in range(self.bins[0].size):
+            bin_inf0 = self.bins[0][bin0]
+            try: bin_sup0 = self.bins[0][bin0 + 1]
+            except IndexError: bin_sup0 = self.vmax[0]
+            values = values_array[
+                (values_array[:, 0] >= bin_inf0)
+                *(values_array[:, 0] < bin_sup0)][:, 1]
+            for bin1 in range(self.bins[1].size):
+                bin_inf1 = self.bins[1][bin1]
+                try: bin_sup1 = self.bins[1][bin1 + 1]
+                except IndexError: bin_sup1 = self.vmax[1]
+                self.hist[bin0*self.Nbins[1] + bin1, 2] = (
+                    np.sum((values >= bin_inf1)*(values < bin_sup1)))
+
+        if np.sum(self.hist[:, 2]) > 0: # there are binned values
+            self.hist[:, 2] /= np.sum(self.hist[:, 2])
+        return self.hist
+
 def linspace(init, fin, number, endpoint=True):
     """
     Returns linearly spaced integer between `init' and `fin' with a maximum of
