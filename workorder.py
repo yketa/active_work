@@ -7,6 +7,7 @@ import numpy as np
 
 from active_work.work import ActiveWork
 from active_work.maths import Histogram3D
+from active_work.scde import PDF
 
 class WorkOrder(ActiveWork):
     """
@@ -77,49 +78,115 @@ class WorkOrder(ActiveWork):
 
         return np.array(workAveraged), np.array(orderAveraged)
 
-    # def corWorkOrderIns(self,
-    #     tau0=1, n_max=100, int_max=None, min=None, max=None, log=True):
-    #     """
-    #     Compute correlations of the fluctuations of the active work and the
-    #     order parameter averaged over `tau0' between different times.
-    #
-    #     Parameters
-    #     ----------
-    #     tau0 : int
-    #         Number of consecutive individual active works on which to average
-    #         it. (default: 1)
-    #     n_max : int
-    #         Maximum number of values at which to evaluate the correlation.
-    #         (default: 100)
-    #     int_max : int or None
-    #         Maximum number of different intervals to consider in order to
-    #         compute the mean which appears in the correlation expression.
-    #         (default: None)
-    #         NOTE: if int_max == None, then a maximum number of disjoint
-    #               intervals will be considered.
-    #     min : int or None
-    #         Minimum value at which to compute the correlation. (default: None)
-    #         NOTE: if min == None then min = `tau0', otherwise the minimum of
-    #               `tau0' and `min' is taken.
-    #     max : int or None
-    #         Maximum value at which to compute the correlation. (default: None)
-    #         NOTE: this value is passed as `max' to self.n.
-    #     log : bool
-    #         Logarithmically space values at which the correlations are
-    #         computed. (default: True)
-    #
-    #     Returns
-    #     -------
-    #     cor : (5, *) numpy array
-    #         Array of:
-    #             (0) value at which the correlation is computed,
-    #             (1) mean of the computed correlation,
-    #             (2) standard error of the computed correlation,
-    #             (3) standard deviation of the active work computed at the
-    #                 beginning of the interval,
-    #             (4) standard deviation of the active work computed at the end
-    #                 of the interval.
-    #     """
+    def SCGF(self, *s, n=1, int_max=None):
+        """
+        Returns scaled cumulant generating function from active work averaged on
+        packs of size `n' of consecutive individual measures at biasing
+        parameter `s'.
+
+        (see https://yketa.github.io/DAMTP_2019_Wiki/#ABP%20work%20and%20order%20LDP)
+
+        Parameters
+        ----------
+        s : float
+            Biasing parameter.
+        n : int
+            Size of packs on which to average active work.
+            (default: 1)
+        int_max : int or None
+            Maximum number of packs consider. (default: None)
+            NOTE: If int_max == None, then take the maximum number of packs.
+                  int_max cannot exceed the maximum number of nonoverlapping
+                  packs.
+
+        Returns
+        -------
+        tau : float
+            Averaging time in absolute dimensionless units.
+        psi : float Numpy array
+            Scaled cumulant generating function at `s'.
+        """
+
+        workArray = super().nWork(n, int_max=int_max)   # only computation of the work is needed
+        tau = n*self.dt*self.dumpPeriod*self.framesWork
+
+        return tau, np.array(list(map(
+            lambda _s: np.log(np.mean(np.exp(-_s*tau*workArray)))/tau,
+            s)))
+
+    def sWork(self, *s, n=1, int_max=None):
+        """
+        Returns averaged active work in biased ensemble from active work
+        averaged on packs of size `n' of consecutive individual measures at
+        biasing parameter `s'.
+
+        (see https://yketa.github.io/DAMTP_2019_Wiki/#ABP%20work%20and%20order%20LDP)
+
+        Parameters
+        ----------
+        s : float
+            Biasing parameter.
+        n : int
+            Size of packs on which to average active work.
+            (default: 1)
+        int_max : int or None
+            Maximum number of packs consider. (default: None)
+            NOTE: If int_max == None, then take the maximum number of packs.
+                  int_max cannot exceed the maximum number of nonoverlapping
+                  packs.
+
+        Returns
+        -------
+        tau : float
+            Averaging time in absolute dimensionless units.
+        work : float Numpy array
+            Averaged active work at `s'.
+        """
+
+        workArray = super().nWork(n, int_max=int_max)   # only computation of the work is needed
+        tau = n*self.dt*self.dumpPeriod*self.framesWork
+
+        return tau, np.array(list(map(
+            lambda _s: np.mean(workArray*np.exp(-_s*tau*workArray))/(
+                np.mean(np.exp(-_s*tau*workArray))),
+            s)))
+
+    def sOrder(self, *s, n=1, int_max=None):
+        """
+        Returns averaged order parameter in biased ensemble from active work and
+        order parameter averaged on packs of size `n' of consecutive individual
+        measures at biasing parameter `s'.
+
+        (see https://yketa.github.io/DAMTP_2019_Wiki/#ABP%20work%20and%20order%20LDP)
+
+        Parameters
+        ----------
+        s : float
+            Biasing parameter.
+        n : int
+            Size of packs on which to average active work and order parameter.
+            (default: 1)
+        int_max : int or None
+            Maximum number of packs consider. (default: None)
+            NOTE: If int_max == None, then take the maximum number of packs.
+                  int_max cannot exceed the maximum number of nonoverlapping
+                  packs.
+
+        Returns
+        -------
+        tau : float
+            Averaging time in absolute dimensionless units.
+        order : float Numpy array
+            Averaged order parameter at `s'.
+        """
+
+        workArray, orderArray = self.nWorkOrder(n, int_max=int_max)
+        tau = n*self.dt*self.dumpPeriod*self.framesWork
+
+        return tau, np.array(list(map(
+            lambda _s: np.mean(orderArray*np.exp(-_s*tau*workArray))/(
+                np.mean(np.exp(-_s*tau*workArray))),
+            s)))
 
     def getHistogram3D(self, Nbins, n=1, int_max=None,
         work_min=None, work_max=None, order_min=None, order_max=None):
@@ -176,6 +243,42 @@ class WorkOrder(ActiveWork):
         histogram.values = list(zip(workArray, orderParameter))
 
         return histogram.get_histogram()
+
+    def getHistogram3DSC(self, n=1, int_max=None):
+        """
+        Returns 3D histogram computed via self-consistent density estimation.
+        (see active_work.scde)
+
+        Parameters
+        ----------
+        n : int
+            Size of packs on which to average active work and order parameter.
+        int_max : int or None
+            Maximum number of packs consider. (default: None)
+            NOTE: If int_max == None, then take the maximum number of packs.
+                  int_max cannot exceed the maximum number of nonoverlapping
+                  packs.
+
+        Returns
+        -------
+        hist : (*, 3) float Numpy array
+            Values of the histogram:
+                (0) Active work bin.
+                (1) Order parameter bin.
+                (2) Proportion.
+            NOTE: This histogram is rather a probability density function,
+                  therefore the integral over the bins is equal to 1 and thus
+                  the values should be interpreted differently than a simple
+                  proporition of observations.
+        """
+
+        workArray, orderParameter = self.nWorkOrder(n, int_max=int_max)
+        pdf = PDF(workArray, orderParameter)
+
+        return np.transpose(
+            [*(lambda axes: [axes[:, -1], axes[:, -2]])(    # invert axes (work and order) order
+                (pdf.extended_axes.reshape(np.prod(pdf.pdf.shape), 2))),
+            pdf.pdf.flatten()])
 
     def meanStdCor(self, n=1, int_max=None):
         """
