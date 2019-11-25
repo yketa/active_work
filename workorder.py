@@ -5,6 +5,8 @@ order parameter.
 
 import numpy as np
 
+from operator import itemgetter
+
 from active_work.work import ActiveWork
 from active_work.maths import Histogram3D
 from active_work.scde import PDF
@@ -78,13 +80,13 @@ class WorkOrder(ActiveWork):
 
         return np.array(workAveraged), np.array(orderAveraged)
 
-    def SCGF(self, *s, n=1, int_max=None):
+    def SCGF(self, *s, n=1, int_max=None, percentageW=None):
         """
         Returns scaled cumulant generating function from active work averaged on
         packs of size `n' of consecutive individual measures at biasing
         parameter `s'.
 
-        (see https://yketa.github.io/DAMTP_2019_Wiki/#ABP%20work%20and%20order%20LDP)
+        (see self._biasedAverages)
 
         Parameters
         ----------
@@ -98,6 +100,12 @@ class WorkOrder(ActiveWork):
             NOTE: If int_max == None, then take the maximum number of packs.
                   int_max cannot exceed the maximum number of nonoverlapping
                   packs.
+        percentageW : float or None
+            Remove from the SCGF the values corresponding to a work averafe
+            which is in the lowest or highest `percentageW'% of the original
+            active work array.
+            (default: None)
+            NOTE: If percentageW == None, this operation is not performed.
 
         Returns
         -------
@@ -107,20 +115,17 @@ class WorkOrder(ActiveWork):
             Scaled cumulant generating function at `s'.
         """
 
-        workArray = super().nWork(n, int_max=int_max)   # only computation of the work is needed
-        tau = n*self.dt*self.dumpPeriod*self.framesWork
+        return self._biasedAverages(
+            *s, n=n, int_max=int_max, percentageW=percentageW,
+            returns=('tau', 'SCGF'))
 
-        return tau, np.array(list(map(
-            lambda _s: np.log(np.mean(np.exp(-_s*tau*workArray)))/tau,
-            s)))
-
-    def sWork(self, *s, n=1, int_max=None):
+    def sWork(self, *s, n=1, int_max=None, percentageW=None):
         """
         Returns averaged active work in biased ensemble from active work
         averaged on packs of size `n' of consecutive individual measures at
         biasing parameter `s'.
 
-        (see https://yketa.github.io/DAMTP_2019_Wiki/#ABP%20work%20and%20order%20LDP)
+        (see self._biasedAverages)
 
         Parameters
         ----------
@@ -134,6 +139,12 @@ class WorkOrder(ActiveWork):
             NOTE: If int_max == None, then take the maximum number of packs.
                   int_max cannot exceed the maximum number of nonoverlapping
                   packs.
+        percentageW : float or None
+            Remove from the work averages the values corresponding to a work
+            average which is in the lowest or highest `percentageW'% of the
+            original active work array.
+            (default: None)
+            NOTE: If percentageW == None, this operation is not performed.
 
         Returns
         -------
@@ -143,21 +154,17 @@ class WorkOrder(ActiveWork):
             Averaged active work at `s'.
         """
 
-        workArray = super().nWork(n, int_max=int_max)   # only computation of the work is needed
-        tau = n*self.dt*self.dumpPeriod*self.framesWork
+        return self._biasedAverages(
+            *s, n=n, int_max=int_max, percentageW=percentageW,
+            returns=('tau', 'work'))
 
-        return tau, np.array(list(map(
-            lambda _s: np.mean(workArray*np.exp(-_s*tau*workArray))/(
-                np.mean(np.exp(-_s*tau*workArray))),
-            s)))
-
-    def sOrder(self, *s, n=1, int_max=None):
+    def sOrder(self, *s, n=1, int_max=None, percentageW=None):
         """
         Returns averaged order parameter in biased ensemble from active work and
         order parameter averaged on packs of size `n' of consecutive individual
         measures at biasing parameter `s'.
 
-        (see https://yketa.github.io/DAMTP_2019_Wiki/#ABP%20work%20and%20order%20LDP)
+        (see self._biasedAverages)
 
         Parameters
         ----------
@@ -171,6 +178,12 @@ class WorkOrder(ActiveWork):
             NOTE: If int_max == None, then take the maximum number of packs.
                   int_max cannot exceed the maximum number of nonoverlapping
                   packs.
+        percentageW : float or None
+            Remove from the order averages the values corresponding to a work
+            average which is in the lowest or highest `percentageW'% of the
+            original active work array.
+            (default: None)
+            NOTE: If percentageW == None, this operation is not performed.
 
         Returns
         -------
@@ -180,13 +193,9 @@ class WorkOrder(ActiveWork):
             Averaged order parameter at `s'.
         """
 
-        workArray, orderArray = self.nWorkOrder(n, int_max=int_max)
-        tau = n*self.dt*self.dumpPeriod*self.framesWork
-
-        return tau, np.array(list(map(
-            lambda _s: np.mean(orderArray*np.exp(-_s*tau*workArray))/(
-                np.mean(np.exp(-_s*tau*workArray))),
-            s)))
+        return self._biasedAverages(
+            *s, n=n, int_max=int_max, percentageW=percentageW,
+            returns=('tau', 'order'))
 
     def getHistogram3D(self, Nbins, n=1, int_max=None,
         work_min=None, work_max=None, order_min=None, order_max=None):
@@ -285,6 +294,8 @@ class WorkOrder(ActiveWork):
         Returns means anf standard deviations of active work and order
         parameter, and their Pearson correlation coefficient.
 
+        (see self._biasedAverages)
+
         Parameters
         ----------
         n : int
@@ -309,16 +320,137 @@ class WorkOrder(ActiveWork):
             Pearson correlation coefficient of active work and order parameter.
         """
 
-        workArray, orderParameter = self.nWorkOrder(n, int_max=int_max)
+        return self._biasedAverages(
+            n=n, int_max=int_max,
+            returns=('meanStdCor',))
 
-        meanWork = workArray.mean()
-        meanOrder = orderParameter.mean()
+    def _biasedAverages(self, *s, n=1, int_max=None, percentageW=None,
+        returns=('tau', 's', 'SCGF', 'work', 'order', 'meanStdCor')):
+        """
+        Returns scaled cumulant generating function, averaged active work and
+        averaged order parameter, from active work and order parameter averaged
+        on packs of size `n' of consecutive individual measures, at biasing
+        parameter `s'.
 
-        stdWork = workArray.std()
-        stdOrder = orderParameter.std()
+        (see https://yketa.github.io/DAMTP_2019_Wiki/#ABP%20work%20and%20order%20LDP)
 
-        corWorkOrder = np.cov(
-            np.stack((workArray, orderParameter),
-                axis=0))[0, 1]/(stdWork*stdOrder)
+        NOTE: This big master function is designed to avoid computing several
+              times the same work and order arrays, which is time consuming.
 
-        return meanWork, meanOrder, stdWork, stdOrder, corWorkOrder
+        Parameters
+        ----------
+        s : float
+            Biasing parameter.
+            NOTE: This is only relevant if computing the SCGF or work or order
+                  averages.
+        n : int
+            Size of packs on which to average active work and order parameter.
+            (default: 1)
+        int_max : int or None
+            Maximum number of packs consider. (default: None)
+            NOTE: If int_max == None, then take the maximum number of packs.
+                  int_max cannot exceed the maximum number of nonoverlapping
+                  packs.
+        percentageW : float or None
+            Remove from the biasing parameter list, the work averages and order
+            averages the values corresponding to a work average which is in the
+            lowest or highest `percentageW'% of the original active work array.
+            (default: None)
+            NOTE: If percentageW == None, this operation is not performed.
+        returns : tuple-like of strings
+            Quantities to return:
+                'tau' : float
+                    Dimensionless time over which the work and order are
+                    averaged.
+                's' : float Numpy array
+                    Biasing parameters.
+                'SCGF' : float Numpy array
+                    Scaled cumulant generating function.
+                'work' : float Numpy array
+                    Averaged active work.
+                'order' : float Numpy array
+                    Averaged order parameter.
+                'meanStdCor' : (5,) float tuple
+                    Mean active work, mean order parameter, standard deviation
+                    of active work, standard deviation of order parameter, work
+                    and order correlation.
+            (default: ('tau', 's', 'SCGF', 'work', 'order', 'meanStdCor'))
+            NOTE: Quantities are returned as a tuple which follows the requested
+                  order.
+
+        Returns
+        -------
+        (according to `returns`)
+        """
+
+        out = {}
+
+        out['s'] = np.array(s)
+
+        out['tau'] = n*self.dt*self.dumpPeriod*self.framesWork
+
+        # WORK AND ORDER ARRAYS
+
+        if 'order' in returns or 'meanStdCor' in returns:
+            workArray, orderArray = self.nWorkOrder(n, int_max=int_max)
+        else:
+            workArray = super().nWork(n, int_max=int_max)   # only computation of the work is needed
+
+        if 'SCGF' in returns:   # scaled cumulant generating function
+
+            out['SCGF'] = np.array(list(map(
+                lambda _s:
+                    np.log(np.mean(np.exp(-_s*out['tau']*workArray)))/(
+                        out['tau']),
+                s)))
+
+        if 'work' in returns or percentageW != None:    # averaged active work in biased ensemble
+
+            out['work'] = np.array(list(map(
+                lambda _s: (
+                    np.mean(workArray*np.exp(-_s*out['tau']*workArray))/(
+                        np.mean(np.exp(-_s*out['tau']*workArray)))),
+                s)))
+
+        if 'order' in returns:  # averaged order parameter in biased ensemble
+
+            out['order'] = np.array(list(map(
+                lambda _s: (
+                    np.mean(orderArray*np.exp(-_s*out['tau']*workArray))/(
+                        np.mean(np.exp(-_s*out['tau']*workArray)))),
+                s)))
+
+        if 'meanStdCor' in returns: # means, standard deviations, and correlation of active work and order parameter in unbiased ensemble
+
+            meanWork = workArray.mean()
+            meanOrder = orderArray.mean()
+
+            stdWork = workArray.std()
+            stdOrder = orderArray.std()
+
+            corWorkOrder = np.cov(
+                np.stack((workArray, orderArray),
+                    axis=0))[0, 1]/(stdWork*stdOrder)
+
+            out['meanStdCor'] = (
+                meanWork, meanOrder, stdWork, stdOrder, corWorkOrder)
+
+        # CROP STATISTICALLY INSIGNIFICANT VALUES
+
+        if percentageW != None:
+
+            rangeS = (
+                (out['work'] >= np.percentile(
+                    workArray, percentageW, interpolation='higher'))
+                *(out['work'] <= np.percentile(
+                    workArray, 100 - percentageW, interpolation='lower')))
+
+            out['s'] = out['s'][rangeS]
+
+            if 'SCGF' in returns: out['SCGF'] = out['SCGF'][rangeS]
+            if 'work' in returns: out['work'] = out['work'][rangeS]
+            if 'order' in returns: out['order'] = out['order'][rangeS]
+
+        # RETURNS
+
+        return itemgetter(*returns)(out)
