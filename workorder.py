@@ -387,7 +387,7 @@ class WorkOrder(ActiveWork):
 
         out['s'] = np.array(s)
 
-        out['tau'] = n*self.dt*self.dumpPeriod*self.framesWork
+        out['tau'] = self._tau(n)
 
         # WORK AND ORDER ARRAYS
 
@@ -400,24 +400,26 @@ class WorkOrder(ActiveWork):
 
             out['SCGF'] = np.array(list(map(
                 lambda _s:
-                    np.log(np.mean(np.exp(-_s*out['tau']*workArray)))/(
-                        out['tau']),
+                    np.log(np.mean(np.exp(-_s*out['tau']*self.N*workArray)))/(
+                        out['tau']*self.N),
                 s)))
 
         if 'work' in returns or percentageW != None:    # averaged active work in biased ensemble
 
             out['work'] = np.array(list(map(
                 lambda _s: (
-                    np.mean(workArray*np.exp(-_s*out['tau']*workArray))/(
-                        np.mean(np.exp(-_s*out['tau']*workArray)))),
+                    np.mean(
+                        workArray*np.exp(-_s*out['tau']*self.N*workArray))/(
+                    np.mean(np.exp(-_s*out['tau']*self.N*workArray)))),
                 s)))
 
         if 'order' in returns:  # averaged order parameter in biased ensemble
 
             out['order'] = np.array(list(map(
                 lambda _s: (
-                    np.mean(orderArray*np.exp(-_s*out['tau']*workArray))/(
-                        np.mean(np.exp(-_s*out['tau']*workArray)))),
+                    np.mean(
+                        orderArray*np.exp(-_s*out['tau']*self.N*workArray))/(
+                    np.mean(np.exp(-_s*out['tau']*self.N*workArray)))),
                 s)))
 
         if 'meanStdCor' in returns: # means, standard deviations, and correlation of active work and order parameter in unbiased ensemble
@@ -454,3 +456,20 @@ class WorkOrder(ActiveWork):
         # RETURNS
 
         return itemgetter(*returns)(out)
+
+    def _tau(self, n):
+        """
+        Returns dimensionless time corresponding to `n' consecutive measures.
+
+        Parameters
+        ----------
+        n : int
+            Number of consecutive measures.
+
+        Returns
+        -------
+        tau : float
+            Corresponding dimensionless time.
+        """
+
+        return n*self.dt*self.dumpPeriod*self.framesWork
