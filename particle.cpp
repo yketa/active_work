@@ -122,16 +122,16 @@ std::vector<int> CellList::getNeighbours(Particle *particle) {
 // CONSTRUCTORS
 
 System::System(
-  int N, double lp, double phi, int seed, double dt, std::string filename,
+  Parameters* parameters, int seed, std::string filename,
   int nWork, bool dump, int period) :
-  numberParticles(N), persistenceLength(lp), packingFraction(phi),
-    systemSize(sqrt(M_PI*N/phi)/2), randomSeed(seed), timeStep(dt),
-    outputFile(filename),
-  framesWork(nWork > 0 ? nWork : (int) lp/(dt*period)), dumpParticles(dump),
-    dumpPeriod(period),
-  randomGenerator(), particles(N),
-    outputFileStream(filename.c_str(), std::ios::out | std::ios::binary),
-    cellList(),
+  param(parameters),
+  randomSeed(seed), randomGenerator(),
+  particles(parameters->getNumberParticles()),
+  cellList(),
+  output(filename),
+  framesWork(nWork > 0 ? nWork : (int)
+    parameters->getPersistenceLength()/(parameters->getTimeStep()*period)),
+    dumpParticles(dump), dumpPeriod(period),
   dumpFrame(-1),
     workSum(0), workForceSum(0), workOrientationSum(0), orderSum(0) {
 
@@ -139,20 +139,20 @@ System::System(
     randomGenerator.setSeed(seed);
 
     // writing header with system parameters to output file
-    outputFileStream.write((char*) &numberParticles, sizeof(int));
-    outputFileStream.write((char*) &persistenceLength, sizeof(double));
-    outputFileStream.write((char*) &packingFraction, sizeof(double));
-    outputFileStream.write((char*) &systemSize, sizeof(double));
-    outputFileStream.write((char*) &randomSeed, sizeof(int));
-    outputFileStream.write((char*) &timeStep, sizeof(double));
-    outputFileStream.write((char*) &framesWork, sizeof(int));
-    outputFileStream.write((char*) &dumpParticles, sizeof(bool));
-    outputFileStream.write((char*) &dumpPeriod, sizeof(int));
+    output.write(getNumberParticles());
+    output.write(getPersistenceLength());
+    output.write(getPackingFraction());
+    output.write(getSystemSize());
+    output.write(randomSeed);
+    output.write(getTimeStep());
+    output.write(framesWork);
+    output.write(dumpParticles);
+    output.write(dumpPeriod);
 
     // putting particles on a grid with random orientation
-    int gridSize = ceil(sqrt(numberParticles)); // size of the grid on which to put the particles
-    double gridSpacing = systemSize/gridSize;
-    for (int i=0; i < numberParticles; i++) { // loop over particles
+    int gridSize = ceil(sqrt(parameters->getNumberParticles())); // size of the grid on which to put the particles
+    double gridSpacing = parameters->getSystemSize()/gridSize;
+    for (int i=0; i < parameters->getNumberParticles(); i++) { // loop over particles
       // position on the grid
       particles[i].position()[0] = (i%gridSize)*gridSpacing;
       particles[i].position()[1] = (i/gridSize)*gridSpacing;
@@ -166,22 +166,29 @@ System::System(
 
 // DESTRUCTORS
 
-System::~System() { outputFileStream.close(); }
+System::~System() { output.~Output(); }
 
 // METHODS
 
-int System::getNumberParticles() const { return numberParticles; }
-double System::getPersistenceLength() const { return persistenceLength; }
-double System::getPackingFraction() const { return packingFraction; }
-double System::getSystemSize() const { return systemSize; }
-int System::getRandomSeed() const { return randomSeed; }
-double System::getTimeStep() const { return timeStep; }
-std::string System::getOutputFile() const { return outputFile; }
+int System::getNumberParticles() const {
+  return param->getNumberParticles(); }
+double System::getPersistenceLength() const {
+  return param->getPersistenceLength(); }
+double System::getPackingFraction() const {
+  return param->getPackingFraction(); }
+double System::getSystemSize() const {
+  return param->getSystemSize(); }
+double System::getTimeStep() const {
+  return param->getTimeStep(); }
 
+int System::getRandomSeed() const { return randomSeed; }
 rnd* System::getRandomGenerator() { return &randomGenerator; }
+
 Particle* System::getParticle(int index) { return &(particles[index]); }
-std::ofstream* System::getOutputFileStream() { return &outputFileStream; }
-CellList* System::getCellList() { return &cellList; } // returns pointer to CellList object
+
+CellList* System::getCellList() { return &cellList; }
+
+std::string System::getOutputFile() const { return output.getOutputFile(); }
 
 double System::diffPeriodic(double const& x1, double const& x2) {
   // Returns algebraic distance from `x1' to `x2' on a line taking into account
@@ -189,9 +196,9 @@ double System::diffPeriodic(double const& x1, double const& x2) {
 
   double diff = x2 - x1;
 
-  if ( fabs(diff) > systemSize/2 ) {
-    double diff1 = fabs(x1) + fabs(systemSize - x2);
-    double diff2 = fabs(systemSize - x1) + fabs(x2);
+  if ( fabs(diff) > getSystemSize()/2 ) {
+    double diff1 = fabs(x1) + fabs(getSystemSize() - x2);
+    double diff2 = fabs(getSystemSize() - x1) + fabs(x2);
     if ( diff1 < diff2 ) { diff = diff1; }
     else { diff = diff2; }
     diff *= (x2 > x1 ? -1 : 1);
@@ -225,7 +232,7 @@ void System::WCA_potential(int const& index1, int const& index2,
 
   if ( index1 != index2 ) { // only consider different particles
 
-    double dist = this->getDistance(index1, index2); // dimensionless distance between particles
+    double dist = getDistance(index1, index2); // dimensionless distance between particles
 
     if (dist < pow(2, 1./6.)) { // distance lower than cut-off
 
@@ -246,9 +253,9 @@ void System::WCA_potential(int const& index1, int const& index2,
 
         // increment positions
         newParticles[index1].position()[dim] +=
-          timeStep*force/3/persistenceLength;
+          getTimeStep()*force/3/getPersistenceLength();
         newParticles[index2].position()[dim] -=
-          timeStep*force/3/persistenceLength;
+          getTimeStep()*force/3/getPersistenceLength();
       }
     }
   }
@@ -266,13 +273,11 @@ void System::saveInitialState() {
   // output
   if ( dumpParticles ) {
 
-    for (int i=0; i < numberParticles; i++) { // output all particles
+    for (int i=0; i < getNumberParticles(); i++) { // output all particles
       for (int dim=0; dim < 2; dim++) { // output position in each dimension
-        outputFileStream.write((char*) &(particles[i].position()[dim]),
-          sizeof(double));
+        output.write(particles[i].position()[dim]);
       }
-      outputFileStream.write((char*) particles[i].orientation(),
-        sizeof(double)); // output orientation
+      output.write(particles[i].orientation()[0]); // output orientation
     }
   }
 
@@ -288,7 +293,7 @@ void System::saveNewState(std::vector<Particle>& newParticles) {
 
   // SAVING
   double orderParameterIn[2] {0, 0}, orderParameterFin[2] {0, 0};
-  for (int i=0; i < numberParticles; i++) { // output all particles
+  for (int i=0; i < getNumberParticles(); i++) { // output all particles
 
     // ACTIVE WORK and ORDER PARAMETER (computation)
     for (int dim=0; dim < 2; dim++) {
@@ -302,13 +307,13 @@ void System::saveNewState(std::vector<Particle>& newParticles) {
       workForceSum +=
         (cos(newParticles[i].orientation()[0] - dim*M_PI/2)
           + cos(particles[i].orientation()[0] - dim*M_PI/2))
-        *timeStep*particles[i].force()[dim]/3/persistenceLength
+        *getTimeStep()*particles[i].force()[dim]/3/getPersistenceLength()
         /2;
       // orientation part of the active work
       workOrientationSum +=
         (cos(newParticles[i].orientation()[0] - dim*M_PI/2)
           + cos(particles[i].orientation()[0] - dim*M_PI/2))
-        *timeStep*cos(particles[i].orientation()[0] - dim*M_PI/2)
+        *getTimeStep()*cos(particles[i].orientation()[0] - dim*M_PI/2)
         /2;
       // order parameter
       orderParameterIn[dim] +=
@@ -321,21 +326,19 @@ void System::saveNewState(std::vector<Particle>& newParticles) {
     for (int dim=0; dim < 2; dim++) {
       // keep particles in the box
       newParticles[i].position()[dim] =
-        std::remainder(newParticles[i].position()[dim], systemSize);
+        std::remainder(newParticles[i].position()[dim], getSystemSize());
       if (newParticles[i].position()[dim] < 0) {
-        newParticles[i].position()[dim] += systemSize;
+        newParticles[i].position()[dim] += getSystemSize();
       }
       // output wrapped position in each dimension
       if ( dumpParticles && dumpFrame % dumpPeriod == 0 ) {
-        outputFileStream.write((char*) &(newParticles[i].position()[dim]),
-          sizeof(double));
+        output.write(newParticles[i].position()[dim]);
       }
     }
 
     // ORIENTATION
     if ( dumpParticles && dumpFrame % dumpPeriod == 0 ) {
-      outputFileStream.write((char*) newParticles[i].orientation(),
-        sizeof(double));
+      output.write(newParticles[i].orientation()[0]);
     }
   }
   orderSum +=
@@ -345,14 +348,18 @@ void System::saveNewState(std::vector<Particle>& newParticles) {
 
   // ACTIVE WORK and ORDER PARAMETER (output)
   if ( dumpFrame % (framesWork*dumpPeriod) == 0 ) {
-    workSum /= numberParticles*timeStep*framesWork*dumpPeriod;
-    workForceSum /= numberParticles*timeStep*framesWork*dumpPeriod;
-    workOrientationSum /= numberParticles*timeStep*framesWork*dumpPeriod;
-    orderSum /= numberParticles*framesWork*dumpPeriod;
-    outputFileStream.write((char*) &workSum, sizeof(double));
-    outputFileStream.write((char*) &workForceSum, sizeof(double));
-    outputFileStream.write((char*) &workOrientationSum, sizeof(double));
-    outputFileStream.write((char*) &orderSum, sizeof(double));
+    workSum /=
+      getNumberParticles()*getTimeStep()*framesWork*dumpPeriod;
+    workForceSum /=
+      getNumberParticles()*getTimeStep()*framesWork*dumpPeriod;
+    workOrientationSum /=
+      getNumberParticles()*getTimeStep()*framesWork*dumpPeriod;
+    orderSum /=
+      getNumberParticles()*framesWork*dumpPeriod;
+    output.write(workSum);
+    output.write(workForceSum);
+    output.write(workOrientationSum);
+    output.write(orderSum);
     workSum = 0;
     workForceSum = 0;
     workOrientationSum = 0;

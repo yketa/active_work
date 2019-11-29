@@ -2,6 +2,7 @@
 #include <cstdlib>
 #include <stdio.h>
 
+#include "param.h"
 #include "particle.h"
 #include "iteration.h"
 #include "env.h"
@@ -28,9 +29,13 @@ int main() {
   bool dump = getEnvBool("DUMP", 1); // dump positions and orientations to output file
   int period = getEnvInt("PERIOD", 1); // period of dumping of positions and orientations in number of frames
 
+  // PARAMETERS
+
+  Parameters parameters(N, lp, phi, dt); // class of simulation parameters
+
   // SYSTEM
 
-  System system(N, lp, phi, seed, dt, filename, nWork, dump, period); // custom number of frames for active work computation
+  System system(&parameters, seed, filename, nWork, dump, period); // custom number of frames for active work computation
   system.saveInitialState(); // save first frame
 
   // ITERATION

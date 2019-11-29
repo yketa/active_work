@@ -6,6 +6,8 @@
 #include <fstream>
 
 #include "maths.h"
+#include "param.h"
+#include "write.h"
 
 /////////////
 // CLASSES //
@@ -132,7 +134,7 @@ class System {
     // CONSTRUCTORS
 
     System(
-      int N, double lp, double phi, int seed, double dt, std::string filename,
+      Parameters* parameters, int seed, std::string filename,
       int nWork = 0, bool dump = true, int period = 1);
 
     // DESTRUCTORS
@@ -145,14 +147,16 @@ class System {
     double getPersistenceLength() const; // returns dimensionless persistence length
     double getPackingFraction() const; // returns packing fraction
     double getSystemSize() const; // returns system size
-    int getRandomSeed() const; // returns random seed
     double getTimeStep() const; // returns time step
-    std::string getOutputFile() const; // returns output file name
 
+    int getRandomSeed() const; // returns random seed
     rnd* getRandomGenerator(); // returns pointer to random generator
+
     Particle* getParticle(int index); // returns pointer to given particle
-    std::ofstream* getOutputFileStream(); // returns pointer to output file stream
+
     CellList* getCellList(); // returns pointer to CellList object
+
+    std::string getOutputFile() const; // returns output file name
 
     double diffPeriodic(double const& x1, double const& x2);
       // Returns distance between two pointson a line taking into account periodic
@@ -179,24 +183,21 @@ class System {
 
     // ATTRIBUTES
 
-    int const numberParticles; // number of particles in the system
-    double const persistenceLength; // dimensionless persistence length
-    double const packingFraction; // packing fraction
-    double const systemSize; // system size
+    Parameters* param; // class of simulation parameters
+
     int const randomSeed; // random seed
-    double const timeStep; // time step
-    std::string const outputFile; // output file name
+    rnd randomGenerator; // random number generator
+
+    std::vector<Particle> particles; // vector of particles
+
+    CellList cellList; // cell list
+
+    Output output; // output class
 
     int const framesWork; // number of frames on which to sum the active work before dumping
       // taken roughly equal to lp/dt
     bool const dumpParticles; // dump positions and orientations to output file
     int const dumpPeriod; // period of dumping of positions and orientations in number of frames
-
-    rnd randomGenerator; // random number generator
-    std::vector<Particle> particles; // vector of particles
-    std::ofstream outputFileStream; // output file stream
-      // WARNING: Content of file is erased.
-    CellList cellList; // cell list
 
     int dumpFrame; // index of last frame dumped
     double workSum; // sum of the active works since the last dump
