@@ -12,7 +12,7 @@ int main() {
   // VARIABLE DEFINITION
 
   // system
-  double N = getEnvDouble("N", 1); // number of particles in the system
+  int N = getEnvInt("N", 1); // number of particles in the system
   double lp = getEnvDouble("LP", 1); // dimensionless persistence length
   double phi = getEnvDouble("PHI", 0.02); // packing fraction
   int seed = getEnvInt("SEED", 1); // random seed
@@ -35,7 +35,7 @@ int main() {
 
   // SYSTEM
 
-  System system(&parameters, seed, filename, nWork, dump, period); // custom number of frames for active work computation
+  System system(&parameters, seed, filename, nWork, dump, period);
   system.saveInitialState(); // save first frame
 
   // ITERATION
