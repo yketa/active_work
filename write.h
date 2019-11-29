@@ -10,8 +10,9 @@
 
 class Output;
 
-/*  OUTPUTFILE
- *  --------
+
+/*  OUTPUT
+ *  ------
  *  Write to binary output file.
  */
 
