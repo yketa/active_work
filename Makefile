@@ -11,10 +11,15 @@ LDFLAGS=
 
 ifeq ($(TEST),yes)
 	EXEC=$(BU)/test
-	SRC=$(filter-out main.cpp, $(wildcard *.cpp))
+	SRC=$(filter-out main.cpp cloning.cpp, $(wildcard *.cpp))
+else
+ifeq ($(CLONING),yes)
+	EXEC=$(BU)/cloning
+	SRC=$(filter-out main.cpp test.cpp, $(wildcard *.cpp))
 else
 	EXEC=$(BU)/simulation
-	SRC=$(filter-out test.cpp, $(wildcard *.cpp))
+	SRC=$(filter-out test.cpp cloning.cpp, $(wildcard *.cpp))
+endif
 endif
 
 ifeq ($(CELLLIST),yes)
@@ -61,10 +66,13 @@ $(OB)/write.o: write.cpp write.h
 
 ##
 
+$(OB)/cloning.o: cloning.cpp cloningserial.h env.h param.h particle.h
+	$(CC) -o $(OB)/cloning.o -c cloning.cpp $(CFLAGS)
+
 $(OB)/main.o: main.cpp env.h iteration.h maths.h param.h particle.h read.h
 	$(CC) -o $(OB)/main.o -c main.cpp $(CFLAGS)
 
-$(OB)/test.o: test.cpp env.h iteration.h maths.h particle.h read.h
+$(OB)/test.o: test.cpp env.h iteration.h maths.h param.h particle.h read.h
 	$(CC) -o $(OB)/test.o -c test.cpp $(CFLAGS)
 
 #### VALGRIND ####
