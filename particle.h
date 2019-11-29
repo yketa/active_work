@@ -134,7 +134,10 @@ class System {
     // CONSTRUCTORS
 
     System(
-      Parameters* parameters, int seed, std::string filename,
+      Parameters* parameters, int seed = 0, std::string filename = "",
+      int nWork = 0, bool dump = true, int period = 1);
+    System(
+      System* system, int seed = 0, std::string filename = "",
       int nWork = 0, bool dump = true, int period = 1);
 
     // DESTRUCTORS
@@ -142,6 +145,8 @@ class System {
     ~System();
 
     // METHODS
+
+    Parameters* getParameters(); // returns class of parameters
 
     int getNumberParticles() const; // returns number of particles
     double getPersistenceLength() const; // returns dimensionless persistence length
@@ -153,10 +158,17 @@ class System {
     rnd* getRandomGenerator(); // returns pointer to random generator
 
     Particle* getParticle(int index); // returns pointer to given particle
+    std::vector<Particle> getParticles(); // returns vector of particles
 
     CellList* getCellList(); // returns pointer to CellList object
 
     std::string getOutputFile() const; // returns output file name
+
+    double getWork(); // returns last computed normalised rate of active work
+    double getWorkForce(); // returns last computed force part of the normalised rate of active work
+    double getWorkOrientation(); // returns last computed orientation part of the normalised rate of active work
+    double getOrder(); // returns last computed order parameter
+    // NOTE: All these quantities are computed every framesWork*dumpPeriod iterations.
 
     double diffPeriodic(double const& x1, double const& x2);
       // Returns distance between two pointson a line taking into account periodic
@@ -172,7 +184,9 @@ class System {
       // particles[index2].position().
 
     void copyParticles(std::vector<Particle>& newParticles);
-      // Replace vector particles by newParticles.
+      // Replace vector of particles by newParticles.
+    void copyParticles(System* system);
+      // Replace vector of particles by the one from system.
 
     void saveInitialState();
       // Saves initial state of particles to output file.
@@ -200,10 +214,10 @@ class System {
     int const dumpPeriod; // period of dumping of positions and orientations in number of frames
 
     int dumpFrame; // index of last frame dumped
-    double workSum; // sum of the active works since the last dump
-    double workForceSum; // sum of the force part of the active works since the last dump
-    double workOrientationSum; // sum of the orientation part of the active works since the last dump
-    double orderSum; // sum of order parameter norm since the last dump
+    double workSum[2]; // sum of the active works since the last dump
+    double workForceSum[2]; // sum of the force part of the active works since the last dump
+    double workOrientationSum[2]; // sum of the orientation part of the active works since the last dump
+    double orderSum[2]; // sum of order parameter norm since the last dump
 
 };
 

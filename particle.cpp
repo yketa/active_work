@@ -133,7 +133,8 @@ System::System(
     parameters->getPersistenceLength()/(parameters->getTimeStep()*period)),
     dumpParticles(dump), dumpPeriod(period),
   dumpFrame(-1),
-    workSum(0), workForceSum(0), workOrientationSum(0), orderSum(0) {
+  workSum {0, 0}, workForceSum {0, 0}, workOrientationSum {0, 0},
+    orderSum {0, 0} {
 
     // set seed of random generator
     randomGenerator.setSeed(seed);
@@ -164,11 +165,54 @@ System::System(
     cellList.initialise(this, pow(2., 1./6.));
 }
 
+System::System(
+  System* system, int seed, std::string filename,
+  int nWork, bool dump, int period) :
+  param(system->getParameters()),
+  randomSeed(seed), randomGenerator(),
+  particles(system->getNumberParticles()),
+  cellList(),
+  output(filename),
+  framesWork(nWork > 0 ? nWork : (int)
+    system->getPersistenceLength()/(system->getTimeStep()*period)),
+    dumpParticles(dump), dumpPeriod(period),
+  dumpFrame(-1),
+  workSum {0, 0}, workForceSum {0, 0}, workOrientationSum {0, 0},
+    orderSum {0, 0} {
+
+  // set seed of random generator
+  randomGenerator.setSeed(seed);
+
+  // writing header with system parameters to output file
+  output.write(getNumberParticles());
+  output.write(getPersistenceLength());
+  output.write(getPackingFraction());
+  output.write(getSystemSize());
+  output.write(randomSeed);
+  output.write(getTimeStep());
+  output.write(framesWork);
+  output.write(dumpParticles);
+  output.write(dumpPeriod);
+
+  // copying particles
+  particles = system->getParticles();
+
+  // test
+  double test = 0;
+  for (int i=0; i < getNumberParticles(); i++) { test = randomGenerator.random01(); }
+  ////////////
+
+  // initialise cell list
+  cellList.initialise(this, pow(2., 1./6.));
+}
+
 // DESTRUCTORS
 
 System::~System() { output.~Output(); }
 
 // METHODS
+
+Parameters* System::getParameters() { return param; }
 
 int System::getNumberParticles() const {
   return param->getNumberParticles(); }
@@ -185,10 +229,16 @@ int System::getRandomSeed() const { return randomSeed; }
 rnd* System::getRandomGenerator() { return &randomGenerator; }
 
 Particle* System::getParticle(int index) { return &(particles[index]); }
+std::vector<Particle> System::getParticles() { return particles; }
 
 CellList* System::getCellList() { return &cellList; }
 
 std::string System::getOutputFile() const { return output.getOutputFile(); }
+
+double System::getWork() { return workSum[1]; }
+double System::getWorkForce() { return workForceSum[1]; }
+double System::getWorkOrientation() { return workOrientationSum[1]; }
+double System::getOrder() { return orderSum[1]; }
 
 double System::diffPeriodic(double const& x1, double const& x2) {
   // Returns algebraic distance from `x1' to `x2' on a line taking into account
@@ -265,6 +315,18 @@ void System::copyParticles(std::vector<Particle>& newParticles) {
   // Replace vector particles by newParticles.
 
   particles = newParticles;
+
+  // UPDATING CELL LIST
+  cellList.update(this);
+}
+
+void System::copyParticles(System* system) {
+  // Replace vector of particles by the one from system.
+
+  particles = system->getParticles();
+
+  // UPDATING CELL LIST
+  cellList.update(this);
 }
 
 void System::saveInitialState() {
@@ -298,19 +360,19 @@ void System::saveNewState(std::vector<Particle>& newParticles) {
     // ACTIVE WORK and ORDER PARAMETER (computation)
     for (int dim=0; dim < 2; dim++) {
       // active work
-      workSum +=
+      workSum[0] +=
         (cos(newParticles[i].orientation()[0] - dim*M_PI/2)
           + cos(particles[i].orientation()[0] - dim*M_PI/2))
         *(newParticles[i].position()[dim] - particles[i].position()[dim]) // NOTE: at this stage, newParticles[i].position() are not rewrapped, so this difference is the actual displacement
         /2;
       // force part of the active work
-      workForceSum +=
+      workForceSum[0] +=
         (cos(newParticles[i].orientation()[0] - dim*M_PI/2)
           + cos(particles[i].orientation()[0] - dim*M_PI/2))
         *getTimeStep()*particles[i].force()[dim]/3/getPersistenceLength()
         /2;
       // orientation part of the active work
-      workOrientationSum +=
+      workOrientationSum[0] +=
         (cos(newParticles[i].orientation()[0] - dim*M_PI/2)
           + cos(particles[i].orientation()[0] - dim*M_PI/2))
         *getTimeStep()*cos(particles[i].orientation()[0] - dim*M_PI/2)
@@ -341,33 +403,31 @@ void System::saveNewState(std::vector<Particle>& newParticles) {
       output.write(newParticles[i].orientation()[0]);
     }
   }
-  orderSum +=
+  orderSum[0] +=
     (sqrt(pow(orderParameterIn[0], 2) + pow(orderParameterIn[1], 2))
       + sqrt(pow(orderParameterFin[0], 2) + pow(orderParameterFin[1], 2)))
     /2;
 
   // ACTIVE WORK and ORDER PARAMETER (output)
   if ( dumpFrame % (framesWork*dumpPeriod) == 0 ) {
-    workSum /=
-      getNumberParticles()*getTimeStep()*framesWork*dumpPeriod;
-    workForceSum /=
-      getNumberParticles()*getTimeStep()*framesWork*dumpPeriod;
-    workOrientationSum /=
-      getNumberParticles()*getTimeStep()*framesWork*dumpPeriod;
-    orderSum /=
-      getNumberParticles()*framesWork*dumpPeriod;
-    output.write(workSum);
-    output.write(workForceSum);
-    output.write(workOrientationSum);
-    output.write(orderSum);
-    workSum = 0;
-    workForceSum = 0;
-    workOrientationSum = 0;
-    orderSum = 0;
+    workSum[1] = workSum[0]/(
+      getNumberParticles()*getTimeStep()*framesWork*dumpPeriod);
+    workForceSum[1] = workForceSum[0]/(
+      getNumberParticles()*getTimeStep()*framesWork*dumpPeriod);
+    workOrientationSum[1] = workOrientationSum[0]/(
+      getNumberParticles()*getTimeStep()*framesWork*dumpPeriod);
+    orderSum[1] = orderSum[0]/(
+      getNumberParticles()*framesWork*dumpPeriod);
+    output.write(workSum[1]);
+    output.write(workForceSum[1]);
+    output.write(workOrientationSum[1]);
+    output.write(orderSum[1]);
+    workSum[0] = 0;
+    workForceSum[0] = 0;
+    workOrientationSum[0] = 0;
+    orderSum[0] = 0;
   }
 
   // COPYING
   copyParticles(newParticles);
-  // UPDATING CELL LIST
-  cellList.update(this);
 }
