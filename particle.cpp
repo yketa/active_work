@@ -121,16 +121,27 @@ std::vector<int> CellList::getNeighbours(Particle *particle) {
 
 // CONSTRUCTORS
 
+System::System() :
+  param(new Parameters()),
+  randomSeed(0), randomGenerator(),
+  particles(0),
+  cellList(),
+  output(""),
+  framesWork(0), dumpParticles(0), dumpPeriod(0),
+  dumpFrame(0),
+  workSum {0, 0}, workForceSum {0, 0}, workOrientationSum {0, 0},
+    orderSum {0, 0} {}
+
 System::System(
-  Parameters parameters, int seed, std::string filename,
+  Parameters* parameters, int seed, std::string filename,
   int nWork, bool dump, int period) :
   param(parameters),
   randomSeed(seed), randomGenerator(),
-  particles(parameters.getNumberParticles()),
+  particles(parameters->getNumberParticles()),
   cellList(),
   output(filename),
   framesWork(nWork > 0 ? nWork : (int)
-    parameters.getPersistenceLength()/(parameters.getTimeStep()*period)),
+    parameters->getPersistenceLength()/(parameters->getTimeStep()*period)),
     dumpParticles(dump), dumpPeriod(period),
   dumpFrame(-1),
   workSum {0, 0}, workForceSum {0, 0}, workOrientationSum {0, 0},
@@ -202,7 +213,7 @@ System::System(
 
 // DESTRUCTORS
 
-System::~System() { output.~Output(); }
+System::~System() {}
 
 // METHODS
 

@@ -133,8 +133,9 @@ class System {
 
     // CONSTRUCTORS
 
+    System();
     System(
-      Parameters parameters, int seed = 0, std::string filename = "",
+      Parameters* parameters, int seed = 0, std::string filename = "",
       int nWork = 0, bool dump = true, int period = 1);
     System(
       System* system, int seed = 0, std::string filename = "",
