@@ -1,3 +1,8 @@
+"""
+Module read provides classes to read from data files, especially the ones made
+by the simulation script.
+"""
+
 import struct
 import numpy as np
 import os
@@ -5,9 +10,56 @@ import pickle
 
 from active_work.maths import relative_positions
 
-class Dat:
+class _Read:
     """
-    Read data files from C library.
+    Generic class to read output files.
+    """
+
+    def __init__(self, filename):
+        """
+        Load file.
+
+        Parameters
+        ----------
+        filename : string
+            Path to data file.
+        """
+
+        # FILE
+        self.filename = filename
+        self.file = open(self.filename, 'rb')
+        self.fileSize = os.path.getsize(filename)
+
+    def __del__(self):
+        self.file.close()
+
+    def _bpe(self, type):
+        """
+        Returns number of bytes corresponding to type.
+
+        Parameters
+        ----------
+        type : string
+            Type of value to read.
+        """
+
+        return struct.calcsize(type)
+
+    def _read(self, type):
+        """
+        Read element from file with type.
+
+        Parameters
+        ----------
+        type : string
+            Type of value to read.
+        """
+
+        return struct.unpack(type, self.file.read(self._bpe(type)))[0]
+
+class Dat(_Read):
+    """
+    Read data files from simulations.
     """
 
     def __init__(self, filename):
@@ -21,9 +73,7 @@ class Dat:
         """
 
         # FILE
-        self.filename = filename
-        self.file = open(self.filename, 'rb')
-        self.fileSize = os.path.getsize(filename)
+        super().__init__(filename)
 
         # HEADER INFORMATION
         self.N = self._read('i')                # number of particles
@@ -62,9 +112,6 @@ class Dat:
 
         # COMPUTED NORMALISED RATE OF ACTIVE WORK
         self._loadWork()
-
-    def __del__(self):
-        self.file.close()
 
     def getWork(self, time0, time1):
         """
@@ -375,17 +422,3 @@ class Dat:
         diff = (1 - 2*(diff > 0))*np.min([
             np.abs(x0) + np.abs(self.L - x1), np.abs(self.L - x0) + np.abs(x1)])
         return diff
-
-    def _bpe(self, type):
-        """
-        Returns number of bytes corresponding to type.
-        """
-
-        return struct.calcsize(type)
-
-    def _read(self, type):
-        """
-        Read element from file with type.
-        """
-
-        return struct.unpack(type, self.file.read(self._bpe(type)))[0]
