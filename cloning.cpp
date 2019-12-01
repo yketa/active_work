@@ -25,11 +25,11 @@ int main() {
 	// cloning parameters
 	double tmax = getEnvDouble("TMAX", 1); // dimensionless time to simulate
 	int nc = getEnvInt("NC", 10); // number of clones
-	double sValue = getEnvInt("SVALUE", 0); // biasing field
-	int seed = getEnvInt("SEED", 0); // random seed
+	double sValue = getEnvInt("SVALUE", 0); // biasing parameter
+	int seed = getEnvInt("SEED", 0); // master random seed
 	int nRuns = getEnvInt("NRUNS", 1); // number of different runs
 	int cloneMethod = 2; // should keep this set to 2 (!!)
-	int initSim = getEnvInt("INITSIM", 1); // number of initial elementary number of iterations to do to "randomise" the systems
+	int initSim = getEnvInt("INITSIM", 1); // number of initial elementary number of iterations to "randomise" the systems
 
 	// openMP parameters
 	#ifdef _OPENMP
@@ -48,7 +48,7 @@ int main() {
   double phi = getEnvDouble("PHI", 0.65); // packing fraction
 
 	// simulation parameters
-	int tau = getEnvInt("TAU", 100); // elementary number of step
+	int tau = getEnvInt("TAU", 100); // elementary number of steps
 	double dt = getEnvDouble("DT", 0.001); // time step
 
 	// output to file
