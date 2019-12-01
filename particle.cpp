@@ -122,15 +122,15 @@ std::vector<int> CellList::getNeighbours(Particle *particle) {
 // CONSTRUCTORS
 
 System::System(
-  Parameters* parameters, int seed, std::string filename,
+  Parameters parameters, int seed, std::string filename,
   int nWork, bool dump, int period) :
   param(parameters),
   randomSeed(seed), randomGenerator(),
-  particles(parameters->getNumberParticles()),
+  particles(parameters.getNumberParticles()),
   cellList(),
   output(filename),
   framesWork(nWork > 0 ? nWork : (int)
-    parameters->getPersistenceLength()/(parameters->getTimeStep()*period)),
+    parameters.getPersistenceLength()/(parameters.getTimeStep()*period)),
     dumpParticles(dump), dumpPeriod(period),
   dumpFrame(-1),
   workSum {0, 0}, workForceSum {0, 0}, workOrientationSum {0, 0},
@@ -139,7 +139,7 @@ System::System(
     // set seed of random generator
     randomGenerator.setSeed(seed);
 
-    // writing header with system parameters to output file
+    // write header with system parameters to output file
     output.write(getNumberParticles());
     output.write(getPersistenceLength());
     output.write(getPackingFraction());
@@ -150,10 +150,10 @@ System::System(
     output.write(dumpParticles);
     output.write(dumpPeriod);
 
-    // putting particles on a grid with random orientation
-    int gridSize = ceil(sqrt(parameters->getNumberParticles())); // size of the grid on which to put the particles
-    double gridSpacing = parameters->getSystemSize()/gridSize;
-    for (int i=0; i < parameters->getNumberParticles(); i++) { // loop over particles
+    // put particles on a grid with random orientation
+    int gridSize = ceil(sqrt(getNumberParticles())); // size of the grid on which to put the particles
+    double gridSpacing = getSystemSize()/gridSize;
+    for (int i=0; i < getNumberParticles(); i++) { // loop over particles
       // position on the grid
       particles[i].position()[0] = (i%gridSize)*gridSpacing;
       particles[i].position()[1] = (i/gridSize)*gridSpacing;
@@ -183,7 +183,7 @@ System::System(
   // set seed of random generator
   randomGenerator.setSeed(seed);
 
-  // writing header with system parameters to output file
+  // write header with system parameters to output file
   output.write(getNumberParticles());
   output.write(getPersistenceLength());
   output.write(getPackingFraction());
@@ -194,11 +194,10 @@ System::System(
   output.write(dumpParticles);
   output.write(dumpPeriod);
 
-  // copying particles
-  particles = system->getParticles();
-
   // initialise cell list
   cellList.initialise(this, pow(2., 1./6.));
+  // copy particles and update cell list
+  copyParticles(system);
 }
 
 // DESTRUCTORS
@@ -207,18 +206,18 @@ System::~System() { output.~Output(); }
 
 // METHODS
 
-Parameters* System::getParameters() { return param; }
+Parameters* System::getParameters() { return &param; }
 
 int System::getNumberParticles() const {
-  return param->getNumberParticles(); }
+  return param.getNumberParticles(); }
 double System::getPersistenceLength() const {
-  return param->getPersistenceLength(); }
+  return param.getPersistenceLength(); }
 double System::getPackingFraction() const {
-  return param->getPackingFraction(); }
+  return param.getPackingFraction(); }
 double System::getSystemSize() const {
-  return param->getSystemSize(); }
+  return param.getSystemSize(); }
 double System::getTimeStep() const {
-  return param->getTimeStep(); }
+  return param.getTimeStep(); }
 
 int System::getRandomSeed() const { return randomSeed; }
 rnd* System::getRandomGenerator() { return &randomGenerator; }

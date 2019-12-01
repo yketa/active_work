@@ -134,7 +134,7 @@ class System {
     // CONSTRUCTORS
 
     System(
-      Parameters* parameters, int seed = 0, std::string filename = "",
+      Parameters parameters, int seed = 0, std::string filename = "",
       int nWork = 0, bool dump = true, int period = 1);
     System(
       System* system, int seed = 0, std::string filename = "",
@@ -146,7 +146,7 @@ class System {
 
     // METHODS
 
-    Parameters* getParameters(); // returns class of parameters
+    Parameters* getParameters(); // returns pointer to class of parameters
 
     int getNumberParticles() const; // returns number of particles
     double getPersistenceLength() const; // returns dimensionless persistence length
@@ -197,7 +197,7 @@ class System {
 
     // ATTRIBUTES
 
-    Parameters* param; // class of simulation parameters
+    Parameters param; // class of simulation parameters
 
     int const randomSeed; // random seed
     rnd randomGenerator; // random number generator
