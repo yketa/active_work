@@ -1,5 +1,5 @@
-#ifndef READ_H
-#define READ_H
+#ifndef READ_HPP
+#define READ_HPP
 
 #include <fstream>
 #include <string>
@@ -8,7 +8,7 @@
 // DAT
 
 class Dat {
-  /*  Read files as defined by the System class (see particle.h).
+  /*  Read files as defined by the System class (see particle.hpp).
    */
 
   public:

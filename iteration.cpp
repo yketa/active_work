@@ -2,8 +2,8 @@
 #include <math.h>
 #include <vector>
 
-#include "iteration.h"
-#include "particle.h"
+#include "iteration.hpp"
+#include "particle.hpp"
 
 void iterate_ABP_WCA(System *system) {
   // Updates system to next step according to the dynamics of active Brownian

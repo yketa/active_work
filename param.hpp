@@ -1,5 +1,5 @@
-#ifndef PARAM_H
-#define PARAM_H
+#ifndef PARAM_HPP
+#define PARAM_HPP
 
 /////////////
 // CLASSES //

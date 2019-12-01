@@ -1,13 +1,13 @@
-#ifndef PARTICLE_H
-#define PARTICLE_H
+#ifndef PARTICLE_HPP
+#define PARTICLE_HPP
 
 #include <vector>
 #include <string>
 #include <fstream>
 
-#include "maths.h"
-#include "param.h"
-#include "write.h"
+#include "maths.hpp"
+#include "param.hpp"
+#include "write.hpp"
 
 /////////////
 // CLASSES //

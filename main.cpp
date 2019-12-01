@@ -2,10 +2,10 @@
 #include <cstdlib>
 #include <stdio.h>
 
-#include "param.h"
-#include "particle.h"
-#include "iteration.h"
-#include "env.h"
+#include "param.hpp"
+#include "particle.hpp"
+#include "iteration.hpp"
+#include "env.hpp"
 
 int main() {
 

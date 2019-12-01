@@ -3,16 +3,16 @@
 #include <vector>
 #include <algorithm>
 
-#include "read.h"
+#include "read.hpp"
 
 // DAT
 
 // CONSTRUCTORS
 
 Dat::Dat(std::string filename) :
-  inputFileStream(filename.c_str(), std::ios::in | std::ios::binary),
   numberParticles(), persistenceLength(), packingFraction(), systemSize(),
-    randomSeed(), timeStep(), framesWork(), dumpParticles(), dumpPeriod() {
+    randomSeed(), timeStep(), framesWork(), dumpParticles(), dumpPeriod(),
+  inputFileStream(filename.c_str(), std::ios::in | std::ios::binary) {
 
   // HEADER INFORMATION
   inputFileStream.read((char*) &numberParticles, sizeof(int));

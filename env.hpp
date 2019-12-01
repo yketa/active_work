@@ -1,5 +1,5 @@
-#ifndef ENV_H
-#define ENV_H
+#ifndef ENV_HPP
+#define ENV_HPP
 
 #include <string>
 

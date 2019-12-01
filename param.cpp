@@ -1,6 +1,6 @@
 #include <math.h>
 
-#include "param.h"
+#include "param.hpp"
 
 /////////////
 // CLASSES //

@@ -6,7 +6,7 @@ OB=$(BU)/objects
 #### COMPILATION PARAMETERS ####
 
 CC=g++
-CFLAGS=-std=gnu++11
+CFLAGS=-std=gnu++11 -O3 -Wall
 LDFLAGS=
 
 ifeq ($(TEST),yes)
@@ -43,36 +43,36 @@ $(EXEC): $(OBJ)
 
 #### DEPENDENCIES ####
 
-$(OB)/env.o: env.cpp env.h
+$(OB)/env.o: env.cpp env.hpp
 	$(CC) -o $(OB)/env.o -c env.cpp $(CFLAGS)
 
-$(OB)/iteration.o: iteration.cpp iteration.h particle.h
+$(OB)/iteration.o: iteration.cpp iteration.hpp particle.hpp
 	$(CC) -o $(OB)/iteration.o -c iteration.cpp $(CFLAGS)
 
-$(OB)/maths.o: maths.cpp maths.h
+$(OB)/maths.o: maths.cpp maths.hpp
 	$(CC) -o $(OB)/maths.o -c maths.cpp $(CFLAGS)
 
-$(OB)/param.o: param.cpp param.h
+$(OB)/param.o: param.cpp param.hpp
 	$(CC) -o $(OB)/param.o -c param.cpp $(CFLAGS)
 
-$(OB)/particle.o: particle.cpp particle.h maths.h
+$(OB)/particle.o: particle.cpp particle.hpp maths.hpp
 	$(CC) -o $(OB)/particle.o -c particle.cpp $(CFLAGS)
 
-$(OB)/read.o: read.cpp read.h
+$(OB)/read.o: read.cpp read.hpp
 	$(CC) -o $(OB)/read.o -c read.cpp $(CFLAGS)
 
-$(OB)/write.o: write.cpp write.h
+$(OB)/write.o: write.cpp write.hpp
 	$(CC) -o $(OB)/write.o -c write.cpp $(CFLAGS)
 
 ##
 
-$(OB)/cloning.o: cloning.cpp cloningserial.h env.h param.h particle.h
+$(OB)/cloning.o: cloning.cpp cloningserial.hpp env.hpp param.hpp particle.hpp
 	$(CC) -o $(OB)/cloning.o -c cloning.cpp $(CFLAGS)
 
-$(OB)/main.o: main.cpp env.h iteration.h maths.h param.h particle.h read.h
+$(OB)/main.o: main.cpp env.hpp iteration.hpp maths.hpp param.hpp particle.hpp read.hpp
 	$(CC) -o $(OB)/main.o -c main.cpp $(CFLAGS)
 
-$(OB)/test.o: test.cpp env.h iteration.h maths.h param.h particle.h read.h
+$(OB)/test.o: test.cpp env.hpp iteration.hpp maths.hpp param.hpp particle.hpp read.hpp
 	$(CC) -o $(OB)/test.o -c test.cpp $(CFLAGS)
 
 #### VALGRIND ####

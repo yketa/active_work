@@ -12,10 +12,11 @@
 #include <omp.h>
 #endif
 
-#include "cloningserial.h"
-#include "env.h"
-#include "param.h"
-#include "particle.h"
+#include "cloningserial.hpp"
+#include "env.hpp"
+#include "param.hpp"
+#include "particle.hpp"
+#include "write.hpp"
 
 using namespace std;
 
@@ -50,6 +51,22 @@ int main() {
 	int tau = getEnvInt("TAU", 100); // elementary number of step
 	double dt = getEnvDouble("DT", 0.001); // time step
 
+	// output to file
+	std::string filename = getEnvString("FILE", ""); // output file name
+	Output output(filename); // output class
+	output.write(tmax);
+	output.write(nc);
+	output.write(sValue);
+	output.write(seed);
+	output.write(nRuns);
+	output.write(cloneMethod);
+	output.write(initSim);
+	output.write(N);
+	output.write(lp);
+	output.write(phi);
+	output.write(tau);
+	output.write(dt);
+
 	// parameters class
 	Parameters parameters(N, lp, phi, dt);
 	// dummy system
@@ -63,7 +80,7 @@ int main() {
 
   // set up the clones etc, using dummySystem to get system sizes, hop rates, etc
   clones.Init(nc,&dummy,seed);
-  cout << "## master seed " << seed << endl;
+  std::cout << "## master seed " << seed << std::endl;
 
   for (int run = 0; run<nRuns;run++) {
 
@@ -72,13 +89,21 @@ int main() {
     clones.doCloning(tmax,sValue,initSim);
 
     // output. Note OP here is the mean escape rate of the modified dynamics, is that the same as K(s) ?
-    cout << "#psi_OP_t_s " << clones.outputPsi << " "
+    std::cout << "#psi_OP_t_s " << clones.outputPsi << " "
                          << clones.outputOP[0] << " "
                          << clones.outputOP[1] << " "
 												 << clones.outputOP[2] << " "
 												 << clones.outputOP[3] << " "
                          << clones.outputWalltime << " "
-                         << sValue << endl;
+                         << sValue << std::endl;
+
+		// output to file
+		output.write(clones.outputPsi);
+		output.write(clones.outputOP[0]);
+		output.write(clones.outputOP[1]);
+		output.write(clones.outputOP[2]);
+		output.write(clones.outputOP[3]);
+		output.write(clones.outputWalltime);
   }
 
 }

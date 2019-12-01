@@ -1,6 +1,6 @@
 #include <string>
 
-#include "write.h"
+#include "write.hpp"
 
 /////////////
 // CLASSES //

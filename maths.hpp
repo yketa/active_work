@@ -1,5 +1,5 @@
-#ifndef MATHS_H
-#define MATHS_H
+#ifndef MATHS_HPP
+#define MATHS_HPP
 
 #include <random>
 #include <cmath>

@@ -1,8 +1,8 @@
-#ifndef ITERATION_H
-#define ITERATION_H
+#ifndef ITERATION_HPP
+#define ITERATION_HPP
 
-#include "particle.h"
-#include "maths.h"
+#include "particle.hpp"
+#include "maths.hpp"
 
 void iterate_ABP_WCA(System *system);
   // Updates system to next step according to the dynamics of active Brownian

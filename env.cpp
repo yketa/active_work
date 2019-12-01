@@ -1,7 +1,7 @@
 #include <cstdlib>
 #include <string>
 
-#include "env.h"
+#include "env.hpp"
 
 double getEnvDouble(std::string const& envName, double const& defaultValue){
   // Returns environment variable as double.

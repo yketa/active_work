@@ -1,5 +1,5 @@
-#ifndef WRITE_H
-#define WRITE_H
+#ifndef WRITE_HPP
+#define WRITE_HPP
 
 #include <fstream>
 #include <string>

@@ -4,8 +4,8 @@
 #include <string>
 #include <algorithm>
 
-#include "particle.h"
-#include "maths.h"
+#include "particle.hpp"
+#include "maths.hpp"
 
 /////////////
 // CLASSES //
@@ -72,7 +72,7 @@ void CellList::update(System *system) {
   // Put particles in the cell list.
 
   // flush old lists
-  for (int i=0; i < cellList.size(); i++) {
+  for (int i=0; i < (int) cellList.size(); i++) {
     cellList[i].clear();
   }
 
@@ -196,11 +196,6 @@ System::System(
 
   // copying particles
   particles = system->getParticles();
-
-  // test
-  double test = 0;
-  for (int i=0; i < getNumberParticles(); i++) { test = randomGenerator.random01(); }
-  ////////////
 
   // initialise cell list
   cellList.initialise(this, pow(2., 1./6.));

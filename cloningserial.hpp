@@ -2,17 +2,17 @@
  *
  */
 
-#ifndef CLONINGSERIAL_H
-#define CLONINGSERIAL_H
+#ifndef CLONINGSERIAL_HPP
+#define CLONINGSERIAL_HPP
 
 #include <random>
 #include <vector>
 #include <chrono>
 
 // System class
-#include "particle.h"
+#include "particle.hpp"
 // iterate_ABP_WCA function
-#include "iteration.h"
+#include "iteration.hpp"
 
 // note this is called CloningSerial even if it also supports openMP
 #ifdef _OPENMP
