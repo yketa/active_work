@@ -47,11 +47,11 @@ void iterate_ABP_WCA(System *system) {
   for (i=0; i < pow(numberBoxes, 2); i++) { // loop over cells
 
     cell1 = (system->getCellList())->getCell(i); // indexes of particles in the first cell
-    for (k=0; k < cell1.size(); k++) { // loop over particles in the first cell
+    for (k=0; k < (int) cell1.size(); k++) { // loop over particles in the first cell
       index1 = cell1[k];
 
       // interactions with particles in the same cell
-      for (l=k+1; l < cell1.size(); l++) { // loop over particles in the first cell
+      for (l=k+1; l < (int) cell1.size(); l++) { // loop over particles in the first cell
         index2 = cell1[l];
         system->WCA_potential(index1, index2, newParticles);
       }
@@ -65,7 +65,7 @@ void iterate_ABP_WCA(System *system) {
           if ( i == j ) { continue; } // same cell
           cell2 = (system->getCellList())->getCell(j); // indexes of particles in the second cell
 
-          for (l=0; l < cell2.size(); l++) { // loop over particles in the second cell
+          for (l=0; l < (int) cell2.size(); l++) { // loop over particles in the second cell
             index2 = cell2[l];
             if ( index1 < index2 ) { // only count once each couple
               system->WCA_potential(index1, index2, newParticles);
@@ -83,7 +83,7 @@ void iterate_ABP_WCA(System *system) {
               + numberBoxes*((numberBoxes + (y + dy))%numberBoxes); // index of neighbouring cell
             cell2 = (system->getCellList())->getCell(j); // indexes of particles in the second cell
 
-            for (l=0; l < cell2.size(); l++) { // loop over particles in the second cell
+            for (l=0; l < (int) cell2.size(); l++) { // loop over particles in the second cell
               index2 = cell2[l];
               system->WCA_potential(index1, index2, newParticles);
             }
