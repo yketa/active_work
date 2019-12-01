@@ -46,7 +46,7 @@ public:
   mt19937 cloneTwister;
 
   // lightweight constructor
-  CloningSerial(int nWork) :  nc (0) , cloneMethod (2), tau(nWork), outputOP {0, 0, 0, 0} {;} // the elementary number of step that we want to simulate has to be given here
+  CloningSerial(int nWork) :  nc (0) , cloneMethod (2), tau(nWork), outputOP {0, 0, 0, 0} {;} // the elementary number of step that we want to simulate (tau) has to be given here
   // simple destructor, we delete the systems but the vector deals with itself
   ~CloningSerial() { if (nc>0) { for (int i=0;i<2*nc;i++) delete systems[i]; } }
 
