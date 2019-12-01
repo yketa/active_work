@@ -189,7 +189,7 @@ class _Frame:
 
         Parameters
         ----------
-        dat : active_particles.read.Dat
+        dat : active_work.read.Dat
     		Data object.
         frame : int
             Frame to render.
@@ -329,7 +329,7 @@ class Orientation(_Frame):
 
         Parameters
         ----------
-        dat : active_particles.read.Dat
+        dat : active_work.read.Dat
     		Data object.
         frame : int
             Frame to render.

@@ -84,7 +84,7 @@ def list_markers(value_list, marker_list=_markers):
     value_list : list
         List of values.
     marker_list : list of matplotlib markers
-        List of markers to use. (default: active_particles.plot.plot._markers)
+        List of markers to use. (default: active_work.plot._markers)
 
     Returns
     -------
@@ -108,7 +108,7 @@ def list_linestyles(value_list, linestyle_list=_linestyles):
         List of values.
     linestyle_list : list of matplotlib line styles
         List of markers to use.
-        (default: active_particles.plot.plot._linestyles)
+        (default: active_work.plot._linestyles)
 
     Returns
     -------
