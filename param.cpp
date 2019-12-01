@@ -12,15 +12,20 @@
 
 // CONSTRUCTORS
 
+Parameters::Parameters() :
+  numberParticles(0), persistenceLength(0), packingFraction(0), systemSize(0),
+    timeStep(0) {}
+
 Parameters::Parameters(int N, double lp, double phi, double dt) :
   numberParticles(N), persistenceLength(lp), packingFraction(phi),
     systemSize(sqrt(M_PI*N/phi)/2), timeStep(dt) {}
-Parameters::Parameters(Parameters* param) :
-  numberParticles(param->getNumberParticles()),
-  persistenceLength(param->getPersistenceLength()),
-  packingFraction(param->getPackingFraction()),
-  systemSize(param->getSystemSize()),
-  timeStep(param->getTimeStep()) {}
+
+Parameters::Parameters(Parameters* parameters) :
+  numberParticles(parameters->getNumberParticles()),
+  persistenceLength(parameters->getPersistenceLength()),
+  packingFraction(parameters->getPackingFraction()),
+  systemSize(parameters->getSystemSize()),
+  timeStep(parameters->getTimeStep()) {}
 
 // METHODS
 

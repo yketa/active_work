@@ -19,10 +19,11 @@ class Parameters {
 
     // CONSTRUCTORS
 
+    Parameters();
     Parameters(
       int N, double lp, double phi, double dt);
     Parameters(
-      Parameters* param);
+      Parameters* parameters);
 
     // METHODS
 
