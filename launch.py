@@ -7,7 +7,7 @@ from active_work.init import get_env
 
 from numpy.random import randint
 
-from os import path, getcwd
+from os import path
 from subprocess import run
 
 # FUNCTIONS AND CLASSES
