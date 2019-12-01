@@ -21,6 +21,8 @@ class Parameters {
 
     Parameters(
       int N, double lp, double phi, double dt);
+    Parameters(
+      Parameters* param);
 
     // METHODS
 

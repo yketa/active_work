@@ -15,6 +15,12 @@
 Parameters::Parameters(int N, double lp, double phi, double dt) :
   numberParticles(N), persistenceLength(lp), packingFraction(phi),
     systemSize(sqrt(M_PI*N/phi)/2), timeStep(dt) {}
+Parameters::Parameters(Parameters* param) :
+  numberParticles(param->getNumberParticles()),
+  persistenceLength(param->getPersistenceLength()),
+  packingFraction(param->getPackingFraction()),
+  systemSize(param->getSystemSize()),
+  timeStep(param->getTimeStep()) {}
 
 // METHODS
 
