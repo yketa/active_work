@@ -30,7 +30,7 @@ public:
   int tau; // number of time steps to simulate between each cloning step
 
   double outputPsi;          // this is the estimate of Psi
-  double outputOP[4];        // averages over the trajectories of the different clones of (0) active work (1) force part of the active work (2) orientation part of the active work (3) order parameter
+  vector<double> outputOP;   // averages over the trajectories of the different clones of (0) active work (1) force part of the active work (2) orientation part of the active work (3) order parameter
   double outputWalltime;     // time taken
   int finalOffset;           // used to access the final population at the end of the run
 
@@ -46,7 +46,7 @@ public:
   mt19937 cloneTwister;
 
   // lightweight constructor
-  CloningSerial(int nWork) :  nc (0) , cloneMethod (2), tau(nWork), outputOP {0, 0, 0, 0} {;} // the elementary number of step that we want to simulate (tau) has to be given here
+  CloningSerial(int nWork) :  nc (0) , cloneMethod (2), tau(nWork) {;} // the elementary number of step that we want to simulate (tau) has to be given here
   // simple destructor, we delete the systems but the vector deals with itself
   ~CloningSerial() { if (nc>0) { for (int i=0;i<2*nc;i++) delete systems[i]; } }
 
@@ -168,6 +168,7 @@ void CloningSerial::doCloning(double tmax, double sValue, int initSim) {
     #endif
     for (int i=0;i<nc;i++) {
       for (int j=0; j < tau*initSim; j++) { iterate_ABP_WCA(systems[i]); } // simulate an elementary number of steps
+      systems[i]->resetDump(); // reset dumps: important between different runs and to only count the relevant quantities within the cloning framework
     }
 
     double lnX = 0.0;  // this is used in our final estimate of psi
@@ -193,12 +194,7 @@ void CloningSerial::doCloning(double tmax, double sValue, int initSim) {
       {
           for (int k=0; k < tau; k++) { iterate_ABP_WCA(systems[pushOffset+i]); } // run dynamics
           OPval = systems[pushOffset+i]->getWork();                               // get "order param"
-          outputOP[0] += systems[pushOffset+i]->getWork();                        // active work
-          outputOP[1] += systems[pushOffset+i]->getWorkForce();                   // force part of the active work
-          outputOP[2] += systems[pushOffset+i]->getWorkOrientation();             // orientation part of the active work
-          outputOP[3] += systems[pushOffset+i]->getOrder();                       // order parameter
           upsilon[i] = exp( -sValue * sFactor * OPval );                          // compute cloning factor
-          std::cout << "clone: " << pushOffset+i << " upsilon: " << upsilon[i] << std::endl;
       }
 
       #if 0
@@ -240,7 +236,8 @@ void CloningSerial::doCloning(double tmax, double sValue, int initSim) {
       #pragma omp parallel for
       #endif
       for (int i=0; i<nc; i++) {
-        systems[pullOffset + i]->copyParticles(systems[ pushOffset + newClones[i] ]); // clone system
+        systems[pullOffset + i]->copyParticles(systems[ pushOffset + newClones[i] ]); // clone particles
+        systems[pullOffset + i]->copyDump(systems[ pushOffset + newClones[i] ]); // clone dumps
       }
 
       // we maintain outputOP as our estimate of the (time-integrated) OP over the current population
@@ -250,12 +247,19 @@ void CloningSerial::doCloning(double tmax, double sValue, int initSim) {
     }
 
   finalOffset = arrswitch * nc;
+  outputOP.assign(4, 0.0);
   #ifdef _OPENMP
   #pragma omp parallel for
   #endif
+  for (int i=0; i < nc; i++) {
+    // std::cout << "clone: " << i << " dumpFrame: " << systems[ finalOffset + i]->getDump() << std::endl;
+    outputOP[0] += systems[ finalOffset + i]->getTotalWork(); // normalised rate of active work
+    outputOP[1] += systems[ finalOffset + i]->getTotalWorkForce(); // force part of the normalised rate of active work
+    outputOP[2] += systems[ finalOffset + i]->getTotalWorkOrientation(); // orientation part of the normalised rate of active work
+    outputOP[3] += systems[ finalOffset + i]->getTotalOrder(); // order parameter
+  }
 
-  for (unsigned int j=0;j<4;j++)
-    outputOP[j] /= (nc*iter);
+  for (unsigned int j=0;j<4;j++) { outputOP[j] /= nc; }
 
   outputPsi = double(lnX) / (iter*tau*systems[0]->getTimeStep());
 
