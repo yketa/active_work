@@ -50,7 +50,7 @@ class CloningOutput:
             self.phi,               # packing fraction
             self._tau,              # elementary number of steps
             self.dt,                # time step
-            self.SCGF,              # array of different measurements of the SCGF per value of the biasing parameter
+            self.tSCGF,             # array of different measurements of the time scaled CGF per value of the biasing parameter
             self.activeWork,        # array of different measurements of the active work per value of the biasing parameter
             self.activeWorkForce,   # array of different measurements of the force part of the active work per value of the biasing parameter
             self.activeWorkOri,     # array of different measurements of the orientation part of the active work per value of the biasing parameter
@@ -58,7 +58,9 @@ class CloningOutput:
             self.walltime           # array of different running time per value of the biasing parameter
             ) = pickle.load(input)
 
-        self.tau = self._tau*self.dt    # dimensionless elementary time
+        self.SCGF = self.tSCGF/self.N       # scaled cumulant generating function
+        self.tau = self._tau*self.dt        # dimensionless elementary time
+        self.tinit = self.tau*self.initSim  # dimensionless initial simulation time
 
     def meanSterr(self):
         """
@@ -142,14 +144,14 @@ class _CloningOutput(_Read):
             raise ValueError("Invalid data file size.")
 
         # MEASUREMENTS
-        self.psi = np.empty((self.nRuns,))              # scaled cumulant generating function
+        self.tSCGF = np.empty((self.nRuns,))            # time scaled cumulant generating function
         self.activeWork = np.empty((self.nRuns,))       # normalised rate of active work
         self.activeWorkForce = np.empty((self.nRuns,))  # force part of the normalised rate of active work
         self.activeWorkOri = np.empty((self.nRuns,))    # orientation part of the normalised rate of active work
         self.orderParameter = np.empty((self.nRuns,))   # order parameter
         self.walltime = np.empty((self.nRuns,))         # time taken for each run
         for i in range(self.nRuns):
-            self.psi[i] = self._read('d')
+            self.tSCGF[i] = self._read('d')
             self.activeWork[i] = self._read('d')
             self.activeWorkForce[i] = self._read('d')
             self.activeWorkOri[i] = self._read('d')
@@ -286,8 +288,8 @@ if __name__ == '__main__':
         tmp_out += [_CloningOutput(path.join(tmp_dir, tmp_template % i))]
 
     # ARRAYS OF DATA
-    psi = np.array(
-        [tmp_out[i].psi for i in range(sNum)])
+    tSCGF = np.array(
+        [tmp_out[i].tSCGF for i in range(sNum)])
     activeWork = np.array(
         [tmp_out[i].activeWork for i in range(sNum)])
     activeWorkForce = np.array(
@@ -306,7 +308,7 @@ if __name__ == '__main__':
             seed, seeds,
             N, lp, phi,
             tau, dt,
-            psi, activeWork, activeWorkForce, activeWorkOri, orderParameter,
+            tSCGF, activeWork, activeWorkForce, activeWorkOri, orderParameter,
                 walltime],
             output)
 
