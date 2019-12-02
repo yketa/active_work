@@ -127,6 +127,7 @@ void CloningSerial::Init(int _nc, System* dummy, int masterSeed) {
   #endif
   for (int i=0;i<2*nc;i++) {
     systems[i] = new System(dummy, processSeeds[i], "", tau, false); // create new system from copy of dummy, with random seed from processSeeds, computing active work and order parameter for every tau iterations, and not dumping to output file
+    systems[i]->saveInitialState(); // save first frame (important for frame counting)
   }
 
 
@@ -171,6 +172,8 @@ void CloningSerial::doCloning(double tmax, double sValue, int initSim) {
 
     double lnX = 0.0;  // this is used in our final estimate of psi
 
+    double OPval;
+
     // this is the main loop
     double iter;
     for (iter = 0; iter < tmax / (tau*systems[0]->getTimeStep()); iter += 1.0 ) // for each iteration of the algorithm
@@ -190,12 +193,13 @@ void CloningSerial::doCloning(double tmax, double sValue, int initSim) {
       for (int i = 0; i < nc; i++) //For each lattice in the current population
       {
           for (int k=0; k < tau; k++) { iterate_ABP_WCA(systems[pushOffset+i]); } // run dynamics
-          double OPval = systems[pushOffset+i]->getWork();                            // get "order param"
-          outputOP[0] += systems[pushOffset+i]->getWork();                            // active work
-          outputOP[1] += systems[pushOffset+i]->getWorkForce();                       // force part of the active work
-          outputOP[2] += systems[pushOffset+i]->getWorkOrientation();                 // orientation part of the active work
-          outputOP[3] += systems[pushOffset+i]->getOrder();                           // order parameter
-          upsilon[i] = exp( -sValue * sFactor * OPval );                             // compute cloning factor
+          OPval = systems[pushOffset+i]->getWork();                               // get "order param"
+          outputOP[0] += systems[pushOffset+i]->getWork();                        // active work
+          outputOP[1] += systems[pushOffset+i]->getWorkForce();                   // force part of the active work
+          outputOP[2] += systems[pushOffset+i]->getWorkOrientation();             // orientation part of the active work
+          outputOP[3] += systems[pushOffset+i]->getOrder();                       // order parameter
+          upsilon[i] = exp( -sValue * sFactor * OPval );                          // compute cloning factor
+          std::cout << "clone: " << pushOffset+i << " upsilon: " << upsilon[i] << std::endl;
       }
 
       #if 0
