@@ -173,6 +173,7 @@ void CloningSerial::doCloning(double tmax, double sValue, int initSim) {
     double lnX = 0.0;  // this is used in our final estimate of psi
 
     double OPval;
+    double sFactor = systems[0]->getNumberParticles()*tau*systems[0]->getTimeStep();
 
     // this is the main loop
     double iter;
@@ -184,8 +185,6 @@ void CloningSerial::doCloning(double tmax, double sValue, int initSim) {
       // (the systems array is of size 2.nc, only one half is "active" at each time)
       int pushOffset =  arrswitch   *nc;
       int pullOffset = (1-arrswitch)*nc;
-
-      double sFactor = systems[0]->getNumberParticles()*tau*systems[0]->getTimeStep();
 
       #ifdef _OPENMP
       #pragma omp parallel for
