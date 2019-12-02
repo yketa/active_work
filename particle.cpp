@@ -128,9 +128,9 @@ System::System() :
   cellList(),
   output(""),
   framesWork(0), dumpParticles(0), dumpPeriod(0),
-  dumpFrame(0),
-  workSum {0, 0}, workForceSum {0, 0}, workOrientationSum {0, 0},
-    orderSum {0, 0} {}
+  dumpFrame(-1),
+  workSum {0, 0, 0}, workForceSum {0, 0, 0}, workOrientationSum {0, 0, 0},
+    orderSum {0, 0, 0} {}
 
 System::System(
   Parameters* parameters, int seed, std::string filename,
@@ -144,8 +144,8 @@ System::System(
     parameters->getPersistenceLength()/(parameters->getTimeStep()*period)),
     dumpParticles(dump), dumpPeriod(period),
   dumpFrame(-1),
-  workSum {0, 0}, workForceSum {0, 0}, workOrientationSum {0, 0},
-    orderSum {0, 0} {
+  workSum {0, 0, 0}, workForceSum {0, 0, 0}, workOrientationSum {0, 0, 0},
+    orderSum {0, 0, 0} {
 
     // set seed of random generator
     randomGenerator.setSeed(seed);
@@ -188,8 +188,8 @@ System::System(
     system->getPersistenceLength()/(system->getTimeStep()*period)),
     dumpParticles(dump), dumpPeriod(period),
   dumpFrame(-1),
-  workSum {0, 0}, workForceSum {0, 0}, workOrientationSum {0, 0},
-    orderSum {0, 0} {
+  workSum {0, 0, 0}, workForceSum {0, 0, 0}, workOrientationSum {0, 0, 0},
+    orderSum {0, 0, 0} {
 
   // set seed of random generator
   randomGenerator.setSeed(seed);
@@ -209,6 +209,8 @@ System::System(
   cellList.initialise(this, pow(2., 1./6.));
   // copy particles and update cell list
   copyParticles(system);
+  // copy dumps
+  copyDump(system);
 }
 
 // DESTRUCTORS
@@ -240,10 +242,46 @@ CellList* System::getCellList() { return &cellList; }
 
 std::string System::getOutputFile() const { return output.getOutputFile(); }
 
+int System::getDump() { return dumpFrame; }
+
+void System::resetDump() {
+  // Reset normalised quantities over trajectory.
+
+  dumpFrame = 0;
+
+  workSum[0] = 0;
+  workForceSum[0] = 0;
+  workOrientationSum[0] = 0;
+  orderSum[0] = 0;
+
+  workSum[2] = 0;
+  workForceSum[2] = 0;
+  workOrientationSum[2] = 0;
+  orderSum[2] = 0;
+}
+
+void System::copyDump(System* system) {
+  // Copy dumps from other system.
+  // WARNING: This also copies the index of last frame dumped. Consistency
+  //          has to be checked.
+
+  dumpFrame = system->getDump();
+
+  workSum[2] = system->getTotalWork();
+  workForceSum[2] = system->getTotalWorkForce();
+  workOrientationSum[2] = system->getTotalWorkOrientation();
+  orderSum[2] = system->getTotalOrder();
+}
+
 double System::getWork() { return workSum[1]; }
 double System::getWorkForce() { return workForceSum[1]; }
 double System::getWorkOrientation() { return workOrientationSum[1]; }
 double System::getOrder() { return orderSum[1]; }
+
+double System::getTotalWork() { return workSum[2]; }
+double System::getTotalWorkForce() { return workForceSum[2]; }
+double System::getTotalWorkOrientation() { return workOrientationSum[2]; }
+double System::getTotalOrder() { return orderSum[2]; }
 
 double System::diffPeriodic(double const& x1, double const& x2) {
   // Returns algebraic distance from `x1' to `x2' on a line taking into account
@@ -348,8 +386,8 @@ void System::saveInitialState() {
     }
   }
 
-  // last frame dumped
-  dumpFrame = 0;
+  // reset dump
+  resetDump();
 }
 
 void System::saveNewState(std::vector<Particle>& newParticles) {
@@ -415,6 +453,7 @@ void System::saveNewState(std::vector<Particle>& newParticles) {
 
   // ACTIVE WORK and ORDER PARAMETER (output)
   if ( dumpFrame % (framesWork*dumpPeriod) == 0 ) {
+    // compute normalised rates since last dump
     workSum[1] = workSum[0]/(
       getNumberParticles()*getTimeStep()*framesWork*dumpPeriod);
     workForceSum[1] = workForceSum[0]/(
@@ -423,10 +462,30 @@ void System::saveNewState(std::vector<Particle>& newParticles) {
       getNumberParticles()*getTimeStep()*framesWork*dumpPeriod);
     orderSum[1] = orderSum[0]/(
       getNumberParticles()*framesWork*dumpPeriod);
+    // output normalised rates
     output.write(workSum[1]);
     output.write(workForceSum[1]);
     output.write(workOrientationSum[1]);
     output.write(orderSum[1]);
+    // update normalised rate over trajectory since last reset
+    // NOTE: AFRAID THIS MIGHT GIVE AN OVERFLOW ERROR...
+    workSum[2] =
+      ((dumpFrame - framesWork*dumpPeriod)*workSum[2]
+      + framesWork*dumpPeriod*workSum[1])
+      /dumpFrame;
+    workForceSum[2] =
+      ((dumpFrame - framesWork*dumpPeriod)*workForceSum[2]
+      + framesWork*dumpPeriod*workForceSum[1])
+      /dumpFrame;
+    workOrientationSum[2] =
+      ((dumpFrame - framesWork*dumpPeriod)*workOrientationSum[2]
+      + framesWork*dumpPeriod*workOrientationSum[1])
+      /dumpFrame;
+    orderSum[2] =
+      ((dumpFrame - framesWork*dumpPeriod)*orderSum[2]
+      + framesWork*dumpPeriod*orderSum[1])
+      /dumpFrame;
+    // reset sums
     workSum[0] = 0;
     workForceSum[0] = 0;
     workOrientationSum[0] = 0;
