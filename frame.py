@@ -480,7 +480,7 @@ class Displacement(_Frame):
 
         self.colorbar(self.vmin, self.vmax) # add colorbar to figure
         self.colormap.set_label(            # colorbar legend
-            r'$\log||\vec{r}_i(t + \Delta t) - \vec{r}_i(t)||$',
+            r'$\log_{10}||\vec{r}_i(t + \Delta t) - \vec{r}_i(t)||$',
             labelpad=pad, rotation=270)
 
         self.label = label  # write labels
@@ -592,10 +592,11 @@ if __name__ == '__main__':  # executing as script
         if 'X_ZERO' in envvar or 'Y_ZERO' in envvar:
             suptitle += str(r'$x_0 = %.3e, y_0 = %.3e$' % centre) + '\n'
         suptitle += str(r'$t/(l_p/\sigma) = %.5e$'
-            % (frame*dat.dt/dat.lp))
+            % (frame*dat.dt*dat.dumpPeriod/dat.lp))
         if lag_time != None:
-            suptitle += str(r'$, \Delta t/(l_p/\sigma) = %.5e$'
-                % (lag_time*dat.dt/dat.lp))
+            suptitle += str(r'$, \Delta t = %.5e, \Delta t/(l_p/\sigma) = %.5e$'
+                % (lag_time*dat.dt*dat.dumpPeriod,
+                    lag_time*dat.dt*dat.dumpPeriod/dat.lp))
 
         return suptitle
 
@@ -614,11 +615,9 @@ if __name__ == '__main__':  # executing as script
         figure.fig.suptitle(suptitle(init_frame, lag_time=dt))
 
         if get_env('SAVE', default=False, vartype=bool):    # SAVE mode
-            figure_name, = naming_standard.filename(**attributes)
-            figure.fig.savefig(joinpath(data_dir,
-                get_env('FIGURE_NAME', default='out.svg')))
-            figure.fig.savefig(joinpath(data_dir,
-                get_env('FIGURE_NAME', default='out.eps')))
+            figure_name = get_env('FIGURE_NAME', default='out')
+            figure.fig.savefig(figure_name + '.eps')
+            figure.fig.savefig(figure_name + '.svg')
 
     if get_env('MOVIE', default=False, vartype=bool):   # MOVIE mode
 
