@@ -25,7 +25,7 @@ int main() {
 	// cloning parameters
 	double tmax = getEnvDouble("TMAX", 1); // dimensionless time to simulate
 	int nc = getEnvInt("NC", 10); // number of clones
-	double sValue = getEnvInt("SVALUE", 0); // biasing parameter
+	double sValue = getEnvDouble("SVALUE", 0); // biasing parameter
 	int seed = getEnvInt("SEED", 0); // master random seed
 	int nRuns = getEnvInt("NRUNS", 1); // number of different runs
 	int cloneMethod = 2; // should keep this set to 2 (!!)
