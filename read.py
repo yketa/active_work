@@ -116,6 +116,18 @@ class Dat(_Read):
     def getWork(self, time0, time1):
         """
         Returns normalised active work between frames `time0' and `time1'.
+
+        Parameters
+        ----------
+        time0 : int
+            Initial frame.
+        time1 : int
+            Final frame.
+
+        Returns
+        -------
+        work : float
+            Normalised rate of active work.
         """
 
         work = np.sum(list(map(
@@ -128,6 +140,24 @@ class Dat(_Read):
     def getPositions(self, time, *particle, **kwargs):
         """
         Returns positions of particles at time.
+
+        Parameters
+        ----------
+        time : int
+            Frame.
+        particle : int
+            Indexes of particles.
+            NOTE: if none is given, then all particles are returned.
+
+        Optional keyword parameters
+        ---------------------------
+        centre : (2,) array like
+            Returns position relative to `centre'.
+
+        Returns
+        -------
+        positions : (*, 2) float Numpy array
+            Positions at `time'.
         """
 
         if particle == (): particle = range(self.N)
@@ -143,6 +173,26 @@ class Dat(_Read):
     def getDisplacements(self, time0, time1, *particle, jump=1):
         """
         Returns displacements of particles between `time0' and `time1'.
+
+        Parameters
+        ----------
+        time0 : int
+            Initial frame.
+        time1 : int
+            Final frame.
+        particle : int
+            Indexes of particles.
+            NOTE: if none is given, then all particles are returned.
+        jump : int
+            Period in number of frames at which to check if particles have
+            crossed any boundary. (default: 1)
+            NOTE: `jump' must be chosen so that particles do not move a distance
+                  greater than half the box size during this time.
+
+        Returns
+        -------
+        displacements : (*, 2) float Numpy array
+            Displacements between `time0' and `time1'.
         """
 
         if particle == (): particle = range(self.N)
@@ -220,6 +270,19 @@ class Dat(_Read):
     def getOrientations(self, time, *particle):
         """
         Returns orientations of particles at time.
+
+        Parameters
+        ----------
+        time : int
+            Frame
+        particle : int
+            Indexes of particles.
+            NOTE: if none is given, then all particles are returned.
+
+        Returns
+        -------
+        orientations : (*,) float Numpy array
+            Orientations at `time'.
         """
 
         if particle == (): particle = range(self.N)
@@ -231,6 +294,19 @@ class Dat(_Read):
     def getDirections(self, time, *particle):
         """
         Returns self-propulsion vector of particles at time.
+
+        Parameters
+        ----------
+        time : int
+            Frame
+        particle : int
+            Indexes of particles.
+            NOTE: if none is given, then all particles are returned.
+
+        Returns
+        -------
+        orientations : (*, 2) float Numpy array
+            Unitary self-propulsion vectors at `time'.
         """
 
         if particle == (): particle = range(self.N)
@@ -242,6 +318,18 @@ class Dat(_Read):
     def getOrderParameter(self, time, norm=False):
         """
         Returns order parameter, i.e. mean direction, at time.
+
+        Parameters
+        ----------
+        time : int
+            Frame.
+        norm : bool
+            Return norm of order parameter. (default: False)
+
+        Returns
+        -------
+        orderParameter : float if `norm' else (2,) float Numpy array
+            Order parameter at `time'.
         """
 
         orderParameter = np.sum(self.getDirections(time), axis=0)/self.N
@@ -361,6 +449,18 @@ class Dat(_Read):
     def _position(self, time, particle):
         """
         Returns array of position of particle at time.
+
+        Parameters
+        ----------
+        time : int
+            Frame.
+        particle : int
+            Index of particle.
+
+        Returns
+        -------
+        position : (2,) float Numpy array
+            Position of `particle' at `time'.
         """
 
         self.file.seek(
@@ -373,6 +473,18 @@ class Dat(_Read):
     def _orientation(self, time, particle):
         """
         Returns orientation of particle at time.
+
+        Parameters
+        ----------
+        time : int
+            Frame.
+        particle : int
+            Index of particle.
+
+        Returns
+        -------
+        orientation : (2,) float Numpy array
+            Orientation of `particle' at `time'.
         """
 
         self.file.seek(
@@ -386,6 +498,16 @@ class Dat(_Read):
     def _work(self, time):
         """
         Returns active work between `time' and `time' + 1.
+
+        Parameters
+        ----------
+        time : int
+            Frame.
+
+        Returns
+        -------
+        work : float
+            Normalised rate of active work between `time' and `time' + 1.
         """
 
         time = int(time)
