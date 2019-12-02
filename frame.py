@@ -15,6 +15,9 @@ MODE : string
     | 'orientation'  | Self-propulsion        | Relative to  | Orientation    |
     |                | direction              | diameter     |                |
     |________________|________________________|______________|________________|
+    | 'displacement' | Displacement direction | Relative to  | Displacement   |
+    |                |                        | diameter     | norm           |
+    |________________|________________________|______________|________________|
     DEFAULT: orientation
 PLOT : bool
     Plot single frame.
@@ -43,6 +46,17 @@ INITIAL_FRAME : int
     NOTE: FRAME < 0 will be interpreted as the frame to render being the middle
           frame of the simulation.
     DEFAULT: -1
+DT : int
+    [PLOT and 'displacement' mode] Displacement lag time.
+    NOTE: DT < 0 will be interpreted as a lag time corresponding to the total
+          number of simulation frames - INITIAL_FRAME + DT.
+    DEFAULT: -1
+JUMP : int
+    Period in number of frames at which to check if particles have crossed any
+    boundary when computing displacements.
+    NOTE: `jump' must be chosen so that particles do not move a distance greater
+          than half the box size during this time.
+    DEFAULT: 1
 FINAL_FRAME [MOVIE mode] : int
     Final movie frame.
     DEFAULT: Final simulation frame.
@@ -52,14 +66,6 @@ FRAME_PERIOD [MOVIE mode] : int
 FRAME_MAXIMUM : int
     Maximum number of frames.
     DEFAULT: active_work.frame._frame_max
-DT : int
-    Lag time for displacement.
-    NOTE: We consider time step in fixed in simulations.
-    NOTE: [PLOT mode] DT < 0 will be interpreted as a lag time corresponding to
-                      the total number of simulation frames - FRAME + TIME.
-          [MOVIE mode] DT < 0 will be interpreted as a lag time corresponding
-                       to the minimum distance between frames.
-    DEFAULT: -1
 BOX_SIZE : float
     Length of the square box to render.
     DEFAULT: simulation box size
@@ -71,11 +77,13 @@ Y_ZERO : float
     DEFAULT: 0
 V_MIN : float
     Minimum value of the colorbar.
-    DEFAULT: 10^{E(log(||\\vec{u}||))-2*V(log(||\\vec{u}||))}
+    DEFAULT: ['displacement'] 10^{E(log(||\\vec{u}||))-2*V(log(||\\vec{u}||))}
+             ['orientation'] 0 (NOTE: cannot be changed)
     NOTE: Colorbar is represented in logarithmic scale so V_MIN > 0.
 V_MAX : float
     Maximum value of the colorbar.
-    DEFAULT: 10^{E(log(||\\vec{u}||))+2*V(log(||\\vec{u}||))}
+    DEFAULT: ['displacement'] 10^{E(log(||\\vec{u}||))+2*V(log(||\\vec{u}||))}
+             ['orientation'] 2 \\pi (NOTE: cannot be changed)
     NOTE: Colorbar is represented in logarithmic scale so V_MAX > 0.
 LABEL : bool
     Write indexes of particles in circles.
@@ -215,8 +223,8 @@ class _Frame:
         self.ax.tick_params(axis='both', which='both', direction='in',
             bottom=True, top=True, left=True, right=True)
 
-        self.positions = dat.getPositions(frame, centre=centre) # particles' positions at frame frame with centre as centre of frame
-        self.diameters = np.full((dat.N,), fill_value=1)        # particles' diameters at frame frame
+        self.positions = dat.getPositions(frame, centre=centre)         # particles' positions at frame frame with centre as centre of frame
+        self.diameters = np.full((dat.N,), fill_value=1, dtype=float)   # particles' diameters at frame frame
 
         self.particles = [particle for particle in range(len(self.positions))
             if (np.abs(self.positions[particle]) <= box_size/2).all()]  # particles inside box of centre centre and length box_size
@@ -322,7 +330,7 @@ class Orientation(_Frame):
         arrow_width=_arrow_width,
         arrow_head_width=_arrow_head_width,
         arrow_head_length=_arrow_head_length,
-        pad=_colormap_label_pad, dt=0,
+        pad=_colormap_label_pad,
         label=False, **kwargs):
         """
         Initialises and plots figure.
@@ -346,8 +354,6 @@ class Orientation(_Frame):
         pad : float
             Separation between label and colormap.
             (default: active_work.frame._colormap_label_pad)
-        dt : int
-            Lag time for displacement. (default=0)
         label : bool
             Write indexes of particles in circles. (default: False)
         """
@@ -358,7 +364,7 @@ class Orientation(_Frame):
             arrow_head_length=arrow_head_length)    # initialise superclass
 
         self.orientations = (
-            dat.getOrientations(frame, *self.particles)%(2*np.pi))  # particles' orientations at frames
+            dat.getOrientations(frame, *self.particles)%(2*np.pi))  # particles' orientations at frame
 
         self.colorbar(0, 2, cmap=plt.cm.hsv)                                    # add colorbar to figure
         self.colormap.set_label(r'$\theta_i/\pi$', labelpad=pad, rotation=270)  # colorbar legend
@@ -405,6 +411,97 @@ class Orientation(_Frame):
             self.draw_arrow(particle, orientation,
                 color=self.scalarMap.to_rgba(orientation/np.pi))    # draw displacement direction arrow
 
+class Displacement(_Frame):
+    """
+    Plotting class specific to 'displacement' mode.
+    """
+
+    def __init__(self, dat, frame, box_size, centre,
+        arrow_width=_arrow_width,
+        arrow_head_width=_arrow_head_width,
+        arrow_head_length=_arrow_head_length,
+        pad=_colormap_label_pad, dt=1,jump=1,
+        label=False, **kwargs):
+        """
+        Initialises and plots figure.
+
+        Parameters
+        ----------
+        dat : active_work.read.Dat
+    		Data object.
+        frame : int
+            Frame to render.
+        box_size : float
+            Length of the square box to render.
+        centre : 2-uple like
+            Centre of the box to render.
+        arrow_width : float
+            Width of the arrows.
+        arrow_head_width : float
+            Width of the arrows' head.
+        arrow_head_length : float
+            Length of the arrows' head.
+        pad : float
+            Separation between label and colormap.
+            (default: active_work.frame._colormap_label_pad)
+        dt : int
+            Lag time for displacement. (default=1)
+        jump : int
+            Period in number of frames at which to check if particles have
+            crossed any boundary. (default: 1)
+            NOTE: `jump' must be chosen so that particles do not move a distance
+                  greater than half the box size during this time.
+        label : bool
+            Write indexes of particles in circles. (default: False)
+
+        Optional keyword parameters
+        ---------------------------
+        vmin : float
+            Minimum value of the colorbar.
+        vmax : float
+            Maximum value of the colorbar.
+        """
+
+        super().__init__(dat, frame, box_size, centre,
+            arrow_width=arrow_width,
+            arrow_head_width=arrow_head_width,
+            arrow_head_length=arrow_head_length)    # initialise superclass
+
+        self.displacements = (
+            dat.getDisplacements(frame, frame + dt, *self.particles, jump=jump))    # particles' displacements at frame
+
+        self.vmin, self.vmax = amplogwidth(self.displacements)
+        try:
+            self.vmin = np.log10(kwargs['vmin'])
+        except (KeyError, AttributeError): pass # 'vmin' not in keyword arguments or None
+        try:
+            self.vmax = np.log10(kwargs['vmax'])
+        except (KeyError, AttributeError): pass # 'vmax' not in keyword arguments or None
+
+        self.colorbar(self.vmin, self.vmax) # add colorbar to figure
+        self.colormap.set_label(            # colorbar legend
+            r'$\log||\vec{r}_i(t + \Delta t) - \vec{r}_i(t)||$',
+            labelpad=pad, rotation=270)
+
+        self.label = label  # write labels
+
+        self.draw()
+
+    def draw(self):
+        """
+        Plots figure.
+        """
+
+        for particle, displacement in zip(
+            self.particles, self.displacements):                            # for particle and particle's displacement in rendered box
+            self.draw_circle(particle,
+                color=self.scalarMap.to_rgba(
+                    np.log10(np.linalg.norm(displacement))),
+                fill=True,
+                label=self.label)                                           # draw particle circle with color corresponding to displacement amplitude
+            self.draw_arrow(particle,
+                *normalise1D(displacement)*0.75*self.diameters[particle])   # draw displacement direction arrow
+
 # SCRIPT
 
 if __name__ == '__main__':  # executing as script
@@ -416,12 +513,17 @@ if __name__ == '__main__':  # executing as script
     mode = get_env('MODE', default='orientation')           # plotting mode
     if mode == 'orientation':
         plotting_object = Orientation
+    elif mode == 'displacement':
+        plotting_object = Displacement
     else: raise ValueError('Mode %s is not known.' % mode)  # mode is not known
 
     dat_file = get_env('DAT_FILE', default=joinpath(getcwd(), 'out.dat'))   # data file
     dat = Dat(dat_file)                                                     # data object
 
     init_frame = get_env('INITIAL_FRAME', default=-1, vartype=int)  # initial frame to render
+
+    dt = get_env('DT', default=-1, vartype=int)     # displacement lag time (PLOT mode)
+    jump = get_env('JUMP', default=1, vartype=int)  # jump when computing displacements
 
     box_size = get_env('BOX_SIZE', default=dat.L, vartype=float)    # size of the square box to consider
     centre = (get_env('X_ZERO', default=0, vartype=float),
@@ -502,15 +604,19 @@ if __name__ == '__main__':  # executing as script
     if get_env('PLOT', default=False, vartype=bool):    # PLOT mode
 
         Nframes = Nentries - init_frame  # number of frames available for the calculation
+        if mode == 'displacement': dt = Nframes + dt if dt < 0 else dt
+        elif mode == 'orientation': dt = None
 
         figure = plotting_object(dat, init_frame, box_size, centre,
             arrow_width, arrow_head_width, arrow_head_length,
-            pad=pad, dt=None, vmin=vmin, vmax=vmax,
+            pad=pad, dt=dt, jump=jump, vmin=vmin, vmax=vmax,
             label=get_env('LABEL', default=False, vartype=bool))
-        figure.fig.suptitle(suptitle(init_frame))
+        figure.fig.suptitle(suptitle(init_frame, lag_time=dt))
 
         if get_env('SAVE', default=False, vartype=bool):    # SAVE mode
             figure_name, = naming_standard.filename(**attributes)
+            figure.fig.savefig(joinpath(data_dir,
+                get_env('FIGURE_NAME', default='out.svg')))
             figure.fig.savefig(joinpath(data_dir,
                 get_env('FIGURE_NAME', default='out.eps')))
 
@@ -534,7 +640,7 @@ if __name__ == '__main__':  # executing as script
 
             figure = plotting_object(dat, frame, box_size, centre,
                 arrow_width, arrow_head_width, arrow_head_length,
-                pad=pad, dt=frame_per, vmin=vmin, vmax=vmax,
+                pad=pad, dt=frame_per, jump=jump, vmin=vmin, vmax=vmax,
                 label=get_env('LABEL', default=False, vartype=bool))    # plot frame
             figure.fig.suptitle(suptitle(frame, frame_per))
 
