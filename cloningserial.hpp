@@ -253,10 +253,14 @@ void CloningSerial::doCloning(double tmax, double sValue, int initSim) {
   #endif
   for (int i=0; i < nc; i++) {
     // std::cout << "clone: " << i << " dumpFrame: " << systems[ finalOffset + i]->getDump() << std::endl;
-    outputOP[0] += systems[ finalOffset + i]->getTotalWork(); // normalised rate of active work
-    outputOP[1] += systems[ finalOffset + i]->getTotalWorkForce(); // force part of the normalised rate of active work
-    outputOP[2] += systems[ finalOffset + i]->getTotalWorkOrientation(); // orientation part of the normalised rate of active work
-    outputOP[3] += systems[ finalOffset + i]->getTotalOrder(); // order parameter
+    outputOP[0] += systems[ finalOffset + i]->getTotalWork()
+      /(systems[ finalOffset + i]->getTimeStep()*systems[ finalOffset + i]->getDump()); // normalised rate of active work
+    outputOP[1] += systems[ finalOffset + i]->getTotalWorkForce()
+      /(systems[ finalOffset + i]->getTimeStep()*systems[ finalOffset + i]->getDump()); // force part of the normalised rate of active work
+    outputOP[2] += systems[ finalOffset + i]->getTotalWorkOrientation()
+      /(systems[ finalOffset + i]->getTimeStep()*systems[ finalOffset + i]->getDump()); // orientation part of the normalised rate of active work
+    outputOP[3] += systems[ finalOffset + i]->getTotalOrder()
+      /systems[ finalOffset + i]->getDump(); // order parameter
   }
 
   for (unsigned int j=0;j<4;j++) { outputOP[j] /= nc; }
