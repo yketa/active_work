@@ -148,7 +148,7 @@ System::System(
     orderSum {0, 0, 0} {
 
     // set seed of random generator
-    randomGenerator.setSeed(seed);
+    randomGenerator.setSeed(randomSeed);
 
     // write header with system parameters to output file
     output.write(getNumberParticles());
@@ -192,7 +192,7 @@ System::System(
     orderSum {0, 0, 0} {
 
   // set seed of random generator
-  randomGenerator.setSeed(seed);
+  randomGenerator.setSeed(randomSeed);
 
   // write header with system parameters to output file
   output.write(getNumberParticles());
@@ -245,7 +245,7 @@ std::string System::getOutputFile() const { return output.getOutputFile(); }
 int System::getDump() { return dumpFrame; }
 
 void System::resetDump() {
-  // Reset normalised quantities over trajectory.
+  // Reset time-extensive quantities over trajectory.
 
   dumpFrame = 0;
 
@@ -467,24 +467,11 @@ void System::saveNewState(std::vector<Particle>& newParticles) {
     output.write(workForceSum[1]);
     output.write(workOrientationSum[1]);
     output.write(orderSum[1]);
-    // update normalised rate over trajectory since last reset
-    // NOTE: AFRAID THIS MIGHT GIVE AN OVERFLOW ERROR...
-    workSum[2] =
-      ((dumpFrame - framesWork*dumpPeriod)*workSum[2]
-      + framesWork*dumpPeriod*workSum[1])
-      /dumpFrame;
-    workForceSum[2] =
-      ((dumpFrame - framesWork*dumpPeriod)*workForceSum[2]
-      + framesWork*dumpPeriod*workForceSum[1])
-      /dumpFrame;
-    workOrientationSum[2] =
-      ((dumpFrame - framesWork*dumpPeriod)*workOrientationSum[2]
-      + framesWork*dumpPeriod*workOrientationSum[1])
-      /dumpFrame;
-    orderSum[2] =
-      ((dumpFrame - framesWork*dumpPeriod)*orderSum[2]
-      + framesWork*dumpPeriod*orderSum[1])
-      /dumpFrame;
+    // update time extensive quantities over trajectory since last reset
+    workSum[2] += workSum[0]/getNumberParticles();
+    workForceSum[2] += workForceSum[0]/getNumberParticles();
+    workOrientationSum[2] += workOrientationSum[0]/getNumberParticles();
+    orderSum[2] += orderSum[0]/getNumberParticles();
     // reset sums
     workSum[0] = 0;
     workForceSum[0] = 0;

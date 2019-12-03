@@ -167,7 +167,7 @@ class System {
 
     int getDump(); // returns index of last frame dumped
     void resetDump();
-      // Reset normalised quantities over trajectory.
+      // Reset time-extensive quantities over trajectory.
     void copyDump(System* system);
       // Copy dumps from other system.
       // WARNING: This also copies the index of last frame dumped. Consistency
@@ -176,14 +176,15 @@ class System {
     double getWork(); // returns last computed normalised rate of active work
     double getWorkForce(); // returns last computed force part of the normalised rate of active work
     double getWorkOrientation(); // returns last computed orientation part of the normalised rate of active work
-    double getOrder(); // returns last computed order parameter
+    double getOrder(); // returns last computed averaged integrated order parameter
     // NOTE: All these quantities are computed every framesWork*dumpPeriod iterations.
 
-    double getTotalWork(); // returns computed normalised rate of active work since last reset
-    double getTotalWorkForce(); // returns computed force part of the normalised rate of active work since last rest
-    double getTotalWorkOrientation(); // returns computed orientation part of the normalised rate of active work since last reset
-    double getTotalOrder(); // returns computed order parameter since last reset
+    double getTotalWork(); // returns computed active work since last reset
+    double getTotalWorkForce(); // returns computed force part of the active work since last rest
+    double getTotalWorkOrientation(); // returns computed orientation part of the active work since last reset
+    double getTotalOrder(); // returns computed integrated order parameter since last reset
     // NOTE: All these quantities are updated every framesWork*dumpPeriod iterations.
+    //       All these quantities are extensive in time since last reset.
 
     double diffPeriodic(double const& x1, double const& x2);
       // Returns distance between two pointson a line taking into account periodic
@@ -232,11 +233,11 @@ class System {
     // Quantities
     // (0): sum of quantity since last dump
     // (1): normalised quantity over last dump period
-    // (2): normalised quantity over trajectory since last reset
+    // (2): time-extensive quantity over trajectory since last reset
     double workSum[3]; // active work
     double workForceSum[3]; //force part of the active work
     double workOrientationSum[3]; // orientation part of the active work
-    double orderSum[3]; // order parameter norm
+    double orderSum[3]; // integrated order parameter norm
 
 };
 
