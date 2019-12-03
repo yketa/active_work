@@ -13,12 +13,17 @@ MPIFLAGS=
 ifeq ($(TEST),yes)
 	EXEC=$(BU)/test
 	CPP=test.cpp
+	LDFLAGS+=-fopenmp  # compile with openMP
+	MPIFLAGS+=-fopenmp # compile with openMP
 else
 ifeq ($(CLONING),yes)
 	EXEC=$(BU)/cloning
 	CPP=cloning.cpp
 	LDFLAGS+=-fopenmp  # compile with openMP
 	MPIFLAGS+=-fopenmp # compile with openMP
+ifeq ($(DEBUG),yes)
+	CFLAGS+=-DDEBUG
+endif
 else
 	EXEC=$(BU)/simulation
 	CPP=main.cpp

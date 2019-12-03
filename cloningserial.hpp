@@ -197,7 +197,7 @@ void CloningSerial::doCloning(double tmax, double sValue, int initSim) {
           upsilon[i] = exp( -sValue * sFactor * OPval );                          // compute cloning factor
       }
 
-      #if 0
+      #ifdef DEBUG
         // diagnostic printing (for debug)
         cout << "#logUps";
         for (int i=0;i<nc;i++) cout << " " << log( upsilon[i] );
@@ -223,7 +223,7 @@ void CloningSerial::doCloning(double tmax, double sValue, int initSim) {
       int newClones[nc];
       selectClones(newClones,key.data(),pullOffset);
 
-      #if 0
+      #ifdef DEBUG
         // diagnostic printing (for debug)
         cout << "#pull";
         for (int i=0;i<nc;i++) cout << " " << newClones[i] ;
@@ -248,9 +248,6 @@ void CloningSerial::doCloning(double tmax, double sValue, int initSim) {
 
   finalOffset = arrswitch * nc;
   outputOP.assign(4, 0.0);
-  #ifdef _OPENMP
-  #pragma omp parallel for
-  #endif
   for (int i=0; i < nc; i++) {
     // std::cout << "clone: " << i << " dumpFrame: " << systems[ finalOffset + i]->getDump() << std::endl;
     outputOP[0] += systems[ finalOffset + i]->getTotalWork()
