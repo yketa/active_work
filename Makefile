@@ -8,27 +8,33 @@ OB=$(BU)/objects
 CC=g++
 CFLAGS=-std=gnu++11 -O3 -Wall
 LDFLAGS=
+MPIFLAGS=
 
 ifeq ($(TEST),yes)
 	EXEC=$(BU)/test
-	SRC=$(filter-out main.cpp cloning.cpp, $(wildcard *.cpp))
+	CPP=test.cpp
 else
 ifeq ($(CLONING),yes)
 	EXEC=$(BU)/cloning
-	SRC=$(filter-out main.cpp test.cpp, $(wildcard *.cpp))
+	CPP=cloning.cpp
+	LDFLAGS+=-fopenmp  # compile with openMP
+	MPIFLAGS+=-fopenmp # compile with openMP
 else
 	EXEC=$(BU)/simulation
-	SRC=$(filter-out test.cpp cloning.cpp, $(wildcard *.cpp))
+	CPP=main.cpp
 endif
 endif
+MAIN=main.cpp cloning.cpp test.cpp                                 # files with main()
+SRC=$(filter-out $(filter-out $(CPP), $(MAIN)), $(wildcard *.cpp)) # compile all files but the ones with wrong main()
 
 ifeq ($(CELLLIST),yes)
-	CFLAGS+= -DUSE_CELL_LIST
+	EXEC:=$(EXEC)_cell_list
+	CFLAGS+=-DUSE_CELL_LIST
 endif
 
 OBJ=$(addprefix $(OB)/, $(SRC:.cpp=.o))
 
-.PHONY: all clean mrproper
+.PHONY: all memcheck massif clean mrproper
 
 #### COMPILATION #####
 
@@ -67,7 +73,7 @@ $(OB)/write.o: write.cpp write.hpp
 ##
 
 $(OB)/cloning.o: cloning.cpp cloningserial.hpp env.hpp param.hpp particle.hpp
-	$(CC) -o $(OB)/cloning.o -c cloning.cpp $(CFLAGS)
+	$(CC) -o $(OB)/cloning.o -c cloning.cpp $(CFLAGS) $(MPIFLAGS)
 
 $(OB)/main.o: main.cpp env.hpp iteration.hpp maths.hpp param.hpp particle.hpp read.hpp
 	$(CC) -o $(OB)/main.o -c main.cpp $(CFLAGS)
@@ -89,7 +95,7 @@ massif: dir $(OBJ)
 #### CLEAN ####
 
 clean:
-	@rm -rf $(OB)
+	rm -rf $(OB)
 
 mrproper: clean
-	@rm -rf $(BU)
+	rm -rf $(BU)
