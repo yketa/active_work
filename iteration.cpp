@@ -22,6 +22,9 @@ void iterate_ABP_WCA(System *system) {
         sqrt(system->getTimeStep()*2/3/system->getPersistenceLength())
           *(system->getRandomGenerator())->gauss_cutoff(); // add noise
       newParticles[i].position()[dim] +=
+        #if CONTROLLED_DYNAMICS
+        (1 - 2*system->getBiasingParameter()/3/system->getPersistenceLength())*
+        #endif
         system->getTimeStep()*cos(
             (system->getParticle(i))->orientation()[0] - dim*M_PI/2); // add self-propulsion
 

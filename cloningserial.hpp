@@ -55,11 +55,10 @@ public:
   // (also makes sure to clean up any old systems that are already in the array)
   // ... but note this does not initialise the state of the actual systems
   // tau corresponds
-  void Init(int _nc, System* dummy, int masterSeed);
+  void Init(int _nc, double sValue, System* dummy, int masterSeed);
 
-  // this runs the cloning for total time tmax with interval dt and bias s
-  //   it initialises each system from scratch using SystemClass::Init()
-  void doCloning(double tmax, double s, int initSim = 1);
+  // this runs the cloning for total time tmax
+  void doCloning(double tmax, int initSim = 1);
 
   // this part of the algorithm is a bit tricky so put it in a separate function
   void selectClones(int newClones[], double key[], int pullOffset);
@@ -105,7 +104,7 @@ void CloningSerial::selectClones(int newClones[], double key[], int pullOffset) 
 }
 
 // initialise list of clones
-void CloningSerial::Init(int _nc, System* dummy, int masterSeed) {
+void CloningSerial::Init(int _nc, double sValue, System* dummy, int masterSeed) {
 
   //cout << "#init CloningSerial" << endl;
 
@@ -126,7 +125,7 @@ void CloningSerial::Init(int _nc, System* dummy, int masterSeed) {
   #pragma omp parallel for
   #endif
   for (int i=0;i<2*nc;i++) {
-    systems[i] = new System(dummy, processSeeds[i], "", tau, false); // create new system from copy of dummy, with random seed from processSeeds, computing active work and order parameter for every tau iterations, and not dumping to output file
+    systems[i] = new System(dummy, processSeeds[i], "", tau, false, 1, sValue); // create new system from copy of dummy, with random seed from processSeeds, computing active work and order parameter for every tau iterations, and not dumping to output file
     systems[i]->saveInitialState(); // save first frame (important for frame counting)
   }
 
@@ -152,7 +151,7 @@ void CloningSerial::Init(int _nc, System* dummy, int masterSeed) {
 }
 
 // void CloningSerial::doCloning (horrible c++ template syntax)
-void CloningSerial::doCloning(double tmax, double sValue, int initSim) {
+void CloningSerial::doCloning(double tmax, int initSim) {
 
   // !! this is the main cloning algorithm
 
@@ -173,7 +172,6 @@ void CloningSerial::doCloning(double tmax, double sValue, int initSim) {
 
     double lnX = 0.0;  // this is used in our final estimate of psi
 
-    double OPval;
     double sFactor = systems[0]->getNumberParticles()*tau*systems[0]->getTimeStep();
 
     // this is the main loop
@@ -193,8 +191,17 @@ void CloningSerial::doCloning(double tmax, double sValue, int initSim) {
       for (int i = 0; i < nc; i++) //For each lattice in the current population
       {
           for (int k=0; k < tau; k++) { iterate_ABP_WCA(systems[pushOffset+i]); } // run dynamics
-          OPval = systems[pushOffset+i]->getWork();                               // get "order param"
-          upsilon[i] = exp( -sValue * sFactor * OPval );                          // compute cloning factor
+          #if CONTROLLED_DYNAMICS
+          upsilon[i] = exp(                                                       // cloning factor = exp(
+            -systems[pushOffset+i]->getBiasingParameter() * sFactor               // - s*N*tau
+            *( 1 - systems[pushOffset+i]->getBiasingParameter()/                  // (1 - s/
+              (3*systems[pushOffset+i]->getPersistenceLength())                   // (3*lp)
+              + systems[pushOffset+i]->getWorkForce() ));                         // + w_f)
+          #else
+          upsilon[i] = exp(                                                       // cloning factor = exp(
+            -systems[pushOffset+i]->getBiasingParameter() * sFactor               // - s*N*tau
+            * systems[pushOffset+i]->getWork());                                  // w)
+          #endif
       }
 
       #ifdef DEBUG

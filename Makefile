@@ -21,6 +21,9 @@ ifeq ($(CLONING),yes)
 	CPP=cloning.cpp
 	LDFLAGS+=-fopenmp  # compile with openMP
 	MPIFLAGS+=-fopenmp # compile with openMP
+ifeq ($(CONTROLLED_DYNAMICS),yes)
+	CFLAGS+=-DCONTROLLED_DYNAMICS
+endif
 ifeq ($(DEBUG),yes)
 	CFLAGS+=-DDEBUG
 endif

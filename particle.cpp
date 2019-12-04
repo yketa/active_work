@@ -128,13 +128,14 @@ System::System() :
   cellList(),
   output(""),
   framesWork(0), dumpParticles(0), dumpPeriod(0),
+  biasingParameter(0),
   dumpFrame(-1),
   workSum {0, 0, 0}, workForceSum {0, 0, 0}, workOrientationSum {0, 0, 0},
     orderSum {0, 0, 0} {}
 
 System::System(
   Parameters* parameters, int seed, std::string filename,
-  int nWork, bool dump, int period) :
+  int nWork, bool dump, int period, double sValue) :
   param(parameters),
   randomSeed(seed), randomGenerator(),
   particles(parameters->getNumberParticles()),
@@ -143,6 +144,7 @@ System::System(
   framesWork(nWork > 0 ? nWork : (int)
     parameters->getPersistenceLength()/(parameters->getTimeStep()*period)),
     dumpParticles(dump), dumpPeriod(period),
+  biasingParameter(sValue),
   dumpFrame(-1),
   workSum {0, 0, 0}, workForceSum {0, 0, 0}, workOrientationSum {0, 0, 0},
     orderSum {0, 0, 0} {
@@ -178,7 +180,7 @@ System::System(
 
 System::System(
   System* system, int seed, std::string filename,
-  int nWork, bool dump, int period) :
+  int nWork, bool dump, int period, double sValue) :
   param(system->getParameters()),
   randomSeed(seed), randomGenerator(),
   particles(system->getNumberParticles()),
@@ -187,6 +189,7 @@ System::System(
   framesWork(nWork > 0 ? nWork : (int)
     system->getPersistenceLength()/(system->getTimeStep()*period)),
     dumpParticles(dump), dumpPeriod(period),
+  biasingParameter(sValue),
   dumpFrame(-1),
   workSum {0, 0, 0}, workForceSum {0, 0, 0}, workOrientationSum {0, 0, 0},
     orderSum {0, 0, 0} {
@@ -241,6 +244,8 @@ std::vector<Particle> System::getParticles() { return particles; }
 CellList* System::getCellList() { return &cellList; }
 
 std::string System::getOutputFile() const { return output.getOutputFile(); }
+
+double System::getBiasingParameter() const { return biasingParameter; }
 
 int System::getDump() { return dumpFrame; }
 

@@ -136,10 +136,10 @@ class System {
     System();
     System(
       Parameters* parameters, int seed = 0, std::string filename = "",
-      int nWork = 0, bool dump = true, int period = 1);
+      int nWork = 0, bool dump = true, int period = 1, double sValue = 0);
     System(
       System* system, int seed = 0, std::string filename = "",
-      int nWork = 0, bool dump = true, int period = 1);
+      int nWork = 0, bool dump = true, int period = 1, double sValue = 0);
 
     // DESTRUCTORS
 
@@ -164,6 +164,8 @@ class System {
     CellList* getCellList(); // returns pointer to CellList object
 
     std::string getOutputFile() const; // returns output file name
+
+    double getBiasingParameter() const; // returns biasing parameter
 
     int getDump(); // returns index of last frame dumped
     void resetDump();
@@ -228,6 +230,8 @@ class System {
       // taken roughly equal to lp/dt
     bool const dumpParticles; // dump positions and orientations to output file
     int const dumpPeriod; // period of dumping of positions and orientations in number of frames
+
+    double const biasingParameter; // biasing parameter [cloning algorithm]
 
     int dumpFrame; // index of last frame dumped
     // Quantities
