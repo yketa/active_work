@@ -165,7 +165,8 @@ class System {
 
     std::string getOutputFile() const; // returns output file name
 
-    double getBiasingParameter() const; // returns biasing parameter
+    void setBiasingParameter(double sValue); // set new biasing parameter
+    double getBiasingParameter(); // returns biasing parameter
 
     int getDump(); // returns index of last frame dumped
     void resetDump();
@@ -231,7 +232,7 @@ class System {
     bool const dumpParticles; // dump positions and orientations to output file
     int const dumpPeriod; // period of dumping of positions and orientations in number of frames
 
-    double const biasingParameter; // biasing parameter [cloning algorithm]
+    double biasingParameter; // biasing parameter [cloning algorithm]
 
     int dumpFrame; // index of last frame dumped
     // Quantities

@@ -82,14 +82,14 @@ int main() {
   clones.setCloneMethod(cloneMethod);
 
   // set up the clones etc, using dummySystem to get system sizes, hop rates, etc
-  clones.Init(nc,sValue,&dummy,seed);
+  clones.Init(nc,&dummy,seed);
   std::cout << "## master seed " << seed << std::endl;
 
   for (int run = 0; run<nRuns;run++) {
 
     // go! (this includes generating "random" [different] initial conditions for the clones)
 
-    clones.doCloning(tmax,initSim);
+    clones.doCloning(tmax,sValue,initSim);
 
     // output. Note OP here is the mean escape rate of the modified dynamics, is that the same as K(s) ?
     std::cout << "#psi_OP_t_s " << clones.outputPsi << " "

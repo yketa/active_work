@@ -55,10 +55,10 @@ public:
   // (also makes sure to clean up any old systems that are already in the array)
   // ... but note this does not initialise the state of the actual systems
   // tau corresponds
-  void Init(int _nc, double sValue, System* dummy, int masterSeed);
+  void Init(int _nc, System* dummy, int masterSeed);
 
   // this runs the cloning for total time tmax
-  void doCloning(double tmax, int initSim = 1);
+  void doCloning(double tmax, double sValue, int initSim = 1);
 
   // this part of the algorithm is a bit tricky so put it in a separate function
   void selectClones(int newClones[], double key[], int pullOffset);
@@ -104,7 +104,7 @@ void CloningSerial::selectClones(int newClones[], double key[], int pullOffset) 
 }
 
 // initialise list of clones
-void CloningSerial::Init(int _nc, double sValue, System* dummy, int masterSeed) {
+void CloningSerial::Init(int _nc, System* dummy, int masterSeed) {
 
   //cout << "#init CloningSerial" << endl;
 
@@ -125,10 +125,9 @@ void CloningSerial::Init(int _nc, double sValue, System* dummy, int masterSeed) 
   #pragma omp parallel for
   #endif
   for (int i=0;i<2*nc;i++) {
-    systems[i] = new System(dummy, processSeeds[i], "", tau, false, 1, sValue); // create new system from copy of dummy, with random seed from processSeeds, computing active work and order parameter for every tau iterations, and not dumping to output file
+    systems[i] = new System(dummy, processSeeds[i], "", tau, false, 1, 0); // create new system from copy of dummyRun, with random seed from processSeeds, computing active work and order parameter for every tau iterations, not dumping to output file, and with 0 biasing parameter
     systems[i]->saveInitialState(); // save first frame (important for frame counting)
   }
-
 
   // just for extra safety we can opt to throw our random number generators out of sync here
   // (the risk is that in a very big population, several clones might have the same seed,
@@ -151,7 +150,7 @@ void CloningSerial::Init(int _nc, double sValue, System* dummy, int masterSeed) 
 }
 
 // void CloningSerial::doCloning (horrible c++ template syntax)
-void CloningSerial::doCloning(double tmax, int initSim) {
+void CloningSerial::doCloning(double tmax, double sValue, int initSim) {
 
   // !! this is the main cloning algorithm
 
@@ -166,8 +165,10 @@ void CloningSerial::doCloning(double tmax, int initSim) {
     #pragma omp parallel for
     #endif
     for (int i=0;i<nc;i++) {
+      systems[i]->setBiasingParameter(0); // setting 0 biasing parameter (unmodified dynamics to sample initial configurations)
       for (int j=0; j < tau*initSim; j++) { iterate_ABP_WCA(systems[i]); } // simulate an elementary number of steps
       systems[i]->resetDump(); // reset dumps: important between different runs and to only count the relevant quantities within the cloning framework
+      systems[i]->setBiasingParameter(sValue); // setting desired biasing parameter
     }
 
     double lnX = 0.0;  // this is used in our final estimate of psi

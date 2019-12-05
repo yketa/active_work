@@ -245,7 +245,8 @@ CellList* System::getCellList() { return &cellList; }
 
 std::string System::getOutputFile() const { return output.getOutputFile(); }
 
-double System::getBiasingParameter() const { return biasingParameter; }
+void System::setBiasingParameter(double sValue) { biasingParameter = sValue; }
+double System::getBiasingParameter() { return biasingParameter; }
 
 int System::getDump() { return dumpFrame; }
 
