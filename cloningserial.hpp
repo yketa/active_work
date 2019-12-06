@@ -168,8 +168,12 @@ void CloningSerial::doCloning(double tmax, double sValue, int initSim) {
       systems[i]->setBiasingParameter(0); // setting 0 biasing parameter (unmodified dynamics to sample initial configurations)
       for (int j=0; j < tau*initSim; j++) { iterate_ABP_WCA(systems[i]); } // simulate an elementary number of steps
       systems[i]->resetDump(); // reset dumps: important between different runs and to only count the relevant quantities within the cloning framework
-      systems[i]->setBiasingParameter(sValue); // setting desired biasing parameter
     }
+
+    #ifdef _OPENMP
+    #pragma omp parallel for
+    #endif
+    for (int i=0; i<2*nc; i++) systems[i]->setBiasingParameter(sValue); // setting desired biasing parameter
 
     double lnX = 0.0;  // this is used in our final estimate of psi
 
