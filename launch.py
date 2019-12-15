@@ -75,7 +75,7 @@ if __name__ == '__main__':
     Niter = get_env('NITER', default=_Niter, vartype=int)   # number of iterations
 
     # NAMING PARAMETERS
-    launch = get_env('LAUNCH', default=_launch, vartype=int)    # launch identifier
+    launch = get_env('LAUNCH', default=_launch, vartype=float)  # launch identifier
 
     # OUTPUT PARAMETERS
     nWork = get_env('NWORK', default=_nWork, vartype=int)       # number of frames on which to sum the active work before dumping (0 => nWork = lp/dt)

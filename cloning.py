@@ -269,7 +269,7 @@ if __name__ == '__main__':
     exec_path = path.join(exec_dir, exec_name)                          # executable path
 
     # OUTPUT FILES PARAMETERS
-    launch = get_env('LAUNCH', default=_launch, vartype=int)    # launch identifier
+    launch = get_env('LAUNCH', default=_launch, vartype=float)  # launch identifier
     out_dir = get_env('OUT_DIR', default=_out_dir, vartype=str) # output directory
     sim_name = filename(N, phi, lp, nc, launch)                 # simulation output name
     sim_dir = path.join(out_dir, sim_name)                      # simulation output directory name
