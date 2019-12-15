@@ -415,3 +415,22 @@ def meanStdCut(array, cut):
 
     array = array[np.abs(array - array.mean()) < cut*array.std()]
     return array.mean(), array.std()
+
+def angle(dx, dy):
+    """
+    Returns angle from in x- and y-coordinates.
+
+    Parameters
+    ----------
+    dx : float
+        x-coordinate or difference in x-coordinate.
+    dy : float
+        y-coordinate or difference in y-coordinate.
+
+    Returns
+    -------
+    ang : float
+        Corresponding angle in radians.
+    """
+
+    return math.atan2(dy, dx)

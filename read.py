@@ -8,7 +8,7 @@ import numpy as np
 import os
 import pickle
 
-from active_work.maths import relative_positions
+from active_work.maths import relative_positions, angle
 
 class _Read:
     """
@@ -336,9 +336,98 @@ class Dat(_Read):
         if norm: return np.sqrt(np.sum(orderParameter**2))
         return orderParameter
 
+    def getGlobalPhase(self, time):
+        """
+        Returns global phase at time `time'.
+
+        Parameters
+        ----------
+        time : int
+            Frame.
+
+        Returns
+        -------
+        phi : float
+            Global phase in radians.
+        """
+
+        return angle(*self.getOrderParameter(time, norm=False))
+
+    def getTorqueIntegral1(self, time0, time1):
+        """
+        Returns normalised first integral in the expression of the modified
+        active work for control-feedback modified dynamics from `time0' to
+        `time1'.
+        (see https://yketa.github.io/DAMTP_2019_Wiki/#ABP%20cloning%20algorithm)
+
+        NOTE: Using Stratonovitch convention.
+
+        Parameters
+        ----------
+        time0 : int
+            Initial frame.
+        time1 : int
+            Final frame.
+
+        Returns
+        -------
+        torqueIntegral : float
+            Normalised integral.
+        """
+
+        time0, time1 = int(time0), int(time1)
+        if time0 == time1: return 0
+
+        torqueIntegral = 0
+        for time in range(time0, time1):
+            torqueIntegral += (
+                self.getOrderParameter(time, norm=True)**2
+                + self.getOrderParameter(time + 1, norm=True)**2)/2
+
+        return torqueIntegral/(time1-time0)
+
+    def getTorqueIntegral2(self, time0, time1):
+        """
+        Returns normalised second integral in the expression of the modified
+        active work for control-feedback modified dynamics from `time0' to
+        `time1'.
+        (see https://yketa.github.io/DAMTP_2019_Wiki/#ABP%20cloning%20algorithm)
+
+        NOTE: Using Stratonovitch convention.
+
+        Parameters
+        ----------
+        time0 : int
+            Initial frame.
+        time1 : int
+            Final frame.
+
+        Returns
+        -------
+        torqueIntegral : float
+            Normalised integral.
+        """
+
+        time0, time1 = int(time0), int(time1)
+        if time0 == time1: return 0
+
+        torqueIntegral = 0
+        for time in range(time0, time1):
+            torqueIntegral += (
+                (self.getOrderParameter(time, norm=True)**2)
+                    *np.sum(np.sin(
+                        self.getOrientations(time)
+                            - self.getGlobalPhase(time))**2)
+                + (self.getOrderParameter(time + 1, norm=True)**2)
+                    *np.sum(np.sin(
+                        self.getOrientations(time + 1)
+                            - self.getGlobalPhase(time + 1))**2))/2
+
+        return torqueIntegral/(self.N*(time1-time0))
+
     def _loadWork(self):
         """
-        Load work from file self.filename + '.work.pickle' if it exists or
+        Loads work from file self.filename + '.work.pickle' if it exists or
         extract it from self.filename and pickle it to
         self.filename + '.work.pickle.
         """
