@@ -5,6 +5,10 @@
 #include "iteration.hpp"
 #include "particle.hpp"
 
+#ifdef DEBUG
+#include <iostream>
+#endif
+
 void iterate_ABP_WCA(System *system) {
   // Updates system to next step according to the dynamics of active Brownian
   // particles with WCA potential.
@@ -38,6 +42,21 @@ void iterate_ABP_WCA(System *system) {
       sqrt(system->getTimeStep()*2/system->getPersistenceLength())
         *(system->getRandomGenerator())->gauss_cutoff(); // add noise
   }
+
+  // ALIGNING TORQUE
+  #if CONTROLLED_DYNAMICS == 2 || CONTROLLED_DYNAMICS == 3
+  double torque;
+  for (int i=0; i < system->getNumberParticles(); i++) {
+    for (int j=i + 1; j < system->getNumberParticles(); j++) {
+      torque = 2*system->getTorqueParameter()/system->getNumberParticles()
+        *sin((system->getParticle(i))->orientation()[0]
+          - (system->getParticle(j))->orientation()[0])
+        *system->getTimeStep();
+      newParticles[i].orientation()[0] += torque;
+      newParticles[j].orientation()[0] -= torque;
+    }
+  }
+  #endif
 
   // FORCES
   #if USE_CELL_LIST // with cell list

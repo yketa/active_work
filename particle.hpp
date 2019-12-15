@@ -168,7 +168,7 @@ class System {
     void setBiasingParameter(double sValue); // set new biasing parameter
     double getBiasingParameter(); // returns biasing parameter
 
-    int getDump(); // returns index of last frame dumped
+    int getDump(); // returns number of frames dumped since last reset
     void resetDump();
       // Reset time-extensive quantities over trajectory.
     void copyDump(System* system);
@@ -188,6 +188,20 @@ class System {
     double getTotalOrder(); // returns computed integrated order parameter since last reset
     // NOTE: All these quantities are updated every framesWork*dumpPeriod iterations.
     //       All these quantities are extensive in time since last reset.
+
+    #if CONTROLLED_DYNAMICS == 2 || CONTROLLED_DYNAMICS == 3
+    void setTorqueParameter(double g); // set new torque parameter
+    double getTorqueParameter(); // returns torque parameter
+
+    double getTorqueIntegral1(); // returns last computed normalised first integral in the expression of the modified active work
+    double getTorqueIntegral2(); // returns last computed normalised first integral in the expression of the modified active work
+    // NOTE: All these quantities are computed every framesWork*dumpPeriod iterations.
+
+    double getTotalTorqueIntegral1(); // returns computed normalised first integral in the expression of the modified active work since last reset
+    double getTotalTorqueIntegral2(); // returns computed normalised first integral in the expression of the modified active work since last reset
+    // NOTE: All these quantities are computed every framesWork*dumpPeriod iterations.
+    //       All these quantities are extensive in time steps since last reset.
+    #endif
 
     double diffPeriodic(double const& x1, double const& x2);
       // Returns distance between two pointson a line taking into account periodic
@@ -234,7 +248,7 @@ class System {
 
     double biasingParameter; // biasing parameter [cloning algorithm]
 
-    int dumpFrame; // index of last frame dumped
+    int dumpFrame; // number of frames dumped since last reset
     // Quantities
     // (0): sum of quantity since last dump
     // (1): normalised quantity over last dump period
@@ -242,8 +256,33 @@ class System {
     double workSum[3]; // active work
     double workForceSum[3]; //force part of the active work
     double workOrientationSum[3]; // orientation part of the active work
-    double orderSum[3]; // integrated order parameter norm
+    double orderSum[3]; // integrated order parameter norm (in units of the time step)
+
+    #if CONTROLLED_DYNAMICS == 2 || CONTROLLED_DYNAMICS == 3
+    double torqueParameter; // torque parameter [cloning algorithm]
+
+    // Quantities
+    // (0): integral since last dump (in units of the time step)
+    // (1): normalised integral over last dump period
+    // (2): integral over trajectory since last reset (in units of the time step)
+    double torqueIntegral1[3]; // first integral in the expression of the modified active work
+    double torqueIntegral2[3]; // second integral in the expression of the modified active work
+    #endif
 
 };
+
+
+////////////////
+// PROTOTYPES //
+////////////////
+
+double getGlobalPhase(std::vector<Particle>& particles);
+  // Returns global phase.
+
+std::vector<double> getOrderParameter(std::vector<Particle>& particles);
+  // Returns order parameter.
+
+double getOrderParameterNorm(std::vector<Particle>& particles);
+  // Returns order parameter norm.
 
 #endif

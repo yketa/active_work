@@ -15,14 +15,24 @@ ifeq ($(TEST),yes)
 	CPP=test.cpp
 	LDFLAGS+=-fopenmp  # compile with openMP
 	MPIFLAGS+=-fopenmp # compile with openMP
+	CFLAGS+=-DTEST=1
 else
 ifeq ($(CLONING),yes)
 	EXEC=$(BU)/cloning
 	CPP=cloning.cpp
 	LDFLAGS+=-fopenmp  # compile with openMP
 	MPIFLAGS+=-fopenmp # compile with openMP
-ifeq ($(CONTROLLED_DYNAMICS),yes)
-	CFLAGS+=-DCONTROLLED_DYNAMICS
+ifeq ($(CONTROLLED_DYNAMICS),1)
+	EXEC:=$(EXEC)_C1
+	CFLAGS+=-DCONTROLLED_DYNAMICS=1
+endif
+ifeq ($(CONTROLLED_DYNAMICS),2)
+	EXEC:=$(EXEC)_C2
+	CFLAGS+=-DCONTROLLED_DYNAMICS=2
+endif
+ifeq ($(CONTROLLED_DYNAMICS),3)
+	EXEC:=$(EXEC)_C3
+	CFLAGS+=-DCONTROLLED_DYNAMICS=3
 endif
 ifeq ($(DEBUG),yes)
 	CFLAGS+=-DDEBUG

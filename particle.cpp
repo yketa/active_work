@@ -7,6 +7,10 @@
 #include "particle.hpp"
 #include "maths.hpp"
 
+#ifdef DEBUG
+#include <iostream>
+#endif
+
 /////////////
 // CLASSES //
 /////////////
@@ -131,7 +135,12 @@ System::System() :
   biasingParameter(0),
   dumpFrame(-1),
   workSum {0, 0, 0}, workForceSum {0, 0, 0}, workOrientationSum {0, 0, 0},
-    orderSum {0, 0, 0} {}
+    orderSum {0, 0, 0}
+  #if CONTROLLED_DYNAMICS == 2 || CONTROLLED_DYNAMICS == 3
+  , torqueParameter(0),
+  torqueIntegral1 {0, 0, 0}, torqueIntegral2 {0, 0, 0}
+  #endif
+  {}
 
 System::System(
   Parameters* parameters, int seed, std::string filename,
@@ -147,7 +156,12 @@ System::System(
   biasingParameter(sValue),
   dumpFrame(-1),
   workSum {0, 0, 0}, workForceSum {0, 0, 0}, workOrientationSum {0, 0, 0},
-    orderSum {0, 0, 0} {
+    orderSum {0, 0, 0}
+  #if CONTROLLED_DYNAMICS == 2 || CONTROLLED_DYNAMICS == 3
+  , torqueParameter(0),
+  torqueIntegral1 {0, 0, 0}, torqueIntegral2 {0, 0, 0}
+  #endif
+  {
 
     // set seed of random generator
     randomGenerator.setSeed(randomSeed);
@@ -192,7 +206,12 @@ System::System(
   biasingParameter(sValue),
   dumpFrame(-1),
   workSum {0, 0, 0}, workForceSum {0, 0, 0}, workOrientationSum {0, 0, 0},
-    orderSum {0, 0, 0} {
+    orderSum {0, 0, 0}
+  #if CONTROLLED_DYNAMICS == 2 || CONTROLLED_DYNAMICS == 3
+  , torqueParameter(0),
+  torqueIntegral1 {0, 0, 0}, torqueIntegral2 {0, 0, 0}
+  #endif
+  {
 
   // set seed of random generator
   randomGenerator.setSeed(randomSeed);
@@ -264,6 +283,14 @@ void System::resetDump() {
   workForceSum[2] = 0;
   workOrientationSum[2] = 0;
   orderSum[2] = 0;
+
+  #if CONTROLLED_DYNAMICS == 2 || CONTROLLED_DYNAMICS == 3
+  torqueIntegral1[0] = 0;
+  torqueIntegral2[0] = 0;
+
+  torqueIntegral1[2] = 0;
+  torqueIntegral2[2] = 0;
+  #endif
 }
 
 void System::copyDump(System* system) {
@@ -277,6 +304,11 @@ void System::copyDump(System* system) {
   workForceSum[2] = system->getTotalWorkForce();
   workOrientationSum[2] = system->getTotalWorkOrientation();
   orderSum[2] = system->getTotalOrder();
+
+  #if CONTROLLED_DYNAMICS == 2 || CONTROLLED_DYNAMICS == 3
+  torqueIntegral1[2] = system->getTotalTorqueIntegral1();
+  torqueIntegral2[2] = system->getTotalTorqueIntegral2();
+  #endif
 }
 
 double System::getWork() { return workSum[1]; }
@@ -288,6 +320,17 @@ double System::getTotalWork() { return workSum[2]; }
 double System::getTotalWorkForce() { return workForceSum[2]; }
 double System::getTotalWorkOrientation() { return workOrientationSum[2]; }
 double System::getTotalOrder() { return orderSum[2]; }
+
+#if CONTROLLED_DYNAMICS == 2 || CONTROLLED_DYNAMICS == 3
+void System::setTorqueParameter(double g) { torqueParameter = g; }
+double System::getTorqueParameter() { return torqueParameter; }
+
+double System::getTorqueIntegral1() { return torqueIntegral1[1]; }
+double System::getTorqueIntegral2() { return torqueIntegral2[1]; }
+
+double System::getTotalTorqueIntegral1() { return torqueIntegral1[2]; }
+double System::getTotalTorqueIntegral2() { return torqueIntegral2[2]; }
+#endif
 
 double System::diffPeriodic(double const& x1, double const& x2) {
   // Returns algebraic distance from `x1' to `x2' on a line taking into account
@@ -402,8 +445,10 @@ void System::saveNewState(std::vector<Particle>& newParticles) {
   // DUMP FRAME
   dumpFrame++;
 
-  // SAVING
-  double orderParameterIn[2] {0, 0}, orderParameterFin[2] {0, 0};
+  ////////////
+  // SAVING //
+  ////////////
+
   for (int i=0; i < getNumberParticles(); i++) { // output all particles
 
     // ACTIVE WORK and ORDER PARAMETER (computation)
@@ -426,11 +471,6 @@ void System::saveNewState(std::vector<Particle>& newParticles) {
           + cos(particles[i].orientation()[0] - dim*M_PI/2))
         *getTimeStep()*cos(particles[i].orientation()[0] - dim*M_PI/2)
         /2;
-      // order parameter
-      orderParameterIn[dim] +=
-        cos(particles[i].orientation()[0] - dim*M_PI/2);
-      orderParameterFin[dim] +=
-        cos(newParticles[i].orientation()[0] - dim*M_PI/2);
     }
 
     // WRAPPED COORDINATES
@@ -451,11 +491,33 @@ void System::saveNewState(std::vector<Particle>& newParticles) {
     if ( dumpParticles && dumpFrame % dumpPeriod == 0 ) {
       output.write(newParticles[i].orientation()[0]);
     }
+
   }
+
+  // ORDER PARAMETER
   orderSum[0] +=
-    (sqrt(pow(orderParameterIn[0], 2) + pow(orderParameterIn[1], 2))
-      + sqrt(pow(orderParameterFin[0], 2) + pow(orderParameterFin[1], 2)))
-    /2;
+    (getOrderParameterNorm(particles) + getOrderParameterNorm(newParticles))
+      /2;
+
+  #if CONTROLLED_DYNAMICS == 2 || CONTROLLED_DYNAMICS == 3
+  // ORDER PARAMETER
+  std::vector<double> orderOld = getOrderParameter(particles);
+  double orderNormSqOld = pow(orderOld[0], 2) + pow(orderOld[1], 2);
+  std::vector<double> orderNew = getOrderParameter(newParticles);
+  double orderNormSqNew = pow(orderNew[0], 2) + pow(orderNew[1], 2);
+  // GLOBAL PHASE
+  double globalPhaseOld = getGlobalPhase(particles);
+  double globalPhaseNew = getGlobalPhase(newParticles);
+  // FIRST INTEGRAL
+  torqueIntegral1[0] += (orderNormSqOld + orderNormSqNew)/2;
+  // SECOND INTEGRAL
+  for (int i=0; i < getNumberParticles(); i++) {
+    torqueIntegral2[0] += orderNormSqOld
+      *pow(sin(particles[i].orientation()[0] - globalPhaseOld), 2)/2;
+    torqueIntegral2[0] += orderNormSqNew
+      *pow(sin(newParticles[i].orientation()[0] - globalPhaseNew), 2)/2;
+  }
+  #endif
 
   // ACTIVE WORK and ORDER PARAMETER (output)
   if ( dumpFrame % (framesWork*dumpPeriod) == 0 ) {
@@ -467,7 +529,7 @@ void System::saveNewState(std::vector<Particle>& newParticles) {
     workOrientationSum[1] = workOrientationSum[0]/(
       getNumberParticles()*getTimeStep()*framesWork*dumpPeriod);
     orderSum[1] = orderSum[0]/(
-      getNumberParticles()*framesWork*dumpPeriod);
+      framesWork*dumpPeriod);
     // output normalised rates
     output.write(workSum[1]);
     output.write(workForceSum[1]);
@@ -477,14 +539,67 @@ void System::saveNewState(std::vector<Particle>& newParticles) {
     workSum[2] += workSum[0]/getNumberParticles();
     workForceSum[2] += workForceSum[0]/getNumberParticles();
     workOrientationSum[2] += workOrientationSum[0]/getNumberParticles();
-    orderSum[2] += orderSum[0]/getNumberParticles();
+    orderSum[2] += orderSum[0];
     // reset sums
     workSum[0] = 0;
     workForceSum[0] = 0;
     workOrientationSum[0] = 0;
     orderSum[0] = 0;
+    #if CONTROLLED_DYNAMICS == 2 || CONTROLLED_DYNAMICS == 3
+    // compute normalised integrals since last dump
+    torqueIntegral1[1] = torqueIntegral1[0]/(
+      framesWork*dumpPeriod);
+    torqueIntegral2[1] = torqueIntegral2[0]/(
+      getNumberParticles()*framesWork*dumpPeriod);
+    // update time (in units of time step) extensive integrals since last reset
+    torqueIntegral1[2] += torqueIntegral1[0];
+    torqueIntegral2[2] += torqueIntegral2[0]/
+      getNumberParticles();
+    // reset sums
+    torqueIntegral1[0] = 0;
+    torqueIntegral2[0] = 0;
+    #endif
   }
 
-  // COPYING
+  /////////////
+  // COPYING //
+  /////////////
+
   copyParticles(newParticles);
+}
+
+
+///////////////
+// FUNCTIONS //
+///////////////
+
+double getGlobalPhase(std::vector<Particle>& particles) {
+  // Returns global phase.
+
+  std::vector<double> order = getOrderParameter(particles);
+
+  return getAngle(order[0], order[1]);
+}
+
+std::vector<double> getOrderParameter(std::vector<Particle>& particles) {
+  // Returns order parameter.
+
+  std::vector<double> order(2, 0);
+
+  for (int i=0; i < (int) particles.size(); i++) { // loop over particles
+    for (int dim=0; dim < 2; dim++) { // loop over dimensions
+      order[dim] += cos(particles[i].orientation()[0] - dim*M_PI/2)
+        /particles.size();
+    }
+  }
+
+  return order;
+}
+
+double getOrderParameterNorm(std::vector<Particle>& particles) {
+  // Returns order parameter norm.
+
+  std::vector<double> order = getOrderParameter(particles);
+
+  return sqrt(pow(order[0], 2) + pow(order[1], 2));
 }

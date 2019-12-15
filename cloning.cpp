@@ -73,9 +73,16 @@ int main() {
 	System dummy(&parameters);
 
   printf("## CloningSerial Code: tmax %.3e numClones %d runs %d s %.3e tau %d Delta.t %.3e\n",tmax,nc,nRuns,sValue,tau,dt);
-	#if CONTROLLED_DYNAMICS
-	std::cout << "## Using controlled dynamics." << std::endl;
+	#if CONTROLLED_DYNAMICS == 1
+	std::cout << "## Modified translational EOM." << std::endl;
 	#endif
+	#if CONTROLLED_DYNAMICS == 2
+	std::cout << "## Modified translational and rotational EOM with 1st method." << std::endl;
+	#endif
+	#if CONTROLLED_DYNAMICS == 3
+	std::cout << "## Modified translational and rotational EOM with 2nd method." << std::endl;
+	#endif
+	// see cloning.py for more info
 
   // cloning object (default cloning method is [eq])
   CloningSerial clones(tau);
@@ -92,13 +99,14 @@ int main() {
     clones.doCloning(tmax,sValue,initSim);
 
     // output. Note OP here is the mean escape rate of the modified dynamics, is that the same as K(s) ?
-    std::cout << "#psi_OP_t_s " << clones.outputPsi << " "
-                         << clones.outputOP[0] << " "
-                         << clones.outputOP[1] << " "
-												 << clones.outputOP[2] << " "
-												 << clones.outputOP[3] << " "
-                         << clones.outputWalltime << " "
-                         << sValue << std::endl;
+		std::cout << std::endl;
+		std::cout << "##s "    << sValue << std::endl
+		          << "#SCGF "  << clones.outputPsi/N << std::endl
+              << "#w "     << clones.outputOP[0] << std::endl
+              << "#wf "    << clones.outputOP[1] << std::endl
+							<< "#wo "		 << clones.outputOP[2] << std::endl
+						  << "#nu "    << clones.outputOP[3] << std::endl << std::endl
+              << "##time " << clones.outputWalltime << std::endl;
 
 		// output to file
 		output.write(clones.outputPsi);

@@ -1,6 +1,15 @@
 """
 Module cloning launches cloning simulations and provides classes to read output
 data files from these simulations.
+
+Controlled dynamics is chosen with environment variable `CONTROLLED_DYNAMICS':
+    (0) Unmodified dynamics,
+    (1) Modified translational EOM,
+    (2) Modified translational and rotational EOM, choosing free parameter as
+        function of the order parameter norm,
+    (3) Modified translational and rotational EOM, choosing free parameter as
+        root of defined polynomial.
+(see https://yketa.github.io/DAMTP_2019_Wiki/#ABP%20cloning%20algorithm)
 """
 
 import numpy as np
@@ -38,7 +47,8 @@ class CloningOutput:
         """
 
         with open(filename, 'rb') as input:
-            (self.tmax,             # dimensionless time simulated
+            (self.exec_path,        # executable path (can help discriminate controlled dynamics method)
+            self.tmax,              # dimensionless time simulated
             self.nc,                # number of clones
             self.nRuns,             # number of different runs
             self.initSim,           # number of initial elementary number of iterations to "randomise"
@@ -207,9 +217,10 @@ _dt = 0.001 # default time step
 
 _launch = 0 # default launch identifier
 
-_N_cell = 100                                                           # number of particles above which simulations should be launched with a cell list
-_exec_dir = path.join(path.dirname(path.realpath(__file__)), 'build')   # default executable directory
-_exec_name = ['cloning', 'cloning_cell_list']                           # default executable name without and with a cell list
+_N_cell = 100                                                               # number of particles above which simulations should be launched with a cell list
+_exec_dir = path.join(path.dirname(path.realpath(__file__)), 'build')       # default executable directory
+_exec_name = {0: 'cloning', **{i: 'cloning_C%i' % i for i in range(1, 4)}}  # default executable name
+
 
 _out_dir = _exec_dir    # default simulation output directory
 
@@ -250,8 +261,12 @@ if __name__ == '__main__':
 
     # EXECUTABLE PARAMETERS
     exec_dir = get_env('EXEC_DIR', default=_exec_dir, vartype=str)      # executable directory
-    exec_name = get_env('EXEC_NAME', default=_exec_name[N >= _N_cell],  # executable name
+    exec_name = get_env('EXEC_NAME',                                    # executable name
+        default=_exec_name[
+            get_env('CONTROLLED_DYNAMICS', default=0, vartype=int)]
+            + ('_cell_list' if N >= _N_cell else ''),
         vartype=str)
+    exec_path = path.join(exec_dir, exec_name)                          # executable path
 
     # OUTPUT FILES PARAMETERS
     launch = get_env('LAUNCH', default=_launch, vartype=int)    # launch identifier
@@ -268,7 +283,7 @@ if __name__ == '__main__':
 
     with open(devnull, 'wb') as DevNull:
         procs = [
-            Popen([path.join(exec_dir, exec_name)],
+            Popen([exec_path],
                 stdout=DevNull, stderr=DevNull, env={
                     'TMAX': str(tmax), 'NC': str(nc), 'SVALUE': str(sValues[i]),
                         'SEED': str(seeds[i]), 'NRUNS': str(nRuns),
@@ -304,6 +319,7 @@ if __name__ == '__main__':
     # OUT
     with open(out_file, 'wb') as output:
         pickle.dump([
+            exec_path,
             tmax, nc, nRuns, initSim, sValues,
             seed, seeds,
             N, lp, phi,

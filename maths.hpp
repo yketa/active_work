@@ -4,6 +4,10 @@
 #include <random>
 #include <cmath>
 
+/////////////
+// CLASSES //
+/////////////
+
 class rnd {
   // This simple rnd class is a wrapper for the built-in c++ random number
   // generator.
@@ -49,5 +53,13 @@ class rnd {
     }
 
 };
+
+
+////////////////
+// PROTOTYPES //
+////////////////
+
+double getAngle(double cosinus, double signSinus);
+  // Returns angle in radians from its cosinus and sign of its sinus.
 
 #endif
