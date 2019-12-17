@@ -18,6 +18,8 @@ MODE : string
     | 'displacement' | Displacement direction | Relative to  | Displacement   |
     |                |                        | diameter     | norm           |
     |________________|________________________|______________|________________|
+    | 'bare'         | None                   | None         | Black          |
+    |________________|________________________|______________|________________|
     DEFAULT: orientation
 PLOT : bool
     Plot single frame.
@@ -502,6 +504,45 @@ class Displacement(_Frame):
             self.draw_arrow(particle,
                 *normalise1D(displacement)*0.75*self.diameters[particle])   # draw displacement direction arrow
 
+class Bare(_Frame):
+    """
+    Plotting class specific to 'bare' mode.
+    """
+
+    def __init__(self, dat, frame, box_size, centre,
+        label=False, **kwargs):
+        """
+        Initialises and plots figure.
+
+        Parameters
+        ----------
+        dat : active_work.read.Dat
+            Data object.
+        frame : int
+            Frame to render.
+        box_size : float
+            Length of the square box to render.
+        centre : 2-uple like
+            Centre of the box to render.
+        label : bool
+            Write indexes of particles in circles. (default: False)
+        """
+
+        super().__init__(dat, frame, box_size, centre)  # initialise superclass
+
+        self.label = label  # write labels
+
+        self.draw()
+
+    def draw(self):
+        """
+        Plots figure.
+        """
+
+        for particle in self.particles:                             # for particle in rendered box
+            self.draw_circle(particle, color='black', fill=False,   # draw black circle
+                label=self.label)
+
 # SCRIPT
 
 if __name__ == '__main__':  # executing as script
@@ -515,6 +556,8 @@ if __name__ == '__main__':  # executing as script
         plotting_object = Orientation
     elif mode == 'displacement':
         plotting_object = Displacement
+    elif mode == 'bare':
+        plotting_object = Bare
     else: raise ValueError('Mode %s is not known.' % mode)  # mode is not known
 
     dat_file = get_env('DAT_FILE', default=joinpath(getcwd(), 'out.dat'))   # data file
@@ -606,11 +649,12 @@ if __name__ == '__main__':  # executing as script
 
         Nframes = Nentries - init_frame  # number of frames available for the calculation
         if mode == 'displacement': dt = Nframes + dt if dt < 0 else dt
-        elif mode == 'orientation': dt = None
+        else: dt = None
 
         figure = plotting_object(dat, init_frame, box_size, centre,
-            arrow_width, arrow_head_width, arrow_head_length,
-            pad=pad, dt=dt, jump=jump, vmin=vmin, vmax=vmax,
+            arrow_width=arrow_width, arrow_head_width=arrow_head_width,
+            arrow_head_length=arrow_head_length, pad=pad, dt=dt, jump=jump,
+            vmin=vmin, vmax=vmax,
             label=get_env('LABEL', default=False, vartype=bool))
         figure.fig.suptitle(suptitle(init_frame, lag_time=dt))
 
@@ -638,8 +682,9 @@ if __name__ == '__main__':  # executing as script
                 + "/%d \r" % len(frames))
 
             figure = plotting_object(dat, frame, box_size, centre,
-                arrow_width, arrow_head_width, arrow_head_length,
-                pad=pad, dt=frame_per, jump=jump, vmin=vmin, vmax=vmax,
+                arrow_width=arrow_width, arrow_head_width=arrow_head_width,
+                arrow_head_length=arrow_head_length, pad=pad, dt=frame_per,
+                jump=jump, vmin=vmin, vmax=vmax,
                 label=get_env('LABEL', default=False, vartype=bool))    # plot frame
             figure.fig.suptitle(suptitle(frame, frame_per))
 
