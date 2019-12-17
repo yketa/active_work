@@ -55,7 +55,7 @@ def set_font_size(font_size):
 
     mpl.rcParams.update({'font.size': font_size})
 
-def list_colormap(value_list, colormap='jet'):
+def list_colormap(value_list, colormap='jet', sort=True):
     """
     Creates hash table of colors from colormap, defined according to value_list
     index, with value_list elements as keys.
@@ -66,6 +66,8 @@ def list_colormap(value_list, colormap='jet'):
         List of values.
     colormap : matplotlib colormap
         Colormap to use. (default: 'jet')
+    sort : bool
+        Sort list of values before assigning colors. (default: True)
 
     Returns
     -------
@@ -73,7 +75,8 @@ def list_colormap(value_list, colormap='jet'):
         Hash table of colors.
     """
 
-    value_list = sorted(OrderedDict.fromkeys(value_list))
+    value_list = list(OrderedDict.fromkeys(value_list))
+    if sort: value_list = sorted(value_list)
 
     cmap = plt.get_cmap(colormap)                               # colormap
     norm = colors.Normalize(vmin=0, vmax=len(value_list) + 1)   # normalise colormap according to list index
@@ -82,7 +85,7 @@ def list_colormap(value_list, colormap='jet'):
     return {value_list[index]: scalarMap.to_rgba(index + 1)
         for index in range(len(value_list))}
 
-def list_markers(value_list, marker_list=_markers):
+def list_markers(value_list, marker_list=_markers, sort=True):
     """
     Creates hash table of markers from markers_list, defined according to
     value_list index, with value_list elements as keys.
@@ -93,6 +96,8 @@ def list_markers(value_list, marker_list=_markers):
         List of values.
     marker_list : list of matplotlib markers
         List of markers to use. (default: active_work.plot._markers)
+    sort : bool
+        Sort list of values before assigning markers. (default: True)
 
     Returns
     -------
@@ -100,12 +105,13 @@ def list_markers(value_list, marker_list=_markers):
         Hash table of markers.
     """
 
-    value_list = sorted(OrderedDict.fromkeys(value_list))
+    value_list = list(OrderedDict.fromkeys(value_list))
+    if sort: value_list = sorted(value_list)
 
     return {value_list[index]: marker_list[index]
         for index in range(len(value_list))}
 
-def list_linestyles(value_list, linestyle_list=_linestyles):
+def list_linestyles(value_list, linestyle_list=_linestyles, sort=True):
     """
     Creates hash table of line styles from linestyle_list, defined according to
     value_list index, with value_list elements as keys.
@@ -115,8 +121,10 @@ def list_linestyles(value_list, linestyle_list=_linestyles):
     value_list : list
         List of values.
     linestyle_list : list of matplotlib line styles
-        List of markers to use.
+        List of line styles to use.
         (default: active_work.plot._linestyles)
+    sort : bool
+        Sort list of values before assigning line styles. (default: True)
 
     Returns
     -------
@@ -124,7 +132,8 @@ def list_linestyles(value_list, linestyle_list=_linestyles):
         Hash table of line styles.
     """
 
-    value_list = sorted(OrderedDict.fromkeys(value_list))
+    value_list = list(OrderedDict.fromkeys(value_list))
+    if sort: value_list = sorted(value_list)
 
     return {value_list[index]: linestyle_list[index]
         for index in range(len(value_list))}
