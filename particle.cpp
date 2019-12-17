@@ -21,14 +21,18 @@
 
 // CONSTRUCTORS
 
-Particle::Particle() : r {0, 0}, theta (0), f {0, 0} {}
+Particle::Particle() : r {0, 0}, theta (0), sigma (1), f {0, 0} {}
 Particle::Particle(double x, double y, double ang) :
-  r {x, y}, theta (ang), f {0, 0} {}
+  r {x, y}, theta (ang), sigma (1), f {0, 0} {}
+Particle::Particle(double x, double y, double ang, double d) :
+  r {x, y}, theta (ang), sigma (d), f {0, 0} {}
 
 // METHODS
 
 double* Particle::position() { return &r[0]; } // returns pointer to position
 double* Particle::orientation() { return &theta; } // returns pointer to orientation
+
+double* Particle::diameter() { return &sigma; } // returns pointer to diameter
 
 double* Particle::force() {return &f[0]; }; // returns pointer to force
 
@@ -117,6 +121,36 @@ std::vector<int> CellList::getNeighbours(Particle *particle) {
 
   return neighbours;
 }
+
+
+/**************
+ * PARAMETERS *
+ **************/
+
+// CONSTRUCTORS
+
+Parameters::Parameters() :
+  numberParticles(0), persistenceLength(0), packingFraction(0), systemSize(0),
+    timeStep(0) {}
+
+Parameters::Parameters(int N, double lp, double phi, double dt) :
+  numberParticles(N), persistenceLength(lp), packingFraction(phi),
+    systemSize(sqrt(M_PI*N/phi)/2), timeStep(dt) {}
+
+Parameters::Parameters(Parameters* parameters) :
+  numberParticles(parameters->getNumberParticles()),
+  persistenceLength(parameters->getPersistenceLength()),
+  packingFraction(parameters->getPackingFraction()),
+  systemSize(parameters->getSystemSize()),
+  timeStep(parameters->getTimeStep()) {}
+
+// METHODS
+
+int Parameters::getNumberParticles() const { return numberParticles; }
+double Parameters::getPersistenceLength() const {return persistenceLength; }
+double Parameters::getPackingFraction() const { return packingFraction; }
+double Parameters::getSystemSize() const { return systemSize; }
+double Parameters::getTimeStep() const { return timeStep; }
 
 
 /**********
@@ -344,33 +378,16 @@ double System::diffPeriodic(double const& x1, double const& x2) {
   // Returns algebraic distance from `x1' to `x2' on a line taking into account
   // periodic boundary condition of the system.
 
-  double diff = x2 - x1;
-
-  if ( fabs(diff) > getSystemSize()/2 ) {
-    double diff1 = fabs(x1) + fabs(getSystemSize() - x2);
-    double diff2 = fabs(getSystemSize() - x1) + fabs(x2);
-    if ( diff1 < diff2 ) { diff = diff1; }
-    else { diff = diff2; }
-    diff *= (x2 > x1 ? -1 : 1);
-  }
-
-  return diff;
+  return algDistPeriod(x1, x2, getSystemSize());
 }
 
 double System::getDistance(int const& index1, int const& index2) {
   // Returns distance between two particles in a given system.
 
-  return sqrt(
-      pow(
-        diffPeriodic( // separation in x position
-          particles[index1].position()[0],
-          particles[index2].position()[0]),
-        2)
-      + pow( // separation in y position
-        diffPeriodic(
-          particles[index1].position()[1],
-          particles[index2].position()[1]),
-        2));
+  return dist2DPeriod(
+    particles[index1].position(),
+    particles[index2].position(),
+    getSystemSize());
 }
 
 void System::WCA_potential(int const& index1, int const& index2,

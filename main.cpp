@@ -2,7 +2,6 @@
 #include <cstdlib>
 #include <stdio.h>
 
-#include "param.hpp"
 #include "particle.hpp"
 #include "iteration.hpp"
 #include "env.hpp"

@@ -76,9 +76,6 @@ $(OB)/iteration.o: iteration.cpp iteration.hpp particle.hpp
 $(OB)/maths.o: maths.cpp maths.hpp
 	$(CC) -o $(OB)/maths.o -c maths.cpp $(CFLAGS)
 
-$(OB)/param.o: param.cpp param.hpp
-	$(CC) -o $(OB)/param.o -c param.cpp $(CFLAGS)
-
 $(OB)/particle.o: particle.cpp particle.hpp maths.hpp
 	$(CC) -o $(OB)/particle.o -c particle.cpp $(CFLAGS)
 
@@ -90,13 +87,13 @@ $(OB)/write.o: write.cpp write.hpp
 
 ##
 
-$(OB)/cloning.o: cloning.cpp cloningserial.hpp env.hpp param.hpp particle.hpp
+$(OB)/cloning.o: cloning.cpp cloningserial.hpp env.hpp particle.hpp
 	$(CC) -o $(OB)/cloning.o -c cloning.cpp $(CFLAGS) $(MPIFLAGS)
 
-$(OB)/main.o: main.cpp env.hpp iteration.hpp maths.hpp param.hpp particle.hpp read.hpp
+$(OB)/main.o: main.cpp env.hpp iteration.hpp maths.hpp particle.hpp read.hpp
 	$(CC) -o $(OB)/main.o -c main.cpp $(CFLAGS)
 
-$(OB)/test.o: test.cpp env.hpp iteration.hpp maths.hpp param.hpp particle.hpp read.hpp
+$(OB)/test.o: test.cpp env.hpp iteration.hpp maths.hpp particle.hpp read.hpp
 	$(CC) -o $(OB)/test.o -c test.cpp $(CFLAGS)
 
 #### VALGRIND ####

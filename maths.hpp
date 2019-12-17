@@ -62,4 +62,13 @@ class rnd {
 double getAngle(double cosinus, double signSinus);
   // Returns angle in radians from its cosinus and sign of its sinus.
 
+double algDistPeriod(double const& x1, double const& x2, double const& length);
+  // Returns algebraic distance from `x1' to `x2' on a line of length `length'
+  // taking into account periodic boundary condition.
+
+double dist2DPeriod(double* pos0, double* pos1, double const& length);
+  // Returns distance between points on a plane, with positions `pos0' and
+  // `pos1' taking into account period boundary condition in a square system
+  // of size `length'.
+
 #endif

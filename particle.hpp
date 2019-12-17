@@ -6,7 +6,6 @@
 #include <fstream>
 
 #include "maths.hpp"
-#include "param.hpp"
 #include "write.hpp"
 
 /////////////
@@ -14,13 +13,14 @@
 /////////////
 
 class Particle;
-class System;
 class CellList;
+class Parameters;
+class System;
 
 
 /*  PARTICLE
  *  --------
- *  Store positions and orientation of a given particle.
+ *  Store diameter, positions and orientation of a given particle.
  */
 
 class Particle {
@@ -31,11 +31,14 @@ class Particle {
 
     Particle();
     Particle(double x, double y, double ang);
+    Particle(double x, double y, double ang, double d);
 
     // METHODS
 
     double* position(); // returns pointer to position
     double* orientation(); // returns pointer to orientation
+
+    double* diameter(); // returns pointer to diameter
 
     double* force(); // returns pointer to force
 
@@ -46,13 +49,15 @@ class Particle {
     double r[2]; // position (2D)
     double theta; // orientation
 
+    double sigma; // diameter
+
     double f[2]; // force exerted on particle (2D)
 
 };
 
 
 /*  CELL LIST
- *  --------
+ *  ---------
  *  Speed up computation by storing closest neighbours.
  */
 
@@ -100,15 +105,55 @@ class CellList {
 };
 
 
+/*  PARAMETERS
+ *  ----------
+ *  Store parameters relative to a system.
+ */
+
+class Parameters {
+
+  public:
+
+    // CONSTRUCTORS
+
+    Parameters();
+    Parameters(
+      int N, double lp, double phi, double dt);
+    Parameters(
+      Parameters* parameters);
+
+    // METHODS
+
+    int getNumberParticles() const; // returns number of particles
+    double getPersistenceLength() const; // returns dimensionless persistence length
+    double getPackingFraction() const; // returns packing fraction
+    double getSystemSize() const; // returns system size
+    double getTimeStep() const; // returns time step
+
+  private:
+
+    // ATTRIBUTES
+
+    int const numberParticles; // number of particles in the system
+    double const persistenceLength; // dimensionless persistence length
+    double const packingFraction; // packing fraction
+    double const systemSize; // system size
+    double const timeStep; // time step
+
+};
+
+
 /*  SYSTEM
- *  --------
+ *  ------
  *  Store physical and integration parameter.
  *  Access to distance and potentials.
  *  Save system state to output file.
  */
 
 class System {
-  /*  Contains all the details to simulate a system of active particles.
+  /*  Contains all the details to simulate a system of active Brownian
+   *  particles, with dimensionless parameters taken from Nemoto et al., PRE 99
+   *  022605 (2019).
    *  (see https://yketa.github.io/DAMTP_2019_Wiki/#Active%20Brownian%20particles)
    *
    *  Parameters are stored in a binary file with the following structure:
