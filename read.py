@@ -353,6 +353,58 @@ class Dat(_Read):
 
         return angle(*self.getOrderParameter(time, norm=False))
 
+    def getTorqueIntegral0(self, time0, time1):
+        """
+        Returns normalised zeroth integral in the expression of the modified
+        active work for control-feedback modified dynamics from `time0' to
+        `time1'.
+        (see https://yketa.github.io/DAMTP_2019_Wiki/#ABP%20cloning%20algorithm)
+
+        NOTE: Using Stratonovitch convention.
+
+        Parameters
+        ----------
+        time0 : int
+            Initial frame.
+        time1 : int
+            Final frame.
+
+        Returns
+        -------
+        torqueIntegral : float
+            Normalised integral.
+        """
+
+        time0, time1 = int(time0), int(time1)
+        if time0 == time1: return 0
+
+        torqueIntegral = 0
+        for time in range(time0, time1):
+            torqueIntegral += np.sum(
+                (self.getOrderParameter(time, norm=True)
+                    *np.sin(
+                        self.getOrientations(time)
+                            - self.getGlobalPhase(time))
+                + self.getOrderParameter(time + 1, norm=True)
+                    *np.sin(
+                        self.getOrientations(time + 1)
+                            - self.getGlobalPhase(time + 1)))
+                *(self.getOrientations(time + 1) - self.getOrientations(time))
+            )/2
+            # torqueIntegral += np.sum(
+            #     list(map(
+            #         lambda i: np.sum(
+            #             np.sin(self.getOrientations(time, i)
+            #                 - self.getOrientations(time))
+            #             + np.sin(self.getOrientations(time + 1, i)
+            #                 - self.getOrientations(time + 1)))
+            #             *(self.getOrientations(time + 1, i)
+            #                 - self.getOrientations(time, i)),
+            #         range(self.N)))
+            # )/2
+
+        return torqueIntegral/(self.N*(time1 - time0)*self.dt)
+
     def getTorqueIntegral1(self, time0, time1):
         """
         Returns normalised first integral in the expression of the modified
