@@ -138,7 +138,8 @@ System::System() :
     orderSum {0, 0, 0}
   #if CONTROLLED_DYNAMICS == 2 || CONTROLLED_DYNAMICS == 3
   , torqueParameter(0),
-  torqueIntegral1 {0, 0, 0}, torqueIntegral2 {0, 0, 0}
+  torqueIntegral0 {0, 0, 0}, torqueIntegral1 {0, 0, 0},
+    torqueIntegral2 {0, 0, 0}
   #endif
   {}
 
@@ -159,7 +160,8 @@ System::System(
     orderSum {0, 0, 0}
   #if CONTROLLED_DYNAMICS == 2 || CONTROLLED_DYNAMICS == 3
   , torqueParameter(0),
-  torqueIntegral1 {0, 0, 0}, torqueIntegral2 {0, 0, 0}
+  torqueIntegral0 {0, 0, 0}, torqueIntegral1 {0, 0, 0},
+    torqueIntegral2 {0, 0, 0}
   #endif
   {
 
@@ -209,7 +211,8 @@ System::System(
     orderSum {0, 0, 0}
   #if CONTROLLED_DYNAMICS == 2 || CONTROLLED_DYNAMICS == 3
   , torqueParameter(0),
-  torqueIntegral1 {0, 0, 0}, torqueIntegral2 {0, 0, 0}
+  torqueIntegral0 {0, 0, 0}, torqueIntegral1 {0, 0, 0},
+    torqueIntegral2 {0, 0, 0}
   #endif
   {
 
@@ -285,9 +288,11 @@ void System::resetDump() {
   orderSum[2] = 0;
 
   #if CONTROLLED_DYNAMICS == 2 || CONTROLLED_DYNAMICS == 3
+  torqueIntegral0[0] = 0;
   torqueIntegral1[0] = 0;
   torqueIntegral2[0] = 0;
 
+  torqueIntegral0[2] = 0;
   torqueIntegral1[2] = 0;
   torqueIntegral2[2] = 0;
   #endif
@@ -306,6 +311,7 @@ void System::copyDump(System* system) {
   orderSum[2] = system->getTotalOrder();
 
   #if CONTROLLED_DYNAMICS == 2 || CONTROLLED_DYNAMICS == 3
+  torqueIntegral0[2] = system->getTotalTorqueIntegral0();
   torqueIntegral1[2] = system->getTotalTorqueIntegral1();
   torqueIntegral2[2] = system->getTotalTorqueIntegral2();
   #endif
@@ -325,9 +331,11 @@ double System::getTotalOrder() { return orderSum[2]; }
 void System::setTorqueParameter(double g) { torqueParameter = g; }
 double System::getTorqueParameter() { return torqueParameter; }
 
+double System::getTorqueIntegral0() { return torqueIntegral0[1]; }
 double System::getTorqueIntegral1() { return torqueIntegral1[1]; }
 double System::getTorqueIntegral2() { return torqueIntegral2[1]; }
 
+double System::getTotalTorqueIntegral0() { return torqueIntegral0[2]; }
 double System::getTotalTorqueIntegral1() { return torqueIntegral1[2]; }
 double System::getTotalTorqueIntegral2() { return torqueIntegral2[2]; }
 #endif
@@ -503,15 +511,25 @@ void System::saveNewState(std::vector<Particle>& newParticles) {
   // ORDER PARAMETER
   std::vector<double> orderOld = getOrderParameter(particles);
   double orderNormSqOld = pow(orderOld[0], 2) + pow(orderOld[1], 2);
+  double orderNormOld = sqrt(orderNormSqOld);
   std::vector<double> orderNew = getOrderParameter(newParticles);
   double orderNormSqNew = pow(orderNew[0], 2) + pow(orderNew[1], 2);
+  double orderNormNew = sqrt(orderNormSqNew);
   // GLOBAL PHASE
   double globalPhaseOld = getGlobalPhase(particles);
   double globalPhaseNew = getGlobalPhase(newParticles);
   // FIRST INTEGRAL
   torqueIntegral1[0] += (orderNormSqOld + orderNormSqNew)/2;
-  // SECOND INTEGRAL
+  // ZEROTH & SECOND INTEGRAL
   for (int i=0; i < getNumberParticles(); i++) {
+    // zeroth
+    torqueIntegral0[0] += orderNormOld
+      *sin(particles[i].orientation()[0] - globalPhaseOld)
+      *(newParticles[i].orientation()[0] - particles[i].orientation()[0])/2;
+    torqueIntegral0[0] += orderNormNew
+      *sin(newParticles[i].orientation()[0] - globalPhaseNew)
+      *(newParticles[i].orientation()[0] - particles[i].orientation()[0])/2;
+    // second
     torqueIntegral2[0] += orderNormSqOld
       *pow(sin(particles[i].orientation()[0] - globalPhaseOld), 2)/2;
     torqueIntegral2[0] += orderNormSqNew
@@ -547,15 +565,20 @@ void System::saveNewState(std::vector<Particle>& newParticles) {
     orderSum[0] = 0;
     #if CONTROLLED_DYNAMICS == 2 || CONTROLLED_DYNAMICS == 3
     // compute normalised integrals since last dump
+    torqueIntegral0[1] = torqueIntegral0[0]/(
+      getNumberParticles()*getTimeStep()*framesWork*dumpPeriod);
     torqueIntegral1[1] = torqueIntegral1[0]/(
       framesWork*dumpPeriod);
     torqueIntegral2[1] = torqueIntegral2[0]/(
       getNumberParticles()*framesWork*dumpPeriod);
     // update time (in units of time step) extensive integrals since last reset
+    torqueIntegral0[2] += torqueIntegral0[0]/
+      getNumberParticles();
     torqueIntegral1[2] += torqueIntegral1[0];
     torqueIntegral2[2] += torqueIntegral2[0]/
       getNumberParticles();
     // reset sums
+    torqueIntegral0[0] = 0;
     torqueIntegral1[0] = 0;
     torqueIntegral2[0] = 0;
     #endif

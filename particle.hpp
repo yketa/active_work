@@ -193,12 +193,14 @@ class System {
     void setTorqueParameter(double g); // set new torque parameter
     double getTorqueParameter(); // returns torque parameter
 
+    double getTorqueIntegral0(); // returns last computed normalised zeroth integral in the expression of the modified active work
     double getTorqueIntegral1(); // returns last computed normalised first integral in the expression of the modified active work
-    double getTorqueIntegral2(); // returns last computed normalised first integral in the expression of the modified active work
+    double getTorqueIntegral2(); // returns last computed normalised second integral in the expression of the modified active work
     // NOTE: All these quantities are computed every framesWork*dumpPeriod iterations.
 
+    double getTotalTorqueIntegral0(); // returns computed normalised zeroth integral in the expression of the modified active work since last reset
     double getTotalTorqueIntegral1(); // returns computed normalised first integral in the expression of the modified active work since last reset
-    double getTotalTorqueIntegral2(); // returns computed normalised first integral in the expression of the modified active work since last reset
+    double getTotalTorqueIntegral2(); // returns computed normalised second integral in the expression of the modified active work since last reset
     // NOTE: All these quantities are computed every framesWork*dumpPeriod iterations.
     //       All these quantities are extensive in time steps since last reset.
     #endif
@@ -265,6 +267,7 @@ class System {
     // (0): integral since last dump (in units of the time step)
     // (1): normalised integral over last dump period
     // (2): integral over trajectory since last reset (in units of the time step)
+    double torqueIntegral0[3]; // zeroth integral in the expression of the modified active work
     double torqueIntegral1[3]; // first integral in the expression of the modified active work
     double torqueIntegral2[3]; // second integral in the expression of the modified active work
     #endif
