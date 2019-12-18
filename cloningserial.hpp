@@ -305,6 +305,7 @@ void CloningSerial::doCloning(double tmax, double sValue, int initSim) {
         #endif
       }
       #ifdef DEBUG
+      nusq /= nc;
       torqueIntegral0 /= nc;
       std::cout << "##order parameter^2: " << nusq << " <I_0> " << torqueIntegral0 << std::endl;
       #endif
