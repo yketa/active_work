@@ -10,12 +10,14 @@ CFLAGS=-std=gnu++11 -O3 -Wall
 LDFLAGS=
 MPIFLAGS=
 
+ifneq ($(DEFINITIONS),)
+	CFLAGS+=$(foreach definition, $(DEFINITIONS),-D$(definition))
+endif
 ifeq ($(TEST),yes)
 	EXEC=$(BU)/test
 	CPP=test.cpp
 	LDFLAGS+=-fopenmp  # compile with openMP
 	MPIFLAGS+=-fopenmp # compile with openMP
-	CFLAGS+=-DTEST=1
 else
 ifeq ($(CLONING),yes)
 	EXEC=$(BU)/cloning
