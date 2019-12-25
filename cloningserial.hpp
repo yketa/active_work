@@ -125,27 +125,26 @@ void CloningSerial::Init(int _nc, System* dummy, int masterSeed) {
   #pragma omp parallel for
   #endif
   for (int i=0;i<2*nc;i++) {
-    systems[i] = new System(dummy, processSeeds[i], "", tau, false, 1, 0); // create new system from copy of dummyRun, with random seed from processSeeds, computing active work and order parameter for every tau iterations, not dumping to output file, and with 0 biasing parameter
+    systems[i] = new System(dummy, processSeeds[i], "", tau, false, 1); // create new system from copy of dummyRun, with random seed from processSeeds, computing active work and order parameter for every tau iterations, not dumping to output file, and with 0 biasing parameter
     systems[i]->saveInitialState(); // save first frame (important for frame counting)
   }
 
   // just for extra safety we can opt to throw our random number generators out of sync here
   // (the risk is that in a very big population, several clones might have the same seed,
   //  the effect here is to increase the effective range of seeds by safetyFactor
-  if (1) {
-    for (int i=0;i<nc;i++) {
-      int dum = 0;
-      int safetyFactor = 1000;
-      //int k = i % nc;
-      if ( i==0 )
-        std::cout << "#seed safetyFactor " << safetyFactor << std::endl;
-      for (int r=0; r < i % safetyFactor; r++ ) {
-        dum += (systems[i]->getRandomGenerator())->random01();
-        dum += (systems[i+nc]->getRandomGenerator())->random01();
-      }
+  #if 1
+  for (int i=0;i<nc;i++) {
+    int dum = 0;
+    int safetyFactor = 1000;
+    //int k = i % nc;
+    if ( i==0 )
+      std::cout << "#seed safetyFactor " << safetyFactor << std::endl;
+    for (int r=0; r < i % safetyFactor; r++ ) {
+      dum += (systems[i]->getRandomGenerator())->random01();
+      dum += (systems[i+nc]->getRandomGenerator())->random01();
     }
   }
-
+  #endif
 
 }
 
@@ -170,6 +169,17 @@ void CloningSerial::doCloning(double tmax, double sValue, int initSim) {
       systems[i]->resetDump(); // reset dumps: important between different runs and to only count the relevant quantities within the cloning framework
     }
 
+    // torque parameter
+    #ifdef TORQUE_PARAMETER // use torque parameter defined as pre-processor variable
+    #ifdef _OPENMP
+    #pragma omp parallel for
+    #endif
+    for (int i=0; i<2*nc; i++) systems[i]->setTorqueParameter(TORQUE_PARAMETER);
+    #else
+    double g;
+    #endif
+
+    // biasing parameter
     #ifdef _OPENMP
     #pragma omp parallel for
     #endif
@@ -180,8 +190,8 @@ void CloningSerial::doCloning(double tmax, double sValue, int initSim) {
     double actualTau = tau*systems[0]->getTimeStep();
     double sFactor = systems[0]->getNumberParticles()*actualTau;
 
-    std::vector<double> weight;
-    weight.resize(nc);
+    std::vector<double> sWeight;
+    sWeight.resize(nc);
 
     // this is the main loop
     double iter;
@@ -207,29 +217,25 @@ void CloningSerial::doCloning(double tmax, double sValue, int initSim) {
       {
           for (int k=0; k < tau; k++) { iterate_ABP_WCA(systems[pushOffset+i]); } // run dynamics
           #if CONTROLLED_DYNAMICS
-          weight[i] = 1 - systems[pushOffset+i]->getBiasingParameter()/           // w = 1 - s/
-            (3*systems[pushOffset+i]->getPersistenceLength())                     // (3*lp)
-            + systems[pushOffset+i]->getWorkForce();                              // + w_f
+          sWeight[i] = systems[pushOffset+i]->getBiasingParameter()*(             // sw = s(
+            1.0 - systems[pushOffset+i]->getBiasingParameter()/                   // 1 - s/
+            (3.0*systems[pushOffset+i]->getPersistenceLength())                   // (3*lp)
+            + systems[pushOffset+i]->getWorkForce());                             // + w_f))
           #if CONTROLLED_DYNAMICS == 2 || CONTROLLED_DYNAMICS == 3
-          if (systems[pushOffset+i]->getTorqueParameter() != 0) {
-            weight[i] += (systems[pushOffset+i]->getTorqueParameter()/            // w += (g
-              systems[pushOffset+i]->getBiasingParameter())*                      // /s)
-              (systems[pushOffset+i]->getPersistenceLength()*                     // (lp
-              systems[pushOffset+i]->getTorqueIntegral0()                         // I_0
-              - systems[pushOffset+i]->getTorqueIntegral1()                       // - I_1
-              - systems[pushOffset+i]->getTorqueParameter()*                      // - g
-              systems[pushOffset+i]->getPersistenceLength()*                      // lp
-              systems[pushOffset+i]->getTorqueIntegral2());                       // I_2)
-          }
+          sWeight[i] += systems[pushOffset+i]->getTorqueParameter()*              // sw += g
+            (1.0/systems[pushOffset+i]->getNumberParticles()                      // (1/N
+            - systems[pushOffset+i]->getTorqueIntegral1()                         // - I_1
+            - systems[pushOffset+i]->getTorqueParameter()*                        // - g
+            systems[pushOffset+i]->getPersistenceLength()*                        // lp
+            systems[pushOffset+i]->getTorqueIntegral2());                         // I_2)
           #endif
           upsilon[i] = exp(                                                       // cloning factor = exp(
-            -systems[pushOffset+i]->getBiasingParameter() * sFactor               // - s*N*tau
-            * weight[i]);                                                         // w)
+            -sWeight[i] * sFactor);                                               // - sw*N*tau)
           #else
-          weight[i] = systems[pushOffset+i]->getWork();
+          sWeight[i] = systems[pushOffset+i]->getBiasingParameter()
+            *systems[pushOffset+i]->getWork();
           upsilon[i] = exp(                                                       // cloning factor = exp(
-            -systems[pushOffset+i]->getBiasingParameter() * sFactor               // - s*N*tau
-            * weight[i]);                                                         // w)
+            -sWeight[i] * sFactor);                                               // -sw*N*tau)
           #endif
       }
 
@@ -238,8 +244,8 @@ void CloningSerial::doCloning(double tmax, double sValue, int initSim) {
         cout << "#logUps";
         for (int i=0;i<nc;i++) cout << " " << log( upsilon[i] );
         cout << endl;
-        std::cout << "#w_mod";
-        for (int i=0; i<nc; i++) std::cout << " " << weight[i];
+        std::cout << "#s w_mod";
+        for (int i=0; i<nc; i++) std::cout << " " << sWeight[i];
         std::cout << std::endl;
       #endif
 
@@ -270,7 +276,6 @@ void CloningSerial::doCloning(double tmax, double sValue, int initSim) {
       #endif
 
       // this is the actual cloning step
-      // (at this point we use the = operator for the data member of SystemClass)
       #ifdef _OPENMP
       #pragma omp parallel for
       #endif
@@ -287,39 +292,42 @@ void CloningSerial::doCloning(double tmax, double sValue, int initSim) {
       // order parameter squared
       double nusq = 0;
       #ifdef DEBUG
-      double torqueIntegral0 = 0;
+      double torqueIntegral1 (0.0), torqueIntegral2 (0.0);
       #endif
       #ifdef _OPENMP
       #ifdef DEBUG
-      #pragma omp parallel for reduction (+:nusq,torqueIntegral0)
+      #pragma omp parallel for reduction (+:nusq,torqueIntegral1,torqueIntegral2)
       #else
       #pragma omp parallel for reduction (+:nusq)
       #endif
       #endif
       for (int i=0; i<nc; i++) {
-        nusq += systems[pullOffset + i]->getTotalTorqueIntegral1()
-          /systems[pullOffset + i]->getDump();
+        nusq += systems[pushOffset + i]->getTotalTorqueIntegral1()
+          /systems[pushOffset + i]->getDump();
         #ifdef DEBUG
-        torqueIntegral0 += systems[pullOffset + i]->getTotalTorqueIntegral0()
-          /(systems[pullOffset + i]->getTimeStep()*systems[pullOffset + i]->getDump());
+        torqueIntegral1 += systems[pushOffset + i]->getTorqueIntegral1();
+        torqueIntegral2 += systems[pushOffset + i]->getTorqueIntegral2();
         #endif
       }
-      #ifdef DEBUG
       nusq /= nc;
-      torqueIntegral0 /= nc;
-      std::cout << "##order parameter^2: " << nusq << " <I_0> " << torqueIntegral0 << std::endl;
+      #ifdef DEBUG
+      torqueIntegral1 /= nc;
+      torqueIntegral2 /= nc;
+      std::cout << "##N I_1 " << systems[0]->getNumberParticles()*torqueIntegral1 << std::endl;
+      std::cout << "##N I_2 " << systems[0]->getNumberParticles()*torqueIntegral2 << std::endl;
       #endif
 
       // define and set g
-      double g = 0;
-      if (sValue != 0) { g = (1/(systems[0]->getNumberParticles()*nusq) - 1)
-       /systems[0]->getPersistenceLength(); }
+      #ifndef TORQUE_PARAMETER
+      g = (1.0/(systems[0]->getNumberParticles()*nusq) - 1.0)
+        /systems[0]->getPersistenceLength();
       #ifdef _OPENMP
       #pragma omp parallel for
       #endif
       for (int i=0; i<nc; i++) {
         systems[pullOffset + i]->setTorqueParameter(g);
       }
+      #endif
 
       #endif
 
@@ -327,36 +335,33 @@ void CloningSerial::doCloning(double tmax, double sValue, int initSim) {
       #if CONTROLLED_DYNAMICS == 3
 
       // polynomial coefficients
-      double torqueIntegral0 (0.0), torqueIntegral1 (0.0), torqueIntegral2 (0.0); // torque integrals
+      double torqueIntegral1 (0.0), torqueIntegral2 (0.0); // torque integrals
       double workForce (0.0); // force part of the normalised rate of active work
       #ifdef _OPENMP
-      #pragma omp parallel for reduction (+:torqueIntegral0,torqueIntegral1,torqueIntegral2,workForce)
+      #pragma omp parallel for reduction (+:torqueIntegral1,torqueIntegral2,workForce)
       #endif
       for (int i=0; i<nc; i++) {
-        torqueIntegral0 += systems[pullOffset + i]->getTotalTorqueIntegral0()
-          /(systems[pullOffset + i]->getTimeStep()*systems[pullOffset + i]->getDump());
-        torqueIntegral1 += systems[pullOffset + i]->getTotalTorqueIntegral1()
+        torqueIntegral1 += systems[pushOffset + i]->getTotalTorqueIntegral1()
           /systems[pullOffset + i]->getDump();
-        torqueIntegral2 += systems[pullOffset + i]->getTotalTorqueIntegral2()
+        torqueIntegral2 += systems[pushOffset + i]->getTotalTorqueIntegral2()
           /systems[pullOffset + i]->getDump();
-        workForce += systems[pullOffset + i]->getTotalWorkForce()
-          /(systems[pullOffset + i]->getTimeStep()*systems[pullOffset + i]->getDump());
+        workForce += systems[pushOffset + i]->getTotalWorkForce()
+          /(systems[pushOffset + i]->getTimeStep()*systems[pushOffset + i]->getDump());
       }
-      torqueIntegral0 /= nc;
       torqueIntegral1 /= nc;
       torqueIntegral2 /= nc;
       workForce /= nc;
       double psi = double(lnX) / ((iter + 1.0)*actualTau) / systems[0]->getNumberParticles();
       #ifdef DEBUG
-      std::cout << "##<I_0> = " << torqueIntegral0 << " <I_1> = " << torqueIntegral1 << " <I_2> = " << torqueIntegral2 << std::endl;
+      std::cout << "##<I_1> = " << torqueIntegral1 << " <I_2> = " << torqueIntegral2 << std::endl;
       std::cout << "##<w_f> = " << workForce << " SCGF = " << psi << std::endl;
       #endif
       double polyA = systems[0]->getPersistenceLength()*torqueIntegral2;
-      double polyB = torqueIntegral1 - systems[0]->getPersistenceLength()*torqueIntegral0;
-      double polyC = sValue*(sValue/systems[0]->getPersistenceLength()/3.0 - workForce - 1.0) - psi;
-      double Delta = pow(polyB, 2) - 4.0*polyA*polyC;
+      double polyB = torqueIntegral1 - 1.0/systems[0]->getNumberParticles();
 
       #ifdef DEBUG
+      double polyC = sValue*(sValue/systems[0]->getPersistenceLength()/3.0 - workForce - 1.0) - psi;
+      double Delta = pow(polyB, 2) - 4.0*polyA*polyC;
       std::cout << "##torque polynimial: " << polyA << " g^2 + " << polyB << " g + " << polyC << std::endl;
       std::cout << "##order parameter^2: " << polyB + 1.0/systems[0]->getNumberParticles() << std::endl;
       if (Delta > 0) { std::cout << "#roots: " << (-polyB-sqrt(Delta))/(2.0*polyA) << " " << (-polyB+sqrt(Delta))/(2.0*polyA) << std::endl; }
@@ -365,33 +370,15 @@ void CloningSerial::doCloning(double tmax, double sValue, int initSim) {
       #endif
 
       // define and set g
-      double g = 0;
-      #if 1 // highest root
-      if (sValue != 0 && Delta >= 0) g = (-polyB + sqrt(Delta))/(2*polyA);
-      #endif
-      #if 0 // lowest root
-      if (sValue != 0 && Delta >= 0) g = (-polyB - sqrt(Delta))/(2*polyA);
-      #endif
-      #if 0 // negative root closer to 0
-      if (sValue != 0 && Delta >= 0) {
-        g = -polyB;
-        if (polyB > 0) {
-          if (-polyB + sqrt(Delta) > 0) g = -polyB - sqrt(Delta);
-          else g = -polyB + sqrt(Delta);
-        }
-        else {
-          if (-polyB - sqrt(Delta) < 0) g = -polyB - sqrt(Delta);
-        }
-        g /= 2.0*polyA;
-        g = (-polyB - sqrt(Delta))/2.0/polyA;
-      }
-      #endif
+      #ifndef TORQUE_PARAMETER
+      g = -polyB/(2*polyA);
       #ifdef _OPENMP
       #pragma omp parallel for
       #endif
       for (int i=0; i<nc; i++) {
         systems[pullOffset + i]->setTorqueParameter(g);
       }
+      #endif
 
       #endif
 
@@ -421,6 +408,31 @@ void CloningSerial::doCloning(double tmax, double sValue, int initSim) {
   for (unsigned int j=0;j<4;j++) { outputOP[j] /= nc; }
 
   outputPsi = double(lnX) / (iter*tau*systems[0]->getTimeStep());
+
+  #ifdef DEBUG
+  #if CONTROLLED_DYNAMICS == 2 || CONTROLLED_DYNAMICS == 3
+  double totSWeight (0.0), totalTorqueIntegral1 (0.0), totalTorqueIntegral2 (0.0);
+  #ifdef _OPENMP
+  #pragma omp parallel for reduction (+:totSWeight,totalTorqueIntegral1,totalTorqueIntegral2)
+  #endif
+  for (int i=0; i<nc; i++) {
+    totSWeight += systems[ finalOffset + i]->getBiasingParameter()
+      *(1 - systems[ finalOffset + i]->getBiasingParameter()
+      /3/systems[ finalOffset + i]->getPersistenceLength()
+      + systems[ finalOffset + i]->getTotalWorkForce()
+      /(systems[ finalOffset + i]->getTimeStep()*systems[ finalOffset + i]->getDump()))
+      + systems[ finalOffset + i]->getTorqueParameter()*
+      (1.0/systems[ finalOffset + i]->getNumberParticles()
+      - systems[ finalOffset + i]->getTotalTorqueIntegral1()/systems[ finalOffset + i]->getDump()
+      - systems[ finalOffset + i]->getTorqueParameter()*systems[ finalOffset + i]->getPersistenceLength()*
+      systems[ finalOffset + i]->getTotalTorqueIntegral2()/systems[ finalOffset + i]->getDump());
+    totalTorqueIntegral1 += systems[ finalOffset + i]->getNumberParticles()*systems[ finalOffset + i]->getTotalTorqueIntegral1()/systems[ finalOffset + i]->getDump();
+    totalTorqueIntegral2 += systems[ finalOffset + i]->getNumberParticles()*systems[ finalOffset + i]->getTotalTorqueIntegral2()/systems[ finalOffset + i]->getDump();
+  }
+  std::cout << "#<s w> " << totSWeight/nc << " <N I_1> " << totalTorqueIntegral1/nc << " <N I_2> " << totalTorqueIntegral2/nc << std::endl;
+  std::cout << "##NOTE: Considering fixed g." << std::endl;
+  #endif
+  #endif
 
   // C++ clocks again
   std::chrono::system_clock::time_point endTime = std::chrono::system_clock::now();
