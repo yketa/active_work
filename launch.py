@@ -1,5 +1,5 @@
 """
-Module launch launches simulations.
+Module launch launches simulations with custom relations between parameters.
 """
 
 from active_work.exponents import float_to_letters
@@ -94,8 +94,9 @@ if __name__ == '__main__':
     # LAUNCH
 
     run(['setsid', path.join(exec_dir, exec_name)], env={
-        'N': str(N), 'LP': str(lp), 'PHI': str(phi), 'SEED': str(seed),
-            'FILE': path.join(out_dir, out_file),
+        'N': str(N), 'LP': str(lp), 'PHI': str(phi),
+        'SEED': str(seed),
+        'FILE': path.join(out_dir, out_file),
         'DT': str(dt), 'NITER': str(Niter),
         'NWORK': str(nWork),
         'DUMP': str(dump), 'PERIOD': str(period)})
