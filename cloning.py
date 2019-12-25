@@ -277,7 +277,7 @@ if __name__ == '__main__':
     tmp_dir = path.join(sim_dir, 'tmp')                         # temporary files directory
     mkdir(tmp_dir, replace=True)
     tmp_template = '%010d.cloning.out'                          # template of temporary files
-    out_file = path.join(sim_dir, sim_name + '.dat')            # simulation output file name
+    out_file = path.join(sim_dir, sim_name + '.clo')            # simulation output file name
 
     # LAUNCH
 
@@ -330,5 +330,5 @@ if __name__ == '__main__':
 
     # CLEAN
     if get_env('CLEAN', default=True, vartype=bool):
-        move(out_file, path.join(out_dir, sim_name + '.dat'))   # move output file to output directory
+        move(out_file, path.join(out_dir, sim_name + '.clo'))   # move output file to output directory
         rmr(sim_dir)                                            # delete simulation directory
