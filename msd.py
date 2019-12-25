@@ -1,7 +1,7 @@
 import numpy as np
 from collections import OrderedDict
 
-from active_work.read import Dat
+from active_work.read import Dat, Dat0
 from active_work.maths import mean_sterr, logspace
 
 class Msd(Dat):
@@ -99,7 +99,7 @@ class Msd(Dat):
         """
         Returns value of theoretical mean squared displacement at lag time `dt'.
 
-        (see https://yketa.github.io/DAMTP_2019_Wiki/#Active%20Brownian%20particles)
+        (see https://yketa.github.io/DAMTP_2019_Wiki/#One%20ABP)
 
         Parameters
         ----------
@@ -115,3 +115,48 @@ class Msd(Dat):
 
         return 4/(3*self.lp)*dt + 2*self.lp*(
             dt + self.lp*(np.exp(-dt/self.lp) - 1))
+
+class Msd0(Dat0, Msd):
+    """
+    Compute and analyse mean square displacement from simulation data with all
+    different parameters.
+    """
+
+    def __init__(self, filename, skip=1):
+        """
+        Load file.
+
+        Parameters
+        ----------
+        filename : string
+            Path to data file.
+        skip : int
+            Skip the `skip' first frames in the following calculations.
+            (default: 1)
+            NOTE: This can be changed at any time by setting self.skip.
+        """
+
+        super().__init__(filename)  # initialise with super class
+
+        self.skip = skip    # skip the `skip' first frames in the analysis
+
+    def msd_th(self, dt):
+        """
+        Returns value of theoretical mean squared displacement at lag time `dt'.
+
+        (see https://yketa.github.io/DAMTP_2019_Wiki/#One%20ABP)
+
+        Parameters
+        ----------
+        dt : float
+            Lag time at which to evaluate the theoretical mean squared
+            displacement.
+
+        Returns
+        -------
+        msd : float
+            Mean squared displacement.
+        """
+
+        return 4*self.D*dt + (2*(self.v0**2)/self.Dr)*(
+            dt + (np.exp(-self.Dr*dt) - 1)/self.Dr)

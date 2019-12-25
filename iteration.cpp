@@ -9,27 +9,31 @@
 #include <iostream>
 #endif
 
-void iterate_ABP_WCA(System *system) {
+void iterate_ABP_WCA(System* system) {
   // Updates system to next step according to the dynamics of active Brownian
-  // particles with WCA potential.
+  // particles with WCA potential, using custom dimensionless parameters
+  // relations.
 
-  std::vector<Particle> newParticles(system->getNumberParticles());
+  Parameters* parameters = system->getParameters();
+
+  std::vector<Particle> newParticles(parameters->getNumberParticles());
 
   // COMPUTATION
-  for (int i=0; i < system->getNumberParticles(); i++) {
+  for (int i=0; i < parameters->getNumberParticles(); i++) {
 
     // POSITIONS
     for (int dim=0; dim < 2; dim++) {
       newParticles[i].position()[dim] =
         (system->getParticle(i))->position()[dim]; // initialise new positions with previous ones
       newParticles[i].position()[dim] +=
-        sqrt(system->getTimeStep()*2/3/system->getPersistenceLength())
+        sqrt(parameters->getTimeStep()*2/3/parameters->getPersistenceLength())
           *(system->getRandomGenerator())->gauss_cutoff(); // add noise
       newParticles[i].position()[dim] +=
         #if CONTROLLED_DYNAMICS
-        (1 - 2*system->getBiasingParameter()/3/system->getPersistenceLength())*
+        (1.0 - 2*parameters->getBiasingParameter()
+          /3/parameters->getPersistenceLength())*
         #endif
-        system->getTimeStep()*cos(
+        parameters->getTimeStep()*cos(
             (system->getParticle(i))->orientation()[0] - dim*M_PI/2); // add self-propulsion
 
       (system->getParticle(i))->force()[dim] = 0; // initialise force
@@ -39,90 +43,88 @@ void iterate_ABP_WCA(System *system) {
     newParticles[i].orientation()[0] =
       (system->getParticle(i))->orientation()[0]; // initialise new orientation with previous one
     newParticles[i].orientation()[0] +=
-      sqrt(system->getTimeStep()*2/system->getPersistenceLength())
+      sqrt(parameters->getTimeStep()*2/parameters->getPersistenceLength())
         *(system->getRandomGenerator())->gauss_cutoff(); // add noise
   }
 
   // ALIGNING TORQUE
   #if CONTROLLED_DYNAMICS == 2 || CONTROLLED_DYNAMICS == 3
   double torque;
-  for (int i=0; i < system->getNumberParticles(); i++) {
-    for (int j=i + 1; j < system->getNumberParticles(); j++) {
-      torque = 2*system->getTorqueParameter()/system->getNumberParticles()
+  for (int i=0; i < parameters->getNumberParticles(); i++) {
+    #if 1
+    for (int j=i + 1; j < parameters->getNumberParticles(); j++) {
+      torque = 2.0*system->getTorqueParameter()/parameters->getNumberParticles()
         *sin((system->getParticle(i))->orientation()[0]
           - (system->getParticle(j))->orientation()[0])
-        *system->getTimeStep();
+        *parameters->getTimeStep();
       newParticles[i].orientation()[0] += torque;
       newParticles[j].orientation()[0] -= torque;
     }
+    #else
+    for (int j=0; j < parameters->getNumberParticles(); j++) {
+      torque = 2.0*system->getTorqueParameter()/parameters->getNumberParticles()
+        *sin((system->getParticle(i))->orientation()[0]
+          - (system->getParticle(j))->orientation()[0])
+        *parameters->getTimeStep();
+      newParticles[i].orientation()[0] += torque;
+    }
+    #endif
   }
   #endif
 
   // FORCES
   #if USE_CELL_LIST // with cell list
+  cellList_ABP_WCA<System>(system, newParticles);
+  #else // brute force
+  bruteForce_ABP_WCA<System>(system, newParticles);
+  #endif
 
-  int index1, index2; // index of the couple of particles
-  int i, j; // indexes of the cells
-  int k, l; // indexes of the particles in the cell
-  std::vector<int> cell1, cell2;
-  int numberBoxes = (system->getCellList())->getNumberBoxes();
-  for (i=0; i < pow(numberBoxes, 2); i++) { // loop over cells
+  // SAVE AND COPY
+  system->saveNewState(newParticles);
+}
 
-    cell1 = (system->getCellList())->getCell(i); // indexes of particles in the first cell
-    for (k=0; k < (int) cell1.size(); k++) { // loop over particles in the first cell
-      index1 = cell1[k];
 
-      // interactions with particles in the same cell
-      for (l=k+1; l < (int) cell1.size(); l++) { // loop over particles in the first cell
-        index2 = cell1[l];
-        system->WCA_potential(index1, index2, newParticles);
-      }
+void iterate_ABP_WCA(System0* system) {
+  // Updates system to next step according to the dynamics of active Brownian
+  // particles with WCA potential.
 
-      if ( numberBoxes == 1 ) { continue; } // only one cell
+  Parameters* parameters = system->getParameters();
 
-      // interactions with particles in other cells
-      if ( numberBoxes == 2 ) { // 2 x 2 cells
+  std::vector<Particle> newParticles(system->getNumberParticles());
 
-        for (j=0; j < 4; j++) {
-          if ( i == j ) { continue; } // same cell
-          cell2 = (system->getCellList())->getCell(j); // indexes of particles in the second cell
+  // COMPUTATION
+  for (int i=0; i < parameters->getNumberParticles(); i++) {
 
-          for (l=0; l < (int) cell2.size(); l++) { // loop over particles in the second cell
-            index2 = cell2[l];
-            if ( index1 < index2 ) { // only count once each couple
-              system->WCA_potential(index1, index2, newParticles);
-            }
-          }
-        }
-      }
-      else { // 3 x 3 cells or more
+    // DIAMETERS
+    newParticles[i].diameter()[0] = (system->getParticle(i))->diameter()[0];
 
-        int x = i%numberBoxes;
-        int y = i/numberBoxes;
-        for (int dx=0; dx <= 1; dx++) {
-          for (int dy=-1; dy < 2*dx; dy++) { // these two loops correspond to (dx, dy) = {0, -1}, {1, -1}, {1, 0}, {1, 1}, so that half of the neighbouring cells are explored
-            j = (numberBoxes + (x + dx))%numberBoxes
-              + numberBoxes*((numberBoxes + (y + dy))%numberBoxes); // index of neighbouring cell
-            cell2 = (system->getCellList())->getCell(j); // indexes of particles in the second cell
+    // POSITIONS
+    for (int dim=0; dim < 2; dim++) {
+      newParticles[i].position()[dim] =
+        (system->getParticle(i))->position()[dim]; // initialise new positions with previous ones
+      newParticles[i].position()[dim] +=
+        sqrt(parameters->getTimeStep()*2*parameters->getTransDiffusivity())
+          *(system->getRandomGenerator())->gauss_cutoff(); // add noise
+      newParticles[i].position()[dim] +=
+        parameters->getTimeStep()*parameters->getPropulsionVelocity()*cos(
+            (system->getParticle(i))->orientation()[0] - dim*M_PI/2); // add self-propulsion
 
-            for (l=0; l < (int) cell2.size(); l++) { // loop over particles in the second cell
-              index2 = cell2[l];
-              system->WCA_potential(index1, index2, newParticles);
-            }
-          }
-        }
-      }
+      (system->getParticle(i))->force()[dim] = 0; // initialise force
     }
+
+    // ORIENTATIONS
+    newParticles[i].orientation()[0] =
+      (system->getParticle(i))->orientation()[0]; // initialise new orientation with previous one
+    newParticles[i].orientation()[0] +=
+      sqrt(parameters->getTimeStep()*2*parameters->getRotDiffusivity())
+        *(system->getRandomGenerator())->gauss_cutoff(); // add noise
   }
 
-  #else // without cell list
-
-  for (int index1=0; index1 < system->getNumberParticles(); index1++) {
-    for (int index2=index1+1; index2 < system->getNumberParticles(); index2++) {
-      system->WCA_potential(index1, index2, newParticles);
-    }
-  }
-
+  // FORCES
+  #if USE_CELL_LIST // with cell list
+  cellList_ABP_WCA<System0>(system, newParticles);
+  #else
+  bruteForce_ABP_WCA<System0>(system, newParticles);
   #endif
 
   // SAVE AND COPY

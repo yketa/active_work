@@ -135,7 +135,7 @@ Output
 """
 
 from active_work.init import get_env, mkdir
-from active_work.read import Dat
+from active_work.read import Dat, Dat0
 from active_work.maths import normalise1D, amplogwidth
 
 from os import getcwd
@@ -199,7 +199,7 @@ class _Frame:
 
         Parameters
         ----------
-        dat : active_work.read.Dat
+        dat : active_work.read.Dat or active_work.read.Dat0
     		Data object.
         frame : int
             Frame to render.
@@ -225,8 +225,10 @@ class _Frame:
         self.ax.tick_params(axis='both', which='both', direction='in',
             bottom=True, top=True, left=True, right=True)
 
-        self.positions = dat.getPositions(frame, centre=centre)         # particles' positions at frame frame with centre as centre of frame
-        self.diameters = np.full((dat.N,), fill_value=1, dtype=float)   # particles' diameters at frame frame
+        self.positions = dat.getPositions(frame, centre=centre)             # particles' positions at frame frame with centre as centre of frame
+        try: self.diameters = dat.diameters                                 # particles' diameters
+        except AttributeError:
+            self.diameters = np.full((dat.N,), fill_value=1, dtype=float)   # unit diameter by default
 
         self.particles = [particle for particle in range(len(self.positions))
             if (np.abs(self.positions[particle]) <= box_size/2).all()]  # particles inside box of centre centre and length box_size
@@ -339,7 +341,7 @@ class Orientation(_Frame):
 
         Parameters
         ----------
-        dat : active_work.read.Dat
+        dat : active_work.read.Dat or active_work.read.Dat0
     		Data object.
         frame : int
             Frame to render.
@@ -429,7 +431,7 @@ class Displacement(_Frame):
 
         Parameters
         ----------
-        dat : active_work.read.Dat
+        dat : active_work.read.Dat or active_work.read.Dat0
     		Data object.
         frame : int
             Frame to render.
@@ -516,7 +518,7 @@ class Bare(_Frame):
 
         Parameters
         ----------
-        dat : active_work.read.Dat
+        dat : active_work.read.Dat or active_work.read.Dat0
             Data object.
         frame : int
             Frame to render.
@@ -561,7 +563,8 @@ if __name__ == '__main__':  # executing as script
     else: raise ValueError('Mode %s is not known.' % mode)  # mode is not known
 
     dat_file = get_env('DAT_FILE', default=joinpath(getcwd(), 'out.dat'))   # data file
-    dat = Dat(dat_file)                                                     # data object
+    try: dat = Dat(dat_file)                                                # data object
+    except: dat = Dat0(dat_file)
 
     init_frame = get_env('INITIAL_FRAME', default=-1, vartype=int)  # initial frame to render
 
@@ -625,21 +628,32 @@ if __name__ == '__main__':  # executing as script
 
         if not(display_suptitle): return ''
 
-        suptitle = (
-            str(r'$N=%.2e, \phi=%1.2f, l_p/\sigma=%.2e$'
-    		% (dat.N, dat.phi, dat.lp)))
+        try:
+            suptitle = (
+                str(r'$N=%.2e, \phi=%1.2f, D=%.2e, D_r=%.2e,$'
+        		% (dat.N, dat.phi, dat.D, dat.Dr))
+                + str(r'$\epsilon=%.2e, v_0=%.2e$'
+                % (dat.epsilon, dat.v0)))
+            Dr = dat.Dr
+        except AttributeError:
+            suptitle = (
+                str(r'$N=%.2e, \phi=%1.2f, l_p/\sigma=%.2e$'
+        		% (dat.N, dat.phi, dat.lp)))
+            Dr = 1/dat.lp
+
         suptitle += str(r'$, L=%.3e$' % dat.L)
         if 'BOX_SIZE' in envvar:
             suptitle += str(r'$, L_{new}=%.3e$' % box_size)
         suptitle += '\n'
         if 'X_ZERO' in envvar or 'Y_ZERO' in envvar:
             suptitle += str(r'$x_0 = %.3e, y_0 = %.3e$' % centre) + '\n'
-        suptitle += str(r'$t/(l_p/\sigma) = %.5e$'
-            % (frame*dat.dt*dat.dumpPeriod/dat.lp))
+        suptitle += str(r'$D_r t = %.5e$'
+            % (frame*dat.dt*dat.dumpPeriod*Dr))
         if lag_time != None:
-            suptitle += str(r'$, \Delta t = %.5e, \Delta t/(l_p/\sigma) = %.5e$'
+            suptitle += str(
+                r'$, \Delta t = %.5e, D_r \Delta t = %.5e$'
                 % (lag_time*dat.dt*dat.dumpPeriod,
-                    lag_time*dat.dt*dat.dumpPeriod/dat.lp))
+                    lag_time*dat.dt*dat.dumpPeriod*Dr))
 
         return suptitle
 

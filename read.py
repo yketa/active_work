@@ -685,3 +685,67 @@ class Dat(_Read):
         diff = (1 - 2*(diff > 0))*np.min([
             np.abs(x0) + np.abs(self.L - x1), np.abs(self.L - x0) + np.abs(x1)])
         return diff
+
+class Dat0(Dat):
+    """
+    Read data files from simulations with all the different parameters.
+    """
+
+    def __init__(self, filename):
+        """
+        Get data from header.
+
+        Parameters
+        ----------
+        filename : string
+            Path to data file.
+        """
+
+        # FILE
+        _Read.__init__(self, filename)
+
+        # HEADER INFORMATION
+        self.N = self._read('i')                # number of particles
+        self.epsilon = self._read('d')          # coefficient parameter of potential
+        self.v0 = self._read('d')               # self-propulsion velocity
+        self.D = self._read('d')                # translational diffusivity
+        self.Dr = self._read('d')               # rotational diffusivity
+        self.lp = self._read('d')               # persistence length
+        self.phi = self._read('d')              # packing fraction
+        self.L = self._read('d')                # system size
+        self.seed = self._read('i')             # random seed
+        self.dt = self._read('d')               # time step
+        self.framesWork = self._read('i')       # number of frames on which to sum the active work before dumping
+        self.dumpParticles = self._read('b')    # dump positions and orientations to output file
+        self.dumpPeriod = self._read('i')       # period of dumping of positions and orientations in number of frames
+
+        # DIAMETERS
+        self.diameters = np.empty((self.N,))    # array of diameters
+        for i in range(self.N): self.diameters[i] = self._read('d')
+
+        # FILE PARTS LENGTHS
+        self.headerLength = self.file.tell()                        # length of header in bytes
+        self.particleLength = 3*self._bpe('d')*self.dumpParticles   # length the data of a single particle takes in a frame
+        self.frameLength = self.N*self.particleLength               # length the data of a single frame takes in a file
+        self.workLength = 4*self._bpe('d')                          # length the data of a single work and order parameter dump take in a file
+
+        # ESTIMATION OF NUMBER OF COMPUTED WORK AND ORDER SUMS AND FRAMES
+        self.numberWork = (self.fileSize
+            - self.headerLength                                     # header
+            - self.frameLength                                      # first frame
+            )//(
+            self.framesWork*self.frameLength
+                + self.workLength)                                  # number of cumputed work sums
+        self.frames = 0 if not(self.dumpParticles) else (
+            self.fileSize - self.headerLength
+            - self.numberWork*self.workLength)//self.frameLength    # number of frames which the file contains
+
+        # FILE CORRUPTION CHECK
+        if self.fileSize != (
+            self.headerLength                   # header
+            + self.frames*self.frameLength      # frames
+            + self.numberWork*self.workLength): # work sums
+            raise ValueError("Invalid data file size.")
+
+        # COMPUTED NORMALISED RATE OF ACTIVE WORK
+        super()._loadWork()

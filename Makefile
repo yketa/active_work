@@ -40,11 +40,16 @@ ifeq ($(DEBUG),yes)
 	CFLAGS+=-DDEBUG
 endif
 else
+ifeq ($(SIM0),yes)
+	EXEC=$(BU)/simulation0
+	CPP=main0.cpp
+else
 	EXEC=$(BU)/simulation
 	CPP=main.cpp
 endif
 endif
-MAIN=main.cpp cloning.cpp test.cpp                                 # files with main()
+endif
+MAIN=main.cpp main0.cpp cloning.cpp test.cpp                       # files with main()
 SRC=$(filter-out $(filter-out $(CPP), $(MAIN)), $(wildcard *.cpp)) # compile all files but the ones with wrong main()
 
 ifeq ($(CELLLIST),yes)
@@ -94,6 +99,9 @@ $(OB)/cloning.o: cloning.cpp cloningserial.hpp env.hpp particle.hpp
 
 $(OB)/main.o: main.cpp env.hpp iteration.hpp maths.hpp particle.hpp read.hpp
 	$(CC) -o $(OB)/main.o -c main.cpp $(CFLAGS)
+
+$(OB)/main0.o: main0.cpp env.hpp iteration.hpp maths.hpp particle.hpp read.hpp
+	$(CC) -o $(OB)/main0.o -c main0.cpp $(CFLAGS)
 
 $(OB)/test.o: test.cpp env.hpp iteration.hpp maths.hpp particle.hpp read.hpp
 	$(CC) -o $(OB)/test.o -c test.cpp $(CFLAGS)
