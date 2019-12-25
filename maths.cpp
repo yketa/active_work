@@ -1,7 +1,7 @@
-#include "maths.hpp"
-
 #include <cmath>
 #include <math.h>
+
+#include "maths.hpp"
 
 double getAngle(double cosinus, double signSinus) {
   // Returns angle in radians from its cosinus and sign of its sinus.
