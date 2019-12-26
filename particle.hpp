@@ -300,7 +300,7 @@ class System {
     double getDistance(int const& index1, int const& index2);
       // Returns distance between two particles in a given system.
 
-    void WCA_potential(int const& index1, int const& index2,
+    void WCA_force(int const& index1, int const& index2,
       std::vector<Particle>& newParticles);
       // Compute WCA forces between particles[index1] and particles[index2],
       // add to particles[index1].force() and particles[index2].force(), and
@@ -471,7 +471,7 @@ class System0 {
     double getDistance(int const& index1, int const& index2);
       // Returns distance between two particles in a given system.
 
-    void WCA_potential(int const& index1, int const& index2,
+    void WCA_force(int const& index1, int const& index2,
       std::vector<Particle>& newParticles);
       // Compute WCA forces between particles[index1] and particles[index2],
       // add to particles[index1].force() and particles[index2].force(), and
@@ -539,6 +539,37 @@ std::vector<double> getOrderParameter(std::vector<Particle>& particles);
 
 double getOrderParameterNorm(std::vector<Particle>& particles);
   // Returns order parameter norm.
+
+void _WCA_force(
+  System* system, int const& index1, int const& index2, double* force);
+  // Writes to `force' the force deriving from the WCA potential between
+  // particles `index1' and `index2'.
+
+void _WCA_force(
+  System0* system, int const& index1, int const& index2, double* force);
+  // Writes to `force' the force deriving from the WCA potential between
+  // particles `index1' and `index2'.
+
+template<class SystemClass> double WCA_potential(
+  SystemClass* system, double const& index1, double const& index2) {
+  // Returns WCA potential between two particles in a given system.
+
+  double potential = 0;
+
+  double dist = system->getDistance(index1, index2); // dimensionless distance between particles
+  double sigma =
+    ((system->getParticle(index1))->diameter()[0]
+    + (system->getParticle(index2))->diameter()[0])/2; // equivalent diameter
+
+  if (dist/sigma < pow(2, 1./6.)) { // distance lower than cut-off
+
+    // compute potential
+    potential = (system->getParameters())->getPotentialParameter()
+      *(4*(1/pow(dist/sigma, 12) - 1/pow(dist/sigma, 6)) - 1);
+  }
+
+  return potential;
+}
 
 template<class SystemClass> double _diffPeriodic(
   SystemClass* system, double const& x1, double const& x2) {

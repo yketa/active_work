@@ -31,7 +31,7 @@ template<class SystemClass> void cellList_ABP_WCA(
       // interactions with particles in the same cell
       for (l=k+1; l < (int) cell1.size(); l++) { // loop over particles in the first cell
         index2 = cell1[l];
-        system->WCA_potential(index1, index2, newParticles);
+        system->WCA_force(index1, index2, newParticles);
       }
 
       if ( numberBoxes == 1 ) { continue; } // only one cell
@@ -46,7 +46,7 @@ template<class SystemClass> void cellList_ABP_WCA(
           for (l=0; l < (int) cell2.size(); l++) { // loop over particles in the second cell
             index2 = cell2[l];
             if ( index1 < index2 ) { // only count once each couple
-              system->WCA_potential(index1, index2, newParticles);
+              system->WCA_force(index1, index2, newParticles);
             }
           }
         }
@@ -63,7 +63,7 @@ template<class SystemClass> void cellList_ABP_WCA(
 
             for (l=0; l < (int) cell2.size(); l++) { // loop over particles in the second cell
               index2 = cell2[l];
-              system->WCA_potential(index1, index2, newParticles);
+              system->WCA_force(index1, index2, newParticles);
             }
           }
         }
@@ -79,7 +79,7 @@ template<class SystemClass> void bruteForce_ABP_WCA(
 
   for (int index1=0; index1 < system->getNumberParticles(); index1++) {
     for (int index2=index1+1; index2 < system->getNumberParticles(); index2++) {
-      system->WCA_potential(index1, index2, newParticles);
+      system->WCA_force(index1, index2, newParticles);
     }
   }
 }

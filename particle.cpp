@@ -365,7 +365,7 @@ double System::getDistance(int const& index1, int const& index2) {
   return _getDistance<System>(this, index1, index2);
 }
 
-void System::WCA_potential(int const& index1, int const& index2,
+void System::WCA_force(int const& index1, int const& index2,
   std::vector<Particle>& newParticles) {
   // Compute WCA forces between particles[index1] and particles[index2],
   // add to particles[index1].force() and particles[index2].force(), and
@@ -374,30 +374,21 @@ void System::WCA_potential(int const& index1, int const& index2,
 
   if ( index1 != index2 ) { // only consider different particles
 
-    double dist = getDistance(index1, index2); // dimensionless distance between particles
+    double force[2];
+    _WCA_force(this, index1, index2, &force[0]);
 
-    if (dist < pow(2, 1./6.)) { // distance lower than cut-off
-
-      double coeff = 48/pow(dist, 14) - 24/pow(dist, 8);
-      double force;
-
-      for (int dim=0; dim < 2; dim++) {
-
-        // compute force
-        force = diffPeriodic(
-            particles[index2].position()[dim],
-            particles[index1].position()[dim])
-          *coeff;
+    for (int dim=0; dim < 2; dim++) {
+      if ( force[dim] != 0 ) {
 
         // update force arrays
-        particles[index1].force()[dim] += force;
-        particles[index2].force()[dim] -= force;
+        particles[index1].force()[dim] += force[dim];
+        particles[index2].force()[dim] -= force[dim];
 
         // increment positions
         newParticles[index1].position()[dim] +=
-          getTimeStep()*force/3/getPersistenceLength();
+          getTimeStep()*force[dim]/3/getPersistenceLength();
         newParticles[index2].position()[dim] -=
-          getTimeStep()*force/3/getPersistenceLength();
+          getTimeStep()*force[dim]/3/getPersistenceLength();
       }
     }
   }
@@ -717,8 +708,6 @@ System0::System0(
     maxDiameter = std::max(maxDiameter, getParticle(i)->diameter()[0]);
   }
   cellList.initialise<System0>(this, pow(2.0*maxDiameter, 1./6.));
-
-  for (int i=0; i < getNumberParticles(); i++) std::cout << particles[i].diameter()[0] << std::endl;
 }
 
 System0::System0(
@@ -923,7 +912,7 @@ double System0::getDistance(int const& index1, int const& index2) {
   return _getDistance<System0>(this, index1, index2);
 }
 
-void System0::WCA_potential(int const& index1, int const& index2,
+void System0::WCA_force(int const& index1, int const& index2,
   std::vector<Particle>& newParticles) {
   // Compute WCA forces between particles[index1] and particles[index2],
   // add to particles[index1].force() and particles[index2].force(), and
@@ -932,32 +921,21 @@ void System0::WCA_potential(int const& index1, int const& index2,
 
   if ( index1 != index2 ) { // only consider different particles
 
-    double dist = getDistance(index1, index2); // dimensionless distance between particles
-    double sigma =
-      (particles[index1].diameter()[0] + particles[index2].diameter()[0])/2; // equivalent diameter
+    double force[2];
+    _WCA_force(this, index1, index2, &force[0]);
 
-    if (dist/sigma < pow(2, 1./6.)) { // distance lower than cut-off
-
-      double coeff =
-        getPotentialParameter()*(48/pow(dist/sigma, 14) - 24/pow(dist/sigma, 8))
-        /pow(sigma, 2);
-      double force;
-
-      for (int dim=0; dim < 2; dim++) {
-
-        // compute force
-        force = diffPeriodic(
-            particles[index2].position()[dim],
-            particles[index1].position()[dim])
-          *coeff;
+    for (int dim=0; dim < 2; dim++) {
+      if ( force[dim] != 0 ) {
 
         // update force arrays
-        particles[index1].force()[dim] += force;
-        particles[index2].force()[dim] -= force;
+        particles[index1].force()[dim] += force[dim];
+        particles[index2].force()[dim] -= force[dim];
 
         // increment positions
-        newParticles[index1].position()[dim] += getTimeStep()*force;
-        newParticles[index2].position()[dim] -= getTimeStep()*force;
+        newParticles[index1].position()[dim] +=
+          getTimeStep()*getPotentialParameter()*force[dim];
+        newParticles[index2].position()[dim] -=
+          getTimeStep()*getPotentialParameter()*force[dim];
       }
     }
   }
@@ -1064,7 +1042,7 @@ void System0::saveNewState(std::vector<Particle>& newParticles) {
         getPropulsionVelocity()*
         (cos(newParticles[i].orientation()[0] - dim*M_PI/2)
           + cos(particles[i].orientation()[0] - dim*M_PI/2))
-        *getTimeStep()*particles[i].force()[dim]
+        *getTimeStep()*getPotentialParameter()*particles[i].force()[dim]
         /2;
       // orientation part of the active work
       workOrientationSum[0] +=
@@ -1170,4 +1148,54 @@ double getOrderParameterNorm(std::vector<Particle>& particles) {
   std::vector<double> order = getOrderParameter(particles);
 
   return sqrt(pow(order[0], 2) + pow(order[1], 2));
+}
+
+void _WCA_force(
+  System* system, int const& index1, int const& index2, double* force) {
+  // Writes to `force' the force deriving from the WCA potential between
+  // particles `index1' and `index2'.
+
+  force[0] = 0;
+  force[1] = 0;
+
+  double dist = system->getDistance(index1, index2); // dimensionless distance between particles
+
+  if (dist < pow(2, 1./6.)) { // distance lower than cut-off
+
+    // compute force
+    double coeff = 48/pow(dist, 14) - 24/pow(dist, 8);
+    for (int dim=0; dim < 2; dim++) {
+      force[dim] = system->diffPeriodic(
+          (system->getParticle(index2))->position()[dim],
+          (system->getParticle(index1))->position()[dim])
+        *coeff;
+    }
+  }
+}
+
+void _WCA_force(
+  System0* system, int const& index1, int const& index2, double* force) {
+  // Writes to `force' the force deriving from the WCA potential between
+  // particles `index1' and `index2'.
+
+  force[0] = 0;
+  force[1] = 0;
+
+  double dist = system->getDistance(index1, index2); // distance between particles
+  double sigma =
+    ((system->getParticle(index1))->diameter()[0]
+    + (system->getParticle(index2))->diameter()[0])/2; // equivalent diameter
+
+  if (dist/sigma < pow(2, 1./6.)) { // distance lower than cut-off
+
+    // compute force
+    double coeff =
+      (48/pow(dist/sigma, 14) - 24/pow(dist/sigma, 8))/pow(sigma, 2);
+    for (int dim=0; dim < 2; dim++) {
+      force[dim] = system->diffPeriodic(
+          (system->getParticle(index2))->position()[dim],
+          (system->getParticle(index1))->position()[dim])
+        *coeff;
+    }
+  }
 }
