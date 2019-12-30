@@ -55,6 +55,8 @@ _seed = randint(1e7)    # default random seed
 _dt = 1e-3              # default time step
 _Niter = 5e4            # default number of iterations
 
+_Emin = 1   # default minimum energy at which to stop the minimisation
+
 _launch = 0 # default launch identifier
 
 _nWork = 0  # default number of frames on which to sum the active work before dumping (0 => nWork = lp/dt)
@@ -87,6 +89,13 @@ if __name__ == '__main__':
     dt = get_env('DT', default=_dt, vartype=float)          # time step
     Niter = get_env('NITER', default=_Niter, vartype=int)   # number of iterations
 
+    # FIRE ALGORITHM PARAMETERS
+    Emin = get_env('EMIN', default=_Emin, vartype=float)            # minimum energy at which to stop the minimisation
+    iterMax = get_env('ITERMAX', default=int(100/dt), vartype=int)  # maximum number of iterations of the algorithm
+    dtmin = get_env('DTMIN', default=dt*1e-3, vartype=float)        # minimum time step at which to stop the algorithm
+    dt0 = get_env('DT0', default=dt*1e-1, vartype=float)            # initial time step of the algorith
+    dtmax = get_env('DTMAX', default=dt*1e1, vartype=float)         # maximum time step of the algorithm
+
     # NAMING PARAMETERS
     launch = get_env('LAUNCH', default=_launch, vartype=float)  # launch identifier
 
@@ -113,4 +122,6 @@ if __name__ == '__main__':
         'FILE': path.join(out_dir, out_file),
         'DT': str(dt), 'NITER': str(Niter),
         'NWORK': str(nWork),
+        'EMIN': str(Emin), 'ITERMAX': str(iterMax), 'DTMIN': str(dtmin),
+            'DT0': str(dt0), 'DTMAX': str(dtmax),
         'DUMP': str(dump), 'PERIOD': str(period)})

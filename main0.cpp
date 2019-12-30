@@ -1,6 +1,7 @@
 #include <algorithm>
 
 #include "env.hpp"
+#include "fire.hpp"
 #include "iteration.hpp"
 #include "maths.hpp"
 #include "particle.hpp"
@@ -48,7 +49,13 @@ int main() {
 
   // SYSTEM
 
-  System0 system(&parameters, diameters, seed, filename, nWork, dump, period);
+  System0 system(&parameters, diameters, seed, filename, nWork, dump, period); // define system
+  FIRE_WCA(&system, // FIRE minimisation algorithm
+    getEnvDouble("EMIN", 1),
+    getEnvInt("ITERMAX", (int) 100.0/dt),
+    getEnvDouble("DTMIN", dt*1e-3),
+    getEnvDouble("DT0", dt*1e-1),
+    getEnvDouble("DTMAX", dt));
   system.saveInitialState(); // save first frame
 
   // ITERATION
