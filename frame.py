@@ -563,8 +563,8 @@ if __name__ == '__main__':  # executing as script
     else: raise ValueError('Mode %s is not known.' % mode)  # mode is not known
 
     dat_file = get_env('DAT_FILE', default=joinpath(getcwd(), 'out.dat'))   # data file
-    try: dat = Dat(dat_file)                                                # data object
-    except: dat = Dat0(dat_file)
+    try: dat = Dat0(dat_file)                                               # data object
+    except: dat = Dat(dat_file)
 
     init_frame = get_env('INITIAL_FRAME', default=-1, vartype=int)  # initial frame to render
 
