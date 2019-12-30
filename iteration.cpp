@@ -13,6 +13,7 @@ void iterate_ABP_WCA(System* system) {
   // Updates system to next step according to the dynamics of active Brownian
   // particles with WCA potential, using custom dimensionless parameters
   // relations.
+  // [Euler's scheme]
 
   Parameters* parameters = system->getParameters();
 
@@ -30,7 +31,7 @@ void iterate_ABP_WCA(System* system) {
           *(system->getRandomGenerator())->gauss_cutoff(); // add noise
       newParticles[i].position()[dim] +=
         #if CONTROLLED_DYNAMICS
-        (1.0 - 2*parameters->getBiasingParameter()
+        (1.0 - 2*system->getBiasingParameter()
           /3/parameters->getPersistenceLength())*
         #endif
         parameters->getTimeStep()*cos(
@@ -73,11 +74,7 @@ void iterate_ABP_WCA(System* system) {
   #endif
 
   // FORCES
-  #if USE_CELL_LIST // with cell list
-  cellList_ABP_WCA<System>(system, newParticles);
-  #else // brute force
-  bruteForce_ABP_WCA<System>(system, newParticles);
-  #endif
+  ABP_WCA<System>(system, newParticles);
 
   // SAVE AND COPY
   system->saveNewState(newParticles);
@@ -87,6 +84,7 @@ void iterate_ABP_WCA(System* system) {
 void iterate_ABP_WCA(System0* system) {
   // Updates system to next step according to the dynamics of active Brownian
   // particles with WCA potential.
+  // [Euler's scheme]
 
   Parameters* parameters = system->getParameters();
 
@@ -121,11 +119,7 @@ void iterate_ABP_WCA(System0* system) {
   }
 
   // FORCES
-  #if USE_CELL_LIST // with cell list
-  cellList_ABP_WCA<System0>(system, newParticles);
-  #else
-  bruteForce_ABP_WCA<System0>(system, newParticles);
-  #endif
+  ABP_WCA<System0>(system, newParticles);
 
   // SAVE AND COPY
   system->saveNewState(newParticles);

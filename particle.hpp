@@ -3,7 +3,6 @@
 
 #include <vector>
 #include <string>
-#include <fstream>
 
 #include "maths.hpp"
 #include "write.hpp"
@@ -104,6 +103,8 @@ class CellList {
     template<class SystemClass> void update(SystemClass* system) {
       // Put particles in the cell list.
 
+      #ifdef USE_CELL_LIST // this is not useful when not using cell lists
+
       // flush old lists
       for (int i=0; i < (int) cellList.size(); i++) {
         cellList[i].clear();
@@ -113,6 +114,8 @@ class CellList {
       for (int i=0; i < system->getNumberParticles(); i++) {
         cellList[index(system->getParticle(i))].push_back(i); // particles are in increasing order of indexes
       }
+
+      #endif
     }
 
     int index(Particle *particle);
@@ -245,6 +248,8 @@ class System {
     double getPackingFraction() const; // returns packing fraction
     double getSystemSize() const; // returns system size
     double getTimeStep() const; // returns time step
+
+    void setTimeStep(double dt); // changes time step
 
     int getRandomSeed() const; // returns random seed
     rnd* getRandomGenerator(); // returns pointer to random generator
@@ -434,6 +439,8 @@ class System0 {
     double getSystemSize() const; // returns system size
     double getTimeStep() const; // returns time step
 
+    void setTimeStep(double dt); // changes time step
+
     int getRandomSeed() const; // returns random seed
     rnd* getRandomGenerator(); // returns pointer to random generator
 
@@ -494,6 +501,8 @@ class System0 {
     void saveNewState(std::vector<Particle>& newParticles);
       // Saves new state of particles to output file then copy it.
 
+    void updateCellList() { cellList.update<System0>(this); }
+
   private:
 
     // ATTRIBUTES
@@ -550,25 +559,111 @@ void _WCA_force(
   // Writes to `force' the force deriving from the WCA potential between
   // particles `index1' and `index2'.
 
-template<class SystemClass> double WCA_potential(
-  SystemClass* system, double const& index1, double const& index2) {
-  // Returns WCA potential between two particles in a given system.
+template<class SystemClass, typename F> void pairs_ABP(
+  SystemClass* system, F function) {
+  // Given a function `function` with parameters (int index1, int index2),
+  // call this function with every unique pair of interacting particles, using
+  // cell list if USE_CELL_LIST is defined or a double loop
 
-  double potential = 0;
+  #ifdef USE_CELL_LIST // with cell list
 
-  double dist = system->getDistance(index1, index2); // dimensionless distance between particles
-  double sigma =
-    ((system->getParticle(index1))->diameter()[0]
-    + (system->getParticle(index2))->diameter()[0])/2; // equivalent diameter
+  int index1, index2; // index of the couple of particles
+  int i, j; // indexes of the cells
+  int k, l; // indexes of the particles in the cell
+  std::vector<int> cell1, cell2;
+  int numberBoxes = (system->getCellList())->getNumberBoxes();
+  for (i=0; i < pow(numberBoxes, 2); i++) { // loop over cells
 
-  if (dist/sigma < pow(2, 1./6.)) { // distance lower than cut-off
+    cell1 = (system->getCellList())->getCell(i); // indexes of particles in the first cell
+    for (k=0; k < (int) cell1.size(); k++) { // loop over particles in the first cell
+      index1 = cell1[k];
 
-    // compute potential
-    potential = (system->getParameters())->getPotentialParameter()
-      *(4*(1/pow(dist/sigma, 12) - 1/pow(dist/sigma, 6)) - 1);
+      // interactions with particles in the same cell
+      for (l=k+1; l < (int) cell1.size(); l++) { // loop over particles in the first cell
+        index2 = cell1[l];
+        function(index1, index2);
+      }
+
+      if ( numberBoxes == 1 ) { continue; } // only one cell
+
+      // interactions with particles in other cells
+      if ( numberBoxes == 2 ) { // 2 x 2 cells
+
+        for (j=0; j < 4; j++) {
+          if ( i == j ) { continue; } // same cell
+          cell2 = (system->getCellList())->getCell(j); // indexes of particles in the second cell
+
+          for (l=0; l < (int) cell2.size(); l++) { // loop over particles in the second cell
+            index2 = cell2[l];
+            if ( index1 < index2 ) { // only count once each couple
+              function(index1, index2);
+            }
+          }
+        }
+      }
+      else { // 3 x 3 cells or more
+
+        int x = i%numberBoxes;
+        int y = i/numberBoxes;
+        for (int dx=0; dx <= 1; dx++) {
+          for (int dy=-1; dy < 2*dx; dy++) { // these two loops correspond to (dx, dy) = {0, -1}, {1, -1}, {1, 0}, {1, 1}, so that half of the neighbouring cells are explored
+            j = (numberBoxes + (x + dx))%numberBoxes
+              + numberBoxes*((numberBoxes + (y + dy))%numberBoxes); // index of neighbouring cell
+            cell2 = (system->getCellList())->getCell(j); // indexes of particles in the second cell
+
+            for (l=0; l < (int) cell2.size(); l++) { // loop over particles in the second cell
+              index2 = cell2[l];
+              function(index1, index2);
+            }
+          }
+        }
+      }
+    }
   }
 
+  #else // with double loop
+
+  for (int index1=0; index1 < system->getNumberParticles(); index1++) {
+    for (int index2=index1+1; index2 < system->getNumberParticles(); index2++) {
+      function(index1, index2);
+    }
+  }
+
+  #endif
+}
+
+template<class SystemClass> double WCA_potential(SystemClass* system) {
+  // Returns WCA potential of a given system.
+
+  double potential = 0;
+  auto addPotential = [&system, &potential](int index1, int index2) {
+
+    double dist = system->getDistance(index1, index2); // dimensionless distance between particles
+    double sigma =
+      ((system->getParticle(index1))->diameter()[0]
+      + (system->getParticle(index2))->diameter()[0])/2; // equivalent diameter
+
+    if (dist/sigma < pow(2, 1./6.)) { // distance lower than cut-off
+      // compute potential
+      potential += (system->getParameters())->getPotentialParameter()
+        *(4*(1/pow(dist/sigma, 12) - 1/pow(dist/sigma, 6)) + 1);
+    }
+  };
+
+  pairs_ABP<SystemClass>(system, addPotential);
+
   return potential;
+}
+
+template<class SystemClass> double _wrapCoordinate(
+  SystemClass* system, double const& x) {
+  // Return wrap coordinate `x' taking into account periodic boundary
+  // conditions.
+
+  double wrapX = std::remainder(x, system->getSystemSize());
+  if (wrapX < 0) wrapX += system->getSystemSize();
+
+  return wrapX;
 }
 
 template<class SystemClass> double _diffPeriodic(

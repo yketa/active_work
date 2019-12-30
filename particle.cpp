@@ -274,6 +274,11 @@ double System::getSystemSize() const {
 double System::getTimeStep() const {
   return param.getTimeStep(); }
 
+void System::setTimeStep(double dt) {
+  Parameters param (
+    getNumberParticles(), getPersistenceLength(), getPackingFraction(), dt);
+}
+
 int System::getRandomSeed() const { return randomSeed; }
 rnd* System::getRandomGenerator() { return &randomGenerator; }
 
@@ -468,10 +473,7 @@ void System::saveNewState(std::vector<Particle>& newParticles) {
     for (int dim=0; dim < 2; dim++) {
       // keep particles in the box
       newParticles[i].position()[dim] =
-        std::remainder(newParticles[i].position()[dim], getSystemSize());
-      if (newParticles[i].position()[dim] < 0) {
-        newParticles[i].position()[dim] += getSystemSize();
-      }
+        _wrapCoordinate<System>(this, newParticles[i].position()[dim]);
       // output wrapped position in each dimension
       if ( dumpParticles && dumpFrame % dumpPeriod == 0 ) {
         output.write(newParticles[i].position()[dim]);
@@ -848,6 +850,13 @@ double System0::getSystemSize() const {
 double System0::getTimeStep() const {
   return param.getTimeStep(); }
 
+void System0::setTimeStep(double dt) {
+  Parameters param (
+    getNumberParticles(), getPotentialParameter(), getPropulsionVelocity(),
+    getTransDiffusivity(), getRotDiffusivity(), getPackingFraction(),
+    getSystemSize(), dt);
+}
+
 int System0::getRandomSeed() const { return randomSeed; }
 rnd* System0::getRandomGenerator() { return &randomGenerator; }
 
@@ -1057,10 +1066,7 @@ void System0::saveNewState(std::vector<Particle>& newParticles) {
     for (int dim=0; dim < 2; dim++) {
       // keep particles in the box
       newParticles[i].position()[dim] =
-        std::remainder(newParticles[i].position()[dim], getSystemSize());
-      if (newParticles[i].position()[dim] < 0) {
-        newParticles[i].position()[dim] += getSystemSize();
-      }
+        _wrapCoordinate<System0>(this, newParticles[i].position()[dim]);
       // output wrapped position in each dimension
       if ( dumpParticles && dumpFrame % dumpPeriod == 0 ) {
         output.write(newParticles[i].position()[dim]);
