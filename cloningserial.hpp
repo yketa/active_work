@@ -176,7 +176,9 @@ void CloningSerial::doCloning(double tmax, double sValue, int initSim) {
     #endif
     for (int i=0; i<2*nc; i++) systems[i]->setTorqueParameter(TORQUE_PARAMETER);
     #else
+    #if CONTROLLED_DYNAMICS == 2 || CONTROLLED_DYNAMICS == 3
     double g;
+    #endif
     #endif
 
     // biasing parameter
@@ -351,8 +353,8 @@ void CloningSerial::doCloning(double tmax, double sValue, int initSim) {
       torqueIntegral1 /= nc;
       torqueIntegral2 /= nc;
       workForce /= nc;
-      double psi = double(lnX) / ((iter + 1.0)*actualTau) / systems[0]->getNumberParticles();
       #ifdef DEBUG
+      double psi = double(lnX) / ((iter + 1.0)*actualTau) / systems[0]->getNumberParticles();
       std::cout << "##<I_1> = " << torqueIntegral1 << " <I_2> = " << torqueIntegral2 << std::endl;
       std::cout << "##<w_f> = " << workForce << " SCGF = " << psi << std::endl;
       #endif
