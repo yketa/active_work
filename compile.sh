@@ -12,3 +12,5 @@ for CL in yes no; do  # with and without cell lists
     make clean && CLONING=yes CONTROLLED_DYNAMICS=$CD CELLLIST=$CL make;
   done
 done
+# CLEAN
+make clean
