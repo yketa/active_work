@@ -170,13 +170,13 @@ void CloningSerial::doCloning(double tmax, double sValue, int initSim) {
     }
 
     // torque parameter
+    #if CONTROLLED_DYNAMICS == 2 || CONTROLLED_DYNAMICS == 3
     #ifdef TORQUE_PARAMETER // use torque parameter defined as pre-processor variable
     #ifdef _OPENMP
     #pragma omp parallel for
     #endif
     for (int i=0; i<2*nc; i++) systems[i]->setTorqueParameter(TORQUE_PARAMETER);
     #else
-    #if CONTROLLED_DYNAMICS == 2 || CONTROLLED_DYNAMICS == 3
     double g;
     #endif
     #endif
