@@ -49,6 +49,9 @@ else
 endif
 endif
 endif
+ifneq ($(EXEC_NAME),)
+	EXEC=$(BU)/$(EXEC_NAME)
+endif
 MAIN=main.cpp main0.cpp cloning.cpp test.cpp                       # files with main()
 SRC=$(filter-out $(filter-out $(CPP), $(MAIN)), $(wildcard *.cpp)) # compile all files but the ones with wrong main()
 
