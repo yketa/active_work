@@ -1,6 +1,6 @@
 """
-Module read provides classes to read from data files, especially the ones made
-by the simulation script.
+Module read provides classes to read from data files produced by simulation
+scripts.
 """
 
 import struct
@@ -12,7 +12,7 @@ from active_work.maths import relative_positions, angle
 
 class _Read:
     """
-    Generic class to read output files.
+    Generic class to read binary output files.
     """
 
     def __init__(self, filename):
@@ -31,7 +31,8 @@ class _Read:
         self.fileSize = os.path.getsize(filename)
 
     def __del__(self):
-        self.file.close()
+        try: self.file.close()
+        except AttributeError: return   # self.file was not loaded
 
     def _bpe(self, type):
         """
@@ -57,9 +58,11 @@ class _Read:
 
         return struct.unpack(type, self.file.read(self._bpe(type)))[0]
 
-class Dat(_Read):
+class _Dat(_Read):
     """
     Read data files from simulations.
+
+    (see active_work/particle.hpp -> class System & active_work/launch.py)
     """
 
     def __init__(self, filename):
@@ -71,6 +74,9 @@ class Dat(_Read):
         filename : string
             Path to data file.
         """
+
+        # SIMULATION TYPE
+        self._isDat0 = False    # does not correspond to a simulation with general parameters (custom relations between parameters)
 
         # FILE
         super().__init__(filename)
@@ -686,9 +692,11 @@ class Dat(_Read):
             np.abs(x0) + np.abs(self.L - x1), np.abs(self.L - x0) + np.abs(x1)])
         return diff
 
-class Dat0(Dat):
+class _Dat0(_Dat):
     """
-    Read data files from simulations with all the different parameters.
+    Read data files from simulations with general parameters.
+
+    (see active_work/particle.hpp -> class System0 & active_work/launch0.py)
     """
 
     def __init__(self, filename):
@@ -700,6 +708,9 @@ class Dat0(Dat):
         filename : string
             Path to data file.
         """
+
+        # SIMULATION TYPE
+        self._isDat0 = True # corresponds to a simulation with general parameters
 
         # FILE
         _Read.__init__(self, filename)
@@ -748,4 +759,28 @@ class Dat0(Dat):
             raise ValueError("Invalid data file size.")
 
         # COMPUTED NORMALISED RATE OF ACTIVE WORK
-        super()._loadWork()
+        self._loadWork()
+
+class Dat(_Dat):
+    """
+    Read data files from simulations. Automatically load the correct attributes
+    for simulations with custom relations between parameters
+    (active_work.read._Dat) or general parameters (active_work.read._Dat0).
+
+    WARNING: Success of this correct loading is not assured in all cases.
+    """
+
+    def __init__(self, filename):
+        """
+        Get data from header.
+
+        Parameters
+        ----------
+        filename : string
+            Path to data file.
+        """
+
+        try:
+            _Dat.__init__(self, filename)   # simulation with custom relations between parameters
+        except ValueError:
+            _Dat0.__init__(self, filename)  # simulation with general parameters

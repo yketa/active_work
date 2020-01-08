@@ -28,6 +28,9 @@ class Force(Dat):
         """
 
         super().__init__(filename)  # initialise with super class
+        if self._isDat0:
+            raise ValueError(
+                "Does not work for simulations with general parameters.")
 
         self.skip = skip    # skip the `skip' first measurements of the active work in the analysis
 
