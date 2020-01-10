@@ -57,6 +57,9 @@ class Dat {
       // Returns position of a given particle at a given frame.
     double getOrientation(int const& frame, int const& particle);
       // Returns position of a given particle at a given frame.
+    double getVelocity(
+      int const& frame, int const& particle, int const& dimension);
+      // Returns velocity of a given particle at a given frame.
 
   private:
 
@@ -143,6 +146,9 @@ class Dat0 {
       // Returns position of a given particle at a given frame.
     double getOrientation(int const& frame, int const& particle);
       // Returns position of a given particle at a given frame.
+    double getVelocity(
+      int const& frame, int const& particle, int const& dimension);
+      // Returns velocity of a given particle at a given frame.
 
   private:
 

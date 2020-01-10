@@ -40,6 +40,7 @@ class Particle {
     double* diameter(); // returns pointer to diameter
 
     double* force(); // returns pointer to force
+    double* noise(); // returns pointer to noise realisation
 
   private:
 
@@ -51,6 +52,7 @@ class Particle {
     double sigma; // diameter
 
     double f[2]; // force exerted on particle (2D)
+    double eta[2]; // noise realisation (2D)
 
 };
 
@@ -75,7 +77,7 @@ class CellList {
     // METHODS
 
     int getNumberBoxes(); // return number of boxes in each dimension
-    std::vector<int> getCell(int const &index); // return vector of indexes in cell
+    std::vector<int>* getCell(int const &index); // return pointer to vector of indexes in cell
 
     template<class SystemClass> void initialise(
       SystemClass* system, double const& rcut) {
@@ -83,7 +85,7 @@ class CellList {
 
       // parameters of cell list
       cutOff = rcut;
-      numberBoxes = std::max((int) (system->getSystemSize()/rcut), 1);
+      numberBoxes = std::max((int) (system->getSystemSize()/cutOff), 1);
       sizeBox = system->getSystemSize()/numberBoxes;
 
       // set size of cell list
@@ -210,17 +212,22 @@ class System {
    *  [HEADER (see System::System)]
    *  | (int) N | (double) lp | (double) phi | (double) L | (int) seed | (double) dt | (int) framesWork | (bool) dump | (int) period |
    *
-   *  [INITIAL FRAME]
-   *  ||                FRAME 0                 ||
-   *  ||      PARTICLE 1     | ... | PARTICLE N ||
-   *  ||   R   | ORIENTATION | ... |     ...    ||
-   *  || X | Y |    theta    | ... |     ...    ||
+   *  [INITIAL FRAME (see System::saveInitialState)] (all double)
+   *  ||                    FRAME 0                     ||
+   *  ||          PARTICLE 1         | ... | PARTICLE N ||
+   *  ||   R   | ORIENTATION |   V   | ... |     ...    ||
+   *  || X | Y |    theta    | 0 | 0 | ... |     ...    ||
    *
-   *  [BODY (see System::saveInitialState & System::saveNewState)] (all double)
-   *  ||             FRAME period*1             || ... || FRAME period*framesWork ||                                                                                 || ...
-   *  ||      PARTICLE 1     | ... | PARTICLE N || ... ||        ...              ||                                                                                 || ...
-   *  ||   R   | ORIENTATION | ... |     ...    || ... ||        ...              || ACTIVE WORK | ACTIVE WORK (FORCE) | ACTIVE WORK (ORIENTATION) | ORDER PARAMETER || ...
-   *  || X | Y |    theta    | ... |     ...    || ... ||        ...              ||      W      |          Wp         |             Wo            |        nu       || ...
+   *  [BODY (see System::saveNewState)] (all double)
+   *  ||                    FRAME 1 + i*period                  || ... || FRAME 1 + (i + framesWork - 1)*period |~
+   *  ||              PARTICLE 1             | ... | PARTICLE N || ... ||                  ...                  |~
+   *  ||   R   | ORIENTATION | V [FRAME - 1] | ... |     ...    || ... ||                  ...                  |~
+   *  || X | Y |    theta    |  V_X  |  V_Y  | ... |     ...    || ... ||                  ...                  |~
+   *
+   *  ~|                                                                                 || ...
+   *  ~|                                                                                 || ...
+   *  ~| ACTIVE WORK | ACTIVE WORK (FORCE) | ACTIVE WORK (ORIENTATION) | ORDER PARAMETER || ...
+   *  ~|      W      |          Wp         |             Wo            |        nu       || ...
    */
 
   public:
@@ -388,17 +395,22 @@ class System0 {
    *  || PARTICLE 1 | ... | PARTICLE N ||
    *  ||  diameter  | ... |  diameter  ||
    *
-   *  [INITIAL FRAME]
-   *  ||                FRAME 0                 ||
-   *  ||      PARTICLE 1     | ... | PARTICLE N ||
-   *  ||   R   | ORIENTATION | ... |     ...    ||
-   *  || X | Y |    theta    | ... |     ...    ||
+   *  [INITIAL FRAME (see System0::saveInitialState)] (all double)
+   *  ||                    FRAME 0                     ||
+   *  ||          PARTICLE 1         | ... | PARTICLE N ||
+   *  ||   R   | ORIENTATION |   V   | ... |     ...    ||
+   *  || X | Y |    theta    | 0 | 0 | ... |     ...    ||
    *
-   *  [BODY (see System::saveInitialState & System::saveNewState)] (all double)
-   *  ||             FRAME period*1             || ... || FRAME period*framesWork ||                                                                                 || ...
-   *  ||      PARTICLE 1     | ... | PARTICLE N || ... ||        ...              ||                                                                                 || ...
-   *  ||   R   | ORIENTATION | ... |     ...    || ... ||        ...              || ACTIVE WORK | ACTIVE WORK (FORCE) | ACTIVE WORK (ORIENTATION) | ORDER PARAMETER || ...
-   *  || X | Y |    theta    | ... |     ...    || ... ||        ...              ||      W      |          Wp         |             Wo            |        nu       || ...
+   *  [BODY (see System0::saveNewState)] (all double)
+   *  ||                    FRAME 1 + i*period                  || ... || FRAME 1 + (i + framesWork - 1)*period |~
+   *  ||              PARTICLE 1             | ... | PARTICLE N || ... ||                  ...                  |~
+   *  ||   R   | ORIENTATION | V [FRAME - 1] | ... |     ...    || ... ||                  ...                  |~
+   *  || X | Y |    theta    |  V_X  |  V_Y  | ... |     ...    || ... ||                  ...                  |~
+   *
+   *  ~|                                                                                 || ...
+   *  ~|                                                                                 || ...
+   *  ~| ACTIVE WORK | ACTIVE WORK (FORCE) | ACTIVE WORK (ORIENTATION) | ORDER PARAMETER || ...
+   *  ~|      W      |          Wp         |             Wo            |        nu       || ...
    */
 
   public:
@@ -570,17 +582,18 @@ template<class SystemClass, typename F> void pairs_ABP(
   int index1, index2; // index of the couple of particles
   int i, j; // indexes of the cells
   int k, l; // indexes of the particles in the cell
-  std::vector<int> cell1, cell2;
+  std::vector<int>* cell1;
+  std::vector<int>* cell2;
   int numberBoxes = (system->getCellList())->getNumberBoxes();
   for (i=0; i < pow(numberBoxes, 2); i++) { // loop over cells
 
     cell1 = (system->getCellList())->getCell(i); // indexes of particles in the first cell
-    for (k=0; k < (int) cell1.size(); k++) { // loop over particles in the first cell
-      index1 = cell1[k];
+    for (k=0; k < (int) cell1->size(); k++) { // loop over particles in the first cell
+      index1 = cell1->at(k);
 
       // interactions with particles in the same cell
-      for (l=k+1; l < (int) cell1.size(); l++) { // loop over particles in the first cell
-        index2 = cell1[l];
+      for (l=k+1; l < (int) cell1->size(); l++) { // loop over particles in the first cell
+        index2 = cell1->at(l);
         function(index1, index2);
       }
 
@@ -593,8 +606,8 @@ template<class SystemClass, typename F> void pairs_ABP(
           if ( i == j ) { continue; } // same cell
           cell2 = (system->getCellList())->getCell(j); // indexes of particles in the second cell
 
-          for (l=0; l < (int) cell2.size(); l++) { // loop over particles in the second cell
-            index2 = cell2[l];
+          for (l=0; l < (int) cell2->size(); l++) { // loop over particles in the second cell
+            index2 = cell2->at(l);
             if ( index1 < index2 ) { // only count once each couple
               function(index1, index2);
             }
@@ -611,8 +624,8 @@ template<class SystemClass, typename F> void pairs_ABP(
               + numberBoxes*((numberBoxes + (y + dy))%numberBoxes); // index of neighbouring cell
             cell2 = (system->getCellList())->getCell(j); // indexes of particles in the second cell
 
-            for (l=0; l < (int) cell2.size(); l++) { // loop over particles in the second cell
-              index2 = cell2[l];
+            for (l=0; l < (int) cell2->size(); l++) { // loop over particles in the second cell
+              index2 = cell2->at(l);
               function(index1, index2);
             }
           }
@@ -635,18 +648,18 @@ template<class SystemClass, typename F> void pairs_ABP(
 template<class SystemClass> double WCA_potential(SystemClass* system) {
   // Returns WCA potential of a given system.
 
-  double potential = 0;
+  double potential = 0.0;
   auto addPotential = [&system, &potential](int index1, int index2) {
 
     double dist = system->getDistance(index1, index2); // dimensionless distance between particles
     double sigma =
       ((system->getParticle(index1))->diameter()[0]
-      + (system->getParticle(index2))->diameter()[0])/2; // equivalent diameter
+      + (system->getParticle(index2))->diameter()[0])/2.0; // equivalent diameter
 
-    if (dist/sigma < pow(2, 1./6.)) { // distance lower than cut-off
+    if (dist/sigma < pow(2., 1./6.)) { // distance lower than cut-off
       // compute potential
       potential += (system->getParameters())->getPotentialParameter()
-        *(4*(1/pow(dist/sigma, 12) - 1/pow(dist/sigma, 6)) + 1);
+        *(4.0*(1.0/pow(dist/sigma, 12.0) - 1.0/pow(dist/sigma, 6.0)) + 1.0);
     }
   };
 

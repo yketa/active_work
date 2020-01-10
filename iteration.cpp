@@ -24,27 +24,33 @@ void iterate_ABP_WCA(System* system) {
 
     // POSITIONS
     for (int dim=0; dim < 2; dim++) {
+      // initialise new positions with previous ones
       newParticles[i].position()[dim] =
-        (system->getParticle(i))->position()[dim]; // initialise new positions with previous ones
-      newParticles[i].position()[dim] +=
-        sqrt(parameters->getTimeStep()*2/3/parameters->getPersistenceLength())
-          *(system->getRandomGenerator())->gauss_cutoff(); // add noise
+        (system->getParticle(i))->position()[dim];
+      // add self-propulsion
       newParticles[i].position()[dim] +=
         #if CONTROLLED_DYNAMICS
-        (1.0 - 2*system->getBiasingParameter()
-          /3/parameters->getPersistenceLength())*
+        (1.0 - 2.0*system->getBiasingParameter()
+          /3.0/parameters->getPersistenceLength())*
         #endif
         parameters->getTimeStep()*cos(
-            (system->getParticle(i))->orientation()[0] - dim*M_PI/2); // add self-propulsion
-
-      (system->getParticle(i))->force()[dim] = 0; // initialise force
+          (system->getParticle(i))->orientation()[0] - dim*M_PI/2);
+      // add noise
+      (system->getParticle(i))->noise()[dim] =
+        (system->getRandomGenerator())->gauss_cutoff();
+      newParticles[i].position()[dim] +=
+        sqrt(
+          parameters->getTimeStep()*2.0/3.0/parameters->getPersistenceLength())
+          *(system->getParticle(i))->noise()[dim];
+      // initialise force
+      (system->getParticle(i))->force()[dim] = 0.0;
     }
 
     // ORIENTATIONS
     newParticles[i].orientation()[0] =
       (system->getParticle(i))->orientation()[0]; // initialise new orientation with previous one
     newParticles[i].orientation()[0] +=
-      sqrt(parameters->getTimeStep()*2/parameters->getPersistenceLength())
+      sqrt(parameters->getTimeStep()*2.0/parameters->getPersistenceLength())
         *(system->getRandomGenerator())->gauss_cutoff(); // add noise
   }
 
@@ -98,23 +104,28 @@ void iterate_ABP_WCA(System0* system) {
 
     // POSITIONS
     for (int dim=0; dim < 2; dim++) {
+      // initialise new positions with previous ones
       newParticles[i].position()[dim] =
-        (system->getParticle(i))->position()[dim]; // initialise new positions with previous ones
-      newParticles[i].position()[dim] +=
-        sqrt(parameters->getTimeStep()*2*parameters->getTransDiffusivity())
-          *(system->getRandomGenerator())->gauss_cutoff(); // add noise
+        (system->getParticle(i))->position()[dim];
+      // add self-propulsion
       newParticles[i].position()[dim] +=
         parameters->getTimeStep()*parameters->getPropulsionVelocity()*cos(
-            (system->getParticle(i))->orientation()[0] - dim*M_PI/2); // add self-propulsion
-
-      (system->getParticle(i))->force()[dim] = 0; // initialise force
+          (system->getParticle(i))->orientation()[0] - dim*M_PI/2);
+      // add noise
+      (system->getParticle(i))->noise()[dim] =
+        (system->getRandomGenerator())->gauss_cutoff();
+      newParticles[i].position()[dim] +=
+        sqrt(parameters->getTimeStep()*2.0*parameters->getTransDiffusivity())
+          *(system->getParticle(i))->noise()[dim];
+      // initialise force
+      (system->getParticle(i))->force()[dim] = 0.0;
     }
 
     // ORIENTATIONS
     newParticles[i].orientation()[0] =
       (system->getParticle(i))->orientation()[0]; // initialise new orientation with previous one
     newParticles[i].orientation()[0] +=
-      sqrt(parameters->getTimeStep()*2*parameters->getRotDiffusivity())
+      sqrt(parameters->getTimeStep()*2.0*parameters->getRotDiffusivity())
         *(system->getRandomGenerator())->gauss_cutoff(); // add noise
   }
 

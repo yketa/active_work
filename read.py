@@ -94,7 +94,7 @@ class _Dat(_Read):
 
         # FILE PARTS LENGTHS
         self.headerLength = self.file.tell()                        # length of header in bytes
-        self.particleLength = 3*self._bpe('d')*self.dumpParticles   # length the data of a single particle takes in a frame
+        self.particleLength = 5*self._bpe('d')*self.dumpParticles   # length the data of a single particle takes in a frame
         self.frameLength = self.N*self.particleLength               # length the data of a single frame takes in a file
         self.workLength = 4*self._bpe('d')                          # length the data of a single work and order parameter dump take in a file
 
@@ -297,6 +297,30 @@ class _Dat(_Read):
             lambda index: self._orientation(time, index),
             particle)))
 
+    def getVelocities(self, time, *particle):
+        """
+        Returns velocities of particles at time.
+
+        Parameters
+        ----------
+        time : int
+            Frame.
+        particle : int
+            Indexes of particles.
+            NOTE: if none is given, then all particles are returned.
+
+        Returns
+        -------
+        velocities : (*, 2) float Numpy array
+            Velocities at `time'.
+        """
+
+        if particle == (): particle = range(self.N)
+
+        return np.array(list(map(
+            lambda index: self._velocity(time, index),
+            particle)))
+
     def getDirections(self, time, *particle):
         """
         Returns self-propulsion vector of particles at time.
@@ -483,6 +507,72 @@ class _Dat(_Read):
 
         return torqueIntegral/(self.N*(time1-time0))
 
+    def toGrid(self, time, array, nBoxes=None, box_size=None, centre=None):
+        """
+        Maps square sub-system of centre `centre' and length `box_size' to a
+        square grid with `nBoxes' boxes in every direction, and associates to
+        each box of this grid the averaged value of the (self.N, *)-array
+        `array' over the indexes corresponding to particles within this box at
+        time `time'.
+
+        Parameters
+        ----------
+        time : int
+            Frame index.
+        array : (self.N, *) float array-like
+            Array of values to be put on the grid.
+        nBoxes : int
+            Number of grid boxes in each direction.
+            NOTE: if nBoxes==None, then nBoxes = int(sqrt(self.N)).
+            DEFAULT: None
+        box_size : float
+            Length of the sub-system to consider.
+            NOTE: if box_size==None, then box_size = self.L.
+            DEFAULT: None
+        centre : array-like
+            Coordinates of the centre of the sub-system.
+            NOTE: if centre==None, then centre = (0, 0).
+
+        Returns
+        -------
+        grid : (nBoxes, nBoxes, *) float Numpy array
+            Averaged grid.
+        """
+
+        time = int(time)
+
+        array = np.array(array)
+        if array.shape[0] != self.N: raise ValueError(
+            "Array first-direction length different than number of particles.")
+
+        if nBoxes == None: nBoxes = np.sqrt(self.N)
+        nBoxes = int(nBoxes)
+
+        if box_size == None: box_size = self.L
+
+        if centre == None: centre = (0, 0)
+        centre = np.array(centre)
+
+        grid = np.zeros((nBoxes,)*2 + array.shape[1:])
+        sumN = np.zeros((nBoxes,)*2)	# array of the number of particles in each grid box
+
+        in_box = lambda particle: (
+            np.max(np.abs(self.getPositions(time, particle, centre=centre)))
+            <= box_size/2)
+        positions = self.getPositions(time, centre=centre)
+        for particle in range(self.N):
+            if in_box(particle):
+                grid_index = tuple(np.array(
+                    ((positions[particle] + box_size/2)//(box_size/nBoxes))
+                    % ((nBoxes,)*2),
+                    dtype=int))
+                grid[grid_index] += array[particle]
+                sumN[grid_index] += 1
+        sumN = np.reshape(sumN,
+            (nBoxes,)*2 + (1,)*len(array.shape[1:]))
+
+        return np.divide(grid, sumN, out=np.zeros(grid.shape), where=sumN!=0)
+
     def _loadWork(self):
         """
         Loads work from file self.filename + '.work.pickle' if it exists or
@@ -642,6 +732,31 @@ class _Dat(_Read):
             + (np.max([time - 1, 0])//self.framesWork)*self.workLength) # active work sums (taking into account the frame with index 0)
         return self._read('d')
 
+    def _velocity(self, time, particle):
+        """
+        Returns array of velocity of particle at time.
+
+        Parameters
+        ----------
+        time : int
+            Frame.
+        particle : int
+            Index of particle.
+
+        Returns
+        -------
+        velocity : (2,) float Numpy array
+            Velocity of `particle' at `time'.
+        """
+
+        self.file.seek(
+            self.headerLength                                           # header
+            + time*self.frameLength                                     # other frames
+            + particle*self.particleLength                              # other particles
+            + 3*self._bpe('d')                                          # positions and orientation
+            + (np.max([time - 1, 0])//self.framesWork)*self.workLength) # active work sums (taking into account the frame with index 0)
+        return np.array([self._read('d'), self._read('d')])
+
     def _work(self, time):
         """
         Returns active work between `time' and `time' + 1.
@@ -736,7 +851,7 @@ class _Dat0(_Dat):
 
         # FILE PARTS LENGTHS
         self.headerLength = self.file.tell()                        # length of header in bytes
-        self.particleLength = 3*self._bpe('d')*self.dumpParticles   # length the data of a single particle takes in a frame
+        self.particleLength = 5*self._bpe('d')*self.dumpParticles   # length the data of a single particle takes in a frame
         self.frameLength = self.N*self.particleLength               # length the data of a single frame takes in a file
         self.workLength = 4*self._bpe('d')                          # length the data of a single work and order parameter dump take in a file
 

@@ -18,11 +18,11 @@
 
 // CONSTRUCTORS
 
-Particle::Particle() : r {0, 0}, theta (0), sigma (1), f {0, 0} {}
+Particle::Particle() : r {0, 0}, theta (0), sigma (1), f {0, 0}, eta {0, 0} {}
 Particle::Particle(double x, double y, double ang) :
-  r {x, y}, theta (ang), sigma (1), f {0, 0} {}
+  r {x, y}, theta (ang), sigma (1), f {0, 0}, eta {0, 0} {}
 Particle::Particle(double x, double y, double ang, double d) :
-  r {x, y}, theta (ang), sigma (d), f {0, 0} {}
+  r {x, y}, theta (ang), sigma (d), f {0, 0}, eta {0, 0} {}
 
 // METHODS
 
@@ -31,7 +31,8 @@ double* Particle::orientation() { return &theta; } // returns pointer to orienta
 
 double* Particle::diameter() { return &sigma; } // returns pointer to diameter
 
-double* Particle::force() {return &f[0]; }; // returns pointer to force
+double* Particle::force() { return &f[0]; }; // returns pointer to force
+double* Particle::noise() { return &eta[0]; } // returns pointer to noise realisation
 
 
 /*************
@@ -49,13 +50,15 @@ CellList::~CellList() {}
 // METHODS
 
 int CellList::getNumberBoxes() { return numberBoxes; } // return number of boxes in each dimension
-std::vector<int> CellList::getCell(int const &index) { return cellList[index]; } // return vector of indexes in cell
+std::vector<int>* CellList::getCell(int const &index) {
+  return &cellList[index]; } // return pointer to vector of indexes in cell
 
 int CellList::index(Particle *particle) {
   // Index of the box corresponding to a given particle.
 
-  return (int) ((particle->position())[0]/sizeBox)
-    + numberBoxes*((int) ((particle->position())[1]/sizeBox));
+  int x = (int) ((particle->position())[0]/sizeBox);
+  int y = (int) ((particle->position())[1]/sizeBox);
+  return (x == numberBoxes ? 0 : x) + numberBoxes*(y == numberBoxes ? 0 : y);
 }
 
 std::vector<int> CellList::getNeighbours(Particle *particle) {
@@ -391,9 +394,9 @@ void System::WCA_force(int const& index1, int const& index2,
 
         // increment positions
         newParticles[index1].position()[dim] +=
-          getTimeStep()*force[dim]/3/getPersistenceLength();
+          getTimeStep()*force[dim]/3.0/getPersistenceLength();
         newParticles[index2].position()[dim] -=
-          getTimeStep()*force[dim]/3/getPersistenceLength();
+          getTimeStep()*force[dim]/3.0/getPersistenceLength();
       }
     }
   }
@@ -428,6 +431,9 @@ void System::saveInitialState() {
         output.write(particles[i].position()[dim]);
       }
       output.write(particles[i].orientation()[0]); // output orientation
+      for (int dim=0; dim < 2; dim++) { // output velocity in each dimension
+        output.write(0.0); // zero by default for initial frame
+      }
     }
   }
 
@@ -480,11 +486,23 @@ void System::saveNewState(std::vector<Particle>& newParticles) {
       }
     }
 
-    // ORIENTATION
     if ( dumpParticles && dumpFrame % dumpPeriod == 0 ) {
-      output.write(newParticles[i].orientation()[0]);
-    }
 
+      // ORIENTATION
+      output.write(newParticles[i].orientation()[0]);
+
+      // VELOCITIES
+      for (int dim=0; dim < 2; dim++) {
+        output.write(                                                        // v =
+          particles[i].force()[dim]/3.0/getPersistenceLength()               // 1/3 sigma/lp F
+          + cos(particles[i].orientation()[0] - dim*M_PI/2)                  // + u(theta)
+          #if CONTROLLED_DYNAMICS
+          *(1.0 - 2.0*system->getBiasingParameter()                          // *(1 - 2*s
+            /3.0/parameters->getPersistenceLength())                         // /3/lp)
+          #endif
+          + sqrt(2.0/3.0/getPersistenceLength())*particles[i].noise()[dim]); // + sqrt(2/3 sigma/lp)*eta
+      }
+    }
   }
 
   // ORDER PARAMETER
@@ -1018,6 +1036,9 @@ void System0::saveInitialState() {
         output.write(particles[i].position()[dim]);
       }
       output.write(particles[i].orientation()[0]); // output orientation
+      for (int dim=0; dim < 2; dim++) { // output velocity in each dimension
+        output.write(0.0); // zero by default for initial frame
+      }
     }
   }
 
@@ -1073,11 +1094,20 @@ void System0::saveNewState(std::vector<Particle>& newParticles) {
       }
     }
 
-    // ORIENTATION
     if ( dumpParticles && dumpFrame % dumpPeriod == 0 ) {
-      output.write(newParticles[i].orientation()[0]);
-    }
 
+      // ORIENTATION
+      output.write(newParticles[i].orientation()[0]);
+
+      // VELOCITIES
+      for (int dim=0; dim < 2; dim++) {
+        output.write(                                                   // v =
+          getPotentialParameter()*particles[i].force()[dim]             // epsilon*F
+          + getPropulsionVelocity()                                     // + v_0
+            *cos(particles[i].orientation()[0] - dim*M_PI/2)            // *u(theta)
+          + sqrt(2.0*getTransDiffusivity())*particles[i].noise()[dim]); // + sqrt(2 D)*eta
+      }
+    }
   }
 
   // ORDER PARAMETER
@@ -1161,15 +1191,15 @@ void _WCA_force(
   // Writes to `force' the force deriving from the WCA potential between
   // particles `index1' and `index2'.
 
-  force[0] = 0;
-  force[1] = 0;
+  force[0] = 0.0;
+  force[1] = 0.0;
 
   double dist = system->getDistance(index1, index2); // dimensionless distance between particles
 
-  if (dist < pow(2, 1./6.)) { // distance lower than cut-off
+  if (dist < pow(2., 1./6.)) { // distance lower than cut-off
 
     // compute force
-    double coeff = 48/pow(dist, 14) - 24/pow(dist, 8);
+    double coeff = 48.0/pow(dist, 14.0) - 24.0/pow(dist, 8.0);
     for (int dim=0; dim < 2; dim++) {
       force[dim] = system->diffPeriodic(
           (system->getParticle(index2))->position()[dim],
@@ -1184,19 +1214,19 @@ void _WCA_force(
   // Writes to `force' the force deriving from the WCA potential between
   // particles `index1' and `index2'.
 
-  force[0] = 0;
-  force[1] = 0;
+  force[0] = 0.0;
+  force[1] = 0.0;
 
   double dist = system->getDistance(index1, index2); // distance between particles
   double sigma =
     ((system->getParticle(index1))->diameter()[0]
-    + (system->getParticle(index2))->diameter()[0])/2; // equivalent diameter
+    + (system->getParticle(index2))->diameter()[0])/2.0; // equivalent diameter
 
-  if (dist/sigma < pow(2, 1./6.)) { // distance lower than cut-off
+  if (dist/sigma < pow(2., 1./6.)) { // distance lower than cut-off
 
     // compute force
     double coeff =
-      (48/pow(dist/sigma, 14) - 24/pow(dist/sigma, 8))/pow(sigma, 2);
+      (48.0/pow(dist/sigma, 14.0) - 24.0/pow(dist/sigma, 8.0))/pow(sigma, 2.0);
     for (int dim=0; dim < 2; dim++) {
       force[dim] = system->diffPeriodic(
           (system->getParticle(index2))->position()[dim],

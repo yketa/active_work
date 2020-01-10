@@ -29,7 +29,7 @@ Dat::Dat(std::string filename) :
 
   // FILE PARTS LENGTHS
   headerLength = inputFileStream.tellg();
-  particleLength = 3*sizeof(double)*dumpParticles;
+  particleLength = 5*sizeof(double)*dumpParticles;
   frameLength = numberParticles*particleLength;
   workLength = 4*sizeof(double);
 
@@ -120,6 +120,23 @@ double Dat::getOrientation(int const& frame, int const& particle){
   return orientation;
 }
 
+double Dat::getVelocity(
+  int const& frame, int const& particle, int const& dimension) {
+  // Returns velocity of a given particle at a given frame.
+
+  inputFileStream.seekg(
+    headerLength // header
+    + frame*frameLength // other frames
+    + particle*particleLength // other particles
+    + (std::max(frame - 1, 0)/framesWork)*workLength // active work sums (taking into account the frame with index 0)
+    + 3*sizeof(double) // positions and orientation
+    + dimension*sizeof(double)); // dimension
+  double velocity;
+  inputFileStream.read((char*) &velocity, sizeof(double));
+
+  return velocity;
+}
+
 
 /********
  * DAT0 *
@@ -158,7 +175,7 @@ Dat0::Dat0(std::string filename) :
 
   // FILE PARTS LENGTHS
   headerLength = inputFileStream.tellg();
-  particleLength = 3*sizeof(double)*dumpParticles;
+  particleLength = 5*sizeof(double)*dumpParticles;
   frameLength = numberParticles*particleLength;
   workLength = 4*sizeof(double);
 
@@ -253,4 +270,21 @@ double Dat0::getOrientation(int const& frame, int const& particle){
   inputFileStream.read((char*) &orientation, sizeof(double));
 
   return orientation;
+}
+
+double Dat0::getVelocity(
+  int const& frame, int const& particle, int const& dimension) {
+  // Returns velocity of a given particle at a given frame.
+
+  inputFileStream.seekg(
+    headerLength // header
+    + frame*frameLength // other frames
+    + particle*particleLength // other particles
+    + (std::max(frame - 1, 0)/framesWork)*workLength // active work sums (taking into account the frame with index 0)
+    + 3*sizeof(double) // positions and orientation
+    + dimension*sizeof(double)); // dimension
+  double velocity;
+  inputFileStream.read((char*) &velocity, sizeof(double));
+
+  return velocity;
 }
