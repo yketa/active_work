@@ -68,7 +68,7 @@ template<class SystemClass> void FIRE_WCA(
     // COMPUTE FORCES
     for (int i = 0; i < system->getNumberParticles(); i++) {
       for (int dim = 0; dim < 2; dim++) {
-        (system->getParticle(i))->force()[dim] = 0; // reset force
+        (system->getParticle(i))->force()[dim] = 0.0; // reset force
       }
     }
     ABP_WCA<SystemClass>(system, dummyParticles);
@@ -106,15 +106,15 @@ template<class SystemClass> void FIRE_WCA(
         if ( normForces > 0 ) {
           for (int dim = 0; dim < 2; dim++) {
             velocities[2*i + dim] =                          // v_{t+1} =
-              (1 - alpha)*velocities[2*i + dim]              // (1 - alpha)*v_t
+              (1.0 - alpha)*velocities[2*i + dim]            // (1 - alpha)*v_t
               + alpha*(system->getParticle(i))->force()[dim] // + alpha*F(r_t)
                 *normVelocities/normForces;                  // *|v_t|/|F(r_t)|
           }
         }
         else {
           for (int dim = 0; dim < 2; dim++) {
-            velocities[2*i + dim] =              // v_{t+1} =
-              (1 - alpha)*velocities[2*i + dim]; // (1 - alpha)*v_t
+            velocities[2*i + dim] =                // v_{t+1} =
+              (1.0 - alpha)*velocities[2*i + dim]; // (1 - alpha)*v_t
           }
         }
       }
