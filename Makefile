@@ -36,9 +36,6 @@ ifeq ($(CONTROLLED_DYNAMICS),3)
 	EXEC:=$(EXEC)_C3
 	CFLAGS+=-DCONTROLLED_DYNAMICS=3
 endif
-ifeq ($(DEBUG),yes)
-	CFLAGS+=-DDEBUG
-endif
 else
 ifeq ($(SIM0),yes)
 	EXEC=$(BU)/simulation0
@@ -48,6 +45,9 @@ else
 	CPP=main.cpp
 endif
 endif
+endif
+ifeq ($(DEBUG),yes)
+	CFLAGS+=-DDEBUG
 endif
 ifneq ($(EXEC_NAME),)
 	EXEC=$(BU)/$(EXEC_NAME)
