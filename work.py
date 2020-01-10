@@ -86,7 +86,7 @@ class ActiveWork(Dat):
 
     def nWorkPDF(self, n):
         """
-        Returns probability density function of normalised  rate ofactive work
+        Returns probability density function of normalised rate of active work
         on packs of `n' of consecutive individual active works.
 
         NOTE: Individual active work refers to the normalised rate of active
@@ -112,7 +112,8 @@ class ActiveWork(Dat):
     def nWorkHist(self, n, nBins, vmin=None, vmax=None, log=False,
         rescaled_to_max=False):
         """
-        Returns histogram with `nBins' bins of normalised rate of active work on packs of `n' of consecutive individual active works.
+        Returns histogram with `nBins' bins of normalised rate of active work on
+        packs of `n' of consecutive individual active works.
 
         NOTE: Individual active work refers to the normalised rate of active
               work on self.dumpPeriod*self.framesWork consecutive frames and
