@@ -5,7 +5,7 @@
 #include <string>
 
 #include "maths.hpp"
-#include "write.hpp"
+#include "readwrite.hpp"
 
 /////////////
 // CLASSES //
@@ -221,7 +221,7 @@ class System {
    *  [BODY (see System::saveNewState)] (all double)
    *  ||                    FRAME 1 + i*period                  || ... || FRAME 1 + (i + framesWork - 1)*period |~
    *  ||              PARTICLE 1             | ... | PARTICLE N || ... ||                  ...                  |~
-   *  ||   R   | ORIENTATION | V [FRAME - 1] | ... |     ...    || ... ||                  ...                  |~
+   *  ||   R   | ORIENTATION |       V       | ... |     ...    || ... ||                  ...                  |~
    *  || X | Y |    theta    |  V_X  |  V_Y  | ... |     ...    || ... ||                  ...                  |~
    *
    *  ~|                                                                                 || ...
@@ -342,7 +342,7 @@ class System {
 
     CellList cellList; // cell list
 
-    Output output; // output class
+    Write output; // output class
 
     int const framesWork; // number of frames on which to sum the active work before dumping
       // taken roughly equal to lp/dt
@@ -404,7 +404,7 @@ class System0 {
    *  [BODY (see System0::saveNewState)] (all double)
    *  ||                    FRAME 1 + i*period                  || ... || FRAME 1 + (i + framesWork - 1)*period |~
    *  ||              PARTICLE 1             | ... | PARTICLE N || ... ||                  ...                  |~
-   *  ||   R   | ORIENTATION | V [FRAME - 1] | ... |     ...    || ... ||                  ...                  |~
+   *  ||   R   | ORIENTATION |       V       | ... |     ...    || ... ||                  ...                  |~
    *  || X | Y |    theta    |  V_X  |  V_Y  | ... |     ...    || ... ||                  ...                  |~
    *
    *  ~|                                                                                 || ...
@@ -528,7 +528,7 @@ class System0 {
 
     CellList cellList; // cell list
 
-    Output output; // output class
+    Write output; // output class
 
     int const framesWork; // number of frames on which to sum the active work before dumping
       // taken roughly equal to lp/dt

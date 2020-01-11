@@ -1,9 +1,10 @@
-#ifndef READ_HPP
-#define READ_HPP
+#ifndef DAT_HPP
+#define DAT_HPP
 
-#include <fstream>
 #include <string>
 #include <vector>
+
+#include "readwrite.hpp"
 
 /////////////
 // CLASSES //
@@ -75,8 +76,7 @@ class Dat {
     bool const dumpParticles; // positions and orientations dumped in file
     int const dumpPeriod; // period of dumping of positions and orientations in number of frames
 
-    std::ifstream inputFileStream; // input file stream
-    long int fileSize; // size of file
+    Read input; // input class
 
     long int headerLength; // length of header in input file
     long int particleLength; // length the data of a single particle takes in a frame
@@ -168,8 +168,7 @@ class Dat0 {
     bool const dumpParticles; // positions and orientations dumped in file
     int const dumpPeriod; // period of dumping of positions and orientations in number of frames
 
-    std::ifstream inputFileStream; // input file stream
-    long int fileSize; // size of file
+    Read input; // input class
 
     long int headerLength; // length of header in input file
     long int particleLength; // length the data of a single particle takes in a frame

@@ -15,7 +15,7 @@
 #include "cloningserial.hpp"
 #include "env.hpp"
 #include "particle.hpp"
-#include "write.hpp"
+#include "readwrite.hpp"
 
 using namespace std;
 
@@ -52,7 +52,7 @@ int main() {
 
 	// output to file
 	std::string filename = getEnvString("FILE", ""); // output file name
-	Output output(filename); // output class
+	Write output(filename); // output class
 	output.write<double>(tmax);
 	output.write<int>(nc);
 	output.write<double>(sValue);

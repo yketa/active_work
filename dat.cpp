@@ -3,7 +3,7 @@
 #include <vector>
 #include <algorithm>
 
-#include "read.hpp"
+#include "dat.hpp"
 
 /*******
  * DAT *
@@ -14,35 +14,33 @@
 Dat::Dat(std::string filename) :
   numberParticles(), persistenceLength(), packingFraction(), systemSize(),
     randomSeed(), timeStep(), framesWork(), dumpParticles(), dumpPeriod(),
-  inputFileStream(filename.c_str(), std::ios::in | std::ios::binary) {
+  input(filename) {
 
   // HEADER INFORMATION
-  inputFileStream.read((char*) &numberParticles, sizeof(int));
-  inputFileStream.read((char*) &persistenceLength, sizeof(double));
-  inputFileStream.read((char*) &packingFraction, sizeof(double));
-  inputFileStream.read((char*) &systemSize, sizeof(double));
-  inputFileStream.read((char*) &randomSeed, sizeof(int));
-  inputFileStream.read((char*) &timeStep, sizeof(double));
-  inputFileStream.read((char*) &framesWork, sizeof(int));
-  inputFileStream.read((char*) &dumpParticles, sizeof(bool));
-  inputFileStream.read((char*) &dumpPeriod, sizeof(int));
+  input.read<const int>(&numberParticles);
+  input.read<const double>(&persistenceLength);
+  input.read<const double>(&packingFraction);
+  input.read<const double>(&systemSize);
+  input.read<const int>(&randomSeed);
+  input.read<const double>(&timeStep);
+  input.read<const int>(&framesWork);
+  input.read<const bool>(&dumpParticles);
+  input.read<const int>(&dumpPeriod);
 
   // FILE PARTS LENGTHS
-  headerLength = inputFileStream.tellg();
+  headerLength = input.tellg();
   particleLength = 5*sizeof(double)*dumpParticles;
   frameLength = numberParticles*particleLength;
   workLength = 4*sizeof(double);
 
   // ESTIMATION OF NUMBER OF COMPUTED WORK AND ORDER PARAMETER SUMS AND FRAMES
-  inputFileStream.seekg(0, std::ios_base::end);
-  fileSize = inputFileStream.tellg();
-  numberWork = (fileSize - headerLength - frameLength)/(
+  numberWork = (input.getFileSize() - headerLength - frameLength)/(
     framesWork*frameLength*dumpParticles + workLength);
   frames = !dumpParticles ? 0 :
-    (fileSize - headerLength - numberWork*workLength)/frameLength;
+    (input.getFileSize() - headerLength - numberWork*workLength)/frameLength;
 
   // FILE CORRUPTION CHECK
-  if ( fileSize !=
+  if ( input.getFileSize() !=
     headerLength + frames*frameLength + numberWork*workLength ) {
     std::cout << "Invalid file size." << std::endl;
     exit(0);
@@ -51,25 +49,24 @@ Dat::Dat(std::string filename) :
   // ACTIVE WORK AND ORDER PARAMETER
   double work;
   for (int i=0; i < numberWork; i++) {
-    inputFileStream.seekg(
-      headerLength // header
-      + frameLength // frame with index 0
+    input.read<double>(&work,
+      headerLength                     // header
+      + frameLength                    // frame with index 0
       + (1 + i)*framesWork*frameLength // all following packs of framesWork frames
-      + i*workLength); // previous values of the active work
-    inputFileStream.read((char*) &work, sizeof(double));
+      + i*workLength);                 // previous values of the active work
     activeWork.push_back(work);
-    inputFileStream.read((char*) &work, sizeof(double));
+    input.read<double>(&work);
     activeWorkForce.push_back(work);
-    inputFileStream.read((char*) &work, sizeof(double));
+    input.read<double>(&work);
     activeWorkOri.push_back(work);
-    inputFileStream.read((char*) &work, sizeof(double));
+    input.read<double>(&work);
     orderParameter.push_back(work);
   }
 }
 
 // DESTRUCTORS
 
-Dat::~Dat() { inputFileStream.close(); }
+Dat::~Dat() {}
 
 // METHODS
 
@@ -93,48 +90,36 @@ double Dat::getPosition(
   int const& frame, int const& particle, int const& dimension) {
   // Returns position of a given particle at a given frame.
 
-  inputFileStream.seekg(
-    headerLength // header
-    + frame*frameLength // other frames
-    + particle*particleLength // other particles
+  return input.read<double>(
+    headerLength                                     // header
+    + frame*frameLength                              // other frames
+    + particle*particleLength                        // other particles
     + (std::max(frame - 1, 0)/framesWork)*workLength // active work sums (taking into account the frame with index 0)
-    + dimension*sizeof(double)); // dimension
-  double position;
-  inputFileStream.read((char*) &position, sizeof(double));
-
-  return position;
+    + dimension*sizeof(double));                     // dimension
 }
 
 double Dat::getOrientation(int const& frame, int const& particle){
   // Returns position of a given particle at a given frame.
 
-  inputFileStream.seekg(
-    headerLength // header
-    + frame*frameLength // other frames
-    + particle*particleLength // other particles
+  return input.read<double>(
+    headerLength                                     // header
+    + frame*frameLength                              // other frames
+    + particle*particleLength                        // other particles
     + (std::max(frame - 1, 0)/framesWork)*workLength // active work sums (taking into account the frame with index 0)
-    + 2*sizeof(double)); // positions
-  double orientation;
-  inputFileStream.read((char*) &orientation, sizeof(double));
-
-  return orientation;
+    + 2*sizeof(double));                             // positions
 }
 
 double Dat::getVelocity(
   int const& frame, int const& particle, int const& dimension) {
   // Returns velocity of a given particle at a given frame.
 
-  inputFileStream.seekg(
-    headerLength // header
-    + frame*frameLength // other frames
-    + particle*particleLength // other particles
+  return input.read<double>(
+    headerLength                                     // header
+    + frame*frameLength                              // other frames
+    + particle*particleLength                        // other particles
     + (std::max(frame - 1, 0)/framesWork)*workLength // active work sums (taking into account the frame with index 0)
-    + 3*sizeof(double) // positions and orientation
-    + dimension*sizeof(double)); // dimension
-  double velocity;
-  inputFileStream.read((char*) &velocity, sizeof(double));
-
-  return velocity;
+    + 3*sizeof(double)                               // positions and orientation
+    + dimension*sizeof(double));                     // dimension
 }
 
 
@@ -149,46 +134,44 @@ Dat0::Dat0(std::string filename) :
     transDiffusivity(), rotDiffusivity(), persistenceLength(),
     packingFraction(), systemSize(), randomSeed(), timeStep(), framesWork(),
     dumpParticles(), dumpPeriod(),
-  inputFileStream(filename.c_str(), std::ios::in | std::ios::binary) {
+  input(filename) {
 
   // HEADER INFORMATION
-  inputFileStream.read((char*) &numberParticles, sizeof(int));
-  inputFileStream.read((char*) &potentialParameter, sizeof(double));
-  inputFileStream.read((char*) &propulsionVelocity, sizeof(double));
-  inputFileStream.read((char*) &transDiffusivity, sizeof(double));
-  inputFileStream.read((char*) &rotDiffusivity, sizeof(double));
-  inputFileStream.read((char*) &persistenceLength, sizeof(double));
-  inputFileStream.read((char*) &packingFraction, sizeof(double));
-  inputFileStream.read((char*) &systemSize, sizeof(double));
-  inputFileStream.read((char*) &randomSeed, sizeof(int));
-  inputFileStream.read((char*) &timeStep, sizeof(double));
-  inputFileStream.read((char*) &framesWork, sizeof(int));
-  inputFileStream.read((char*) &dumpParticles, sizeof(bool));
-  inputFileStream.read((char*) &dumpPeriod, sizeof(int));
+  input.read<const int>(&numberParticles);
+  input.read<const double>(&potentialParameter);
+  input.read<const double>(&propulsionVelocity);
+  input.read<const double>(&transDiffusivity);
+  input.read<const double>(&rotDiffusivity);
+  input.read<const double>(&persistenceLength);
+  input.read<const double>(&packingFraction);
+  input.read<const double>(&systemSize);
+  input.read<const int>(&randomSeed);
+  input.read<const double>(&timeStep);
+  input.read<const int>(&framesWork);
+  input.read<const bool>(&dumpParticles);
+  input.read<const int>(&dumpPeriod);
 
   // DIAMETERS
   double diameter;
   for (int i=0; i < numberParticles; i++) {
-    inputFileStream.read((char*) &diameter, sizeof(double));
+    input.read<double>(&diameter);
     diameters.push_back(diameter);
   }
 
   // FILE PARTS LENGTHS
-  headerLength = inputFileStream.tellg();
+  headerLength = input.tellg();
   particleLength = 5*sizeof(double)*dumpParticles;
   frameLength = numberParticles*particleLength;
   workLength = 4*sizeof(double);
 
   // ESTIMATION OF NUMBER OF COMPUTED WORK AND ORDER PARAMETER SUMS AND FRAMES
-  inputFileStream.seekg(0, std::ios_base::end);
-  fileSize = inputFileStream.tellg();
-  numberWork = (fileSize - headerLength - frameLength)/(
+  numberWork = (input.getFileSize() - headerLength - frameLength)/(
     framesWork*frameLength*dumpParticles + workLength);
   frames = !dumpParticles ? 0 :
-    (fileSize - headerLength - numberWork*workLength)/frameLength;
+    (input.getFileSize() - headerLength - numberWork*workLength)/frameLength;
 
   // FILE CORRUPTION CHECK
-  if ( fileSize !=
+  if ( input.getFileSize() !=
     headerLength + frames*frameLength + numberWork*workLength ) {
     std::cout << "Invalid file size." << std::endl;
     exit(0);
@@ -197,25 +180,24 @@ Dat0::Dat0(std::string filename) :
   // ACTIVE WORK AND ORDER PARAMETER
   double work;
   for (int i=0; i < numberWork; i++) {
-    inputFileStream.seekg(
-      headerLength // header
-      + frameLength // frame with index 0
+    input.read<double>(&work,
+      headerLength                     // header
+      + frameLength                    // frame with index 0
       + (1 + i)*framesWork*frameLength // all following packs of framesWork frames
-      + i*workLength); // previous values of the active work
-    inputFileStream.read((char*) &work, sizeof(double));
+      + i*workLength);                 // previous values of the active work
     activeWork.push_back(work);
-    inputFileStream.read((char*) &work, sizeof(double));
+    input.read<double>(&work);
     activeWorkForce.push_back(work);
-    inputFileStream.read((char*) &work, sizeof(double));
+    input.read<double>(&work);
     activeWorkOri.push_back(work);
-    inputFileStream.read((char*) &work, sizeof(double));
+    input.read<double>(&work);
     orderParameter.push_back(work);
   }
 }
 
 // DESTRUCTORS
 
-Dat0::~Dat0() { inputFileStream.close(); }
+Dat0::~Dat0() {}
 
 // METHODS
 
@@ -245,46 +227,34 @@ double Dat0::getPosition(
   int const& frame, int const& particle, int const& dimension) {
   // Returns position of a given particle at a given frame.
 
-  inputFileStream.seekg(
-    headerLength // header
-    + frame*frameLength // other frames
-    + particle*particleLength // other particles
+  return input.read<double>(
+    headerLength                                     // header
+    + frame*frameLength                              // other frames
+    + particle*particleLength                        // other particles
     + (std::max(frame - 1, 0)/framesWork)*workLength // active work sums (taking into account the frame with index 0)
-    + dimension*sizeof(double)); // dimension
-  double position;
-  inputFileStream.read((char*) &position, sizeof(double));
-
-  return position;
+    + dimension*sizeof(double));                     // dimension
 }
 
 double Dat0::getOrientation(int const& frame, int const& particle){
   // Returns position of a given particle at a given frame.
 
-  inputFileStream.seekg(
-    headerLength // header
-    + frame*frameLength // other frames
-    + particle*particleLength // other particles
+  return input.read<double>(
+    headerLength                                     // header
+    + frame*frameLength                              // other frames
+    + particle*particleLength                        // other particles
     + (std::max(frame - 1, 0)/framesWork)*workLength // active work sums (taking into account the frame with index 0)
-    + 2*sizeof(double)); // positions
-  double orientation;
-  inputFileStream.read((char*) &orientation, sizeof(double));
-
-  return orientation;
+    + 2*sizeof(double));                             // positions
 }
 
 double Dat0::getVelocity(
   int const& frame, int const& particle, int const& dimension) {
   // Returns velocity of a given particle at a given frame.
 
-  inputFileStream.seekg(
-    headerLength // header
-    + frame*frameLength // other frames
-    + particle*particleLength // other particles
+  return input.read<double>(
+    headerLength                                     // header
+    + frame*frameLength                              // other frames
+    + particle*particleLength                        // other particles
     + (std::max(frame - 1, 0)/framesWork)*workLength // active work sums (taking into account the frame with index 0)
-    + 3*sizeof(double) // positions and orientation
-    + dimension*sizeof(double)); // dimension
-  double velocity;
-  inputFileStream.read((char*) &velocity, sizeof(double));
-
-  return velocity;
+    + 3*sizeof(double)                               // positions and orientation
+    + dimension*sizeof(double));                     // dimension
 }

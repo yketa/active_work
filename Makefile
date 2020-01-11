@@ -77,6 +77,9 @@ $(EXEC): $(OBJ)
 
 #### DEPENDENCIES ####
 
+$(OB)/dat.o: dat.cpp dat.hpp readwrite.hpp
+	$(CC) -o $(OB)/dat.o -c dat.cpp $(CFLAGS)
+
 $(OB)/env.o: env.cpp env.hpp
 	$(CC) -o $(OB)/env.o -c env.cpp $(CFLAGS)
 
@@ -86,27 +89,24 @@ $(OB)/iteration.o: iteration.cpp iteration.hpp particle.hpp
 $(OB)/maths.o: maths.cpp maths.hpp
 	$(CC) -o $(OB)/maths.o -c maths.cpp $(CFLAGS)
 
-$(OB)/particle.o: particle.cpp particle.hpp maths.hpp
+$(OB)/particle.o: particle.cpp particle.hpp maths.hpp readwrite.hpp
 	$(CC) -o $(OB)/particle.o -c particle.cpp $(CFLAGS)
 
-$(OB)/read.o: read.cpp read.hpp
-	$(CC) -o $(OB)/read.o -c read.cpp $(CFLAGS)
-
-$(OB)/write.o: write.cpp write.hpp
-	$(CC) -o $(OB)/write.o -c write.cpp $(CFLAGS)
+$(OB)/readwrite.o: readwrite.cpp readwrite.hpp
+	$(CC) -o $(OB)/readwrite.o -c readwrite.cpp $(CFLAGS)
 
 ##
 
-$(OB)/cloning.o: cloning.cpp cloningserial.hpp env.hpp particle.hpp
+$(OB)/cloning.o: cloning.cpp cloningserial.hpp env.hpp particle.hpp readwrite.hpp
 	$(CC) -o $(OB)/cloning.o -c cloning.cpp $(CFLAGS) $(MPIFLAGS)
 
-$(OB)/main.o: main.cpp env.hpp iteration.hpp maths.hpp particle.hpp read.hpp
+$(OB)/main.o: main.cpp env.hpp iteration.hpp particle.hpp
 	$(CC) -o $(OB)/main.o -c main.cpp $(CFLAGS)
 
-$(OB)/main0.o: main0.cpp env.hpp iteration.hpp maths.hpp particle.hpp read.hpp
+$(OB)/main0.o: main0.cpp env.hpp fire.hpp iteration.hpp maths.hpp particle.hpp
 	$(CC) -o $(OB)/main0.o -c main0.cpp $(CFLAGS)
 
-$(OB)/test.o: test.cpp env.hpp iteration.hpp maths.hpp particle.hpp read.hpp
+$(OB)/test.o: test.cpp
 	$(CC) -o $(OB)/test.o -c test.cpp $(CFLAGS)
 
 #### VALGRIND ####
