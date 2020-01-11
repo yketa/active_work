@@ -22,20 +22,6 @@ Output::~Output() { outputStream.close(); }
 
 // METHODS
 
-void Output::write(bool out) {
-  if ( outputStream ) {
-    outputStream.write((char*) &out, sizeof(bool));
-  }
-}
-void Output::write(int out) {
-  if ( outputStream ) {
-    outputStream.write((char*) &out, sizeof(int));
-  }
-}
-void Output::write(double out) {
-  if ( outputStream ) {
-    outputStream.write((char*) &out, sizeof(double));
-  }
-}
-
 std::string Output::getOutputFile() const { return outputFile; } // returns output file name
+
+long int Output::tellp() { return outputStream.tellp(); } // returns position in output stream

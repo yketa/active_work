@@ -53,18 +53,18 @@ int main() {
 	// output to file
 	std::string filename = getEnvString("FILE", ""); // output file name
 	Output output(filename); // output class
-	output.write(tmax);
-	output.write(nc);
-	output.write(sValue);
-	output.write(seed);
-	output.write(nRuns);
-	output.write(cloneMethod);
-	output.write(initSim);
-	output.write(N);
-	output.write(lp);
-	output.write(phi);
-	output.write(tau);
-	output.write(dt);
+	output.write<double>(tmax);
+	output.write<int>(nc);
+	output.write<double>(sValue);
+	output.write<int>(seed);
+	output.write<int>(nRuns);
+	output.write<int>(cloneMethod);
+	output.write<int>(initSim);
+	output.write<int>(N);
+	output.write<double>(lp);
+	output.write<double>(phi);
+	output.write<int>(tau);
+	output.write<double>(dt);
 
 	// parameters class
 	Parameters parameters(N, lp, phi, dt);
@@ -108,12 +108,12 @@ int main() {
               << "##time " << clones.outputWalltime << std::endl;
 
 		// output to file
-		output.write(clones.outputPsi);
-		output.write(clones.outputOP[0]);
-		output.write(clones.outputOP[1]);
-		output.write(clones.outputOP[2]);
-		output.write(clones.outputOP[3]);
-		output.write(clones.outputWalltime);
+		output.write<double>(clones.outputPsi);
+		output.write<double>(clones.outputOP[0]);
+		output.write<double>(clones.outputOP[1]);
+		output.write<double>(clones.outputOP[2]);
+		output.write<double>(clones.outputOP[3]);
+		output.write<double>(clones.outputWalltime);
   }
 
 }

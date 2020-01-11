@@ -190,15 +190,15 @@ System::System(
   randomGenerator.setSeed(randomSeed);
 
   // write header with system parameters to output file
-  output.write(getNumberParticles());
-  output.write(getPersistenceLength());
-  output.write(getPackingFraction());
-  output.write(getSystemSize());
-  output.write(randomSeed);
-  output.write(getTimeStep());
-  output.write(framesWork);
-  output.write(dumpParticles);
-  output.write(dumpPeriod);
+  output.write<int>(getNumberParticles());
+  output.write<double>(getPersistenceLength());
+  output.write<double>(getPackingFraction());
+  output.write<double>(getSystemSize());
+  output.write<int>(randomSeed);
+  output.write<double>(getTimeStep());
+  output.write<int>(framesWork);
+  output.write<bool>(dumpParticles);
+  output.write<int>(dumpPeriod);
 
   // put particles on a grid with random orientation
   int gridSize = ceil(sqrt(getNumberParticles())); // size of the grid on which to put the particles
@@ -240,15 +240,15 @@ System::System(
   randomGenerator.setSeed(randomSeed);
 
   // write header with system parameters to output file
-  output.write(getNumberParticles());
-  output.write(getPersistenceLength());
-  output.write(getPackingFraction());
-  output.write(getSystemSize());
-  output.write(randomSeed);
-  output.write(getTimeStep());
-  output.write(framesWork);
-  output.write(dumpParticles);
-  output.write(dumpPeriod);
+  output.write<int>(getNumberParticles());
+  output.write<double>(getPersistenceLength());
+  output.write<double>(getPackingFraction());
+  output.write<double>(getSystemSize());
+  output.write<int>(randomSeed);
+  output.write<double>(getTimeStep());
+  output.write<int>(framesWork);
+  output.write<bool>(dumpParticles);
+  output.write<int>(dumpPeriod);
 
   // initialise cell list
   cellList.initialise<System>(this, pow(2., 1./6.));
@@ -428,11 +428,11 @@ void System::saveInitialState() {
 
     for (int i=0; i < getNumberParticles(); i++) { // output all particles
       for (int dim=0; dim < 2; dim++) { // output position in each dimension
-        output.write(particles[i].position()[dim]);
+        output.write<double>(particles[i].position()[dim]);
       }
-      output.write(particles[i].orientation()[0]); // output orientation
+      output.write<double>(particles[i].orientation()[0]); // output orientation
       for (int dim=0; dim < 2; dim++) { // output velocity in each dimension
-        output.write(0.0); // zero by default for initial frame
+        output.write<double>(0.0); // zero by default for initial frame
       }
     }
   }
@@ -482,23 +482,23 @@ void System::saveNewState(std::vector<Particle>& newParticles) {
         _wrapCoordinate<System>(this, newParticles[i].position()[dim]);
       // output wrapped position in each dimension
       if ( dumpParticles && dumpFrame % dumpPeriod == 0 ) {
-        output.write(newParticles[i].position()[dim]);
+        output.write<double>(newParticles[i].position()[dim]);
       }
     }
 
     if ( dumpParticles && dumpFrame % dumpPeriod == 0 ) {
 
       // ORIENTATION
-      output.write(newParticles[i].orientation()[0]);
+      output.write<double>(newParticles[i].orientation()[0]);
 
       // VELOCITIES
       for (int dim=0; dim < 2; dim++) {
-        output.write(                                                        // v =
+        output.write<double>(                                                // v =
           particles[i].force()[dim]/3.0/getPersistenceLength()               // 1/3 sigma/lp F
           + cos(particles[i].orientation()[0] - dim*M_PI/2)                  // + u(theta)
           #if CONTROLLED_DYNAMICS
-          *(1.0 - 2.0*system->getBiasingParameter()                          // *(1 - 2*s
-            /3.0/parameters->getPersistenceLength())                         // /3/lp)
+          *(1.0 - 2.0*getBiasingParameter()                                  // *(1 - 2*s
+            /3.0/getPersistenceLength())                                     // /3/lp)
           #endif
           + sqrt(2.0/3.0/getPersistenceLength())*particles[i].noise()[dim]); // + sqrt(2/3 sigma/lp)*eta
       }
@@ -554,10 +554,10 @@ void System::saveNewState(std::vector<Particle>& newParticles) {
     orderSum[1] = orderSum[0]/(
       framesWork*dumpPeriod);
     // output normalised rates
-    output.write(workSum[1]);
-    output.write(workForceSum[1]);
-    output.write(workOrientationSum[1]);
-    output.write(orderSum[1]);
+    output.write<double>(workSum[1]);
+    output.write<double>(workForceSum[1]);
+    output.write<double>(workOrientationSum[1]);
+    output.write<double>(orderSum[1]);
     // update time extensive quantities over trajectory since last reset
     workSum[2] += workSum[0]/getNumberParticles();
     workForceSum[2] += workForceSum[0]/getNumberParticles();
@@ -632,23 +632,23 @@ System0::System0(
   setDiameters(diameters);
 
   // write header with system parameters to output file
-  output.write(getNumberParticles());
-  output.write(getPotentialParameter());
-  output.write(getPropulsionVelocity());
-  output.write(getTransDiffusivity());
-  output.write(getRotDiffusivity());
-  output.write(getPersistenceLength());
-  output.write(getPackingFraction());
-  output.write(getSystemSize());
-  output.write(randomSeed);
-  output.write(getTimeStep());
-  output.write(framesWork);
-  output.write(dumpParticles);
-  output.write(dumpPeriod);
+  output.write<int>(getNumberParticles());
+  output.write<double>(getPotentialParameter());
+  output.write<double>(getPropulsionVelocity());
+  output.write<double>(getTransDiffusivity());
+  output.write<double>(getRotDiffusivity());
+  output.write<double>(getPersistenceLength());
+  output.write<double>(getPackingFraction());
+  output.write<double>(getSystemSize());
+  output.write<int>(randomSeed);
+  output.write<double>(getTimeStep());
+  output.write<int>(framesWork);
+  output.write<bool>(dumpParticles);
+  output.write<int>(dumpPeriod);
 
   // write particles' diameters
   for (int i=0; i < parameters->getNumberParticles(); i++) {
-    output.write(getParticle(i)->diameter()[0]);
+    output.write<double>(getParticle(i)->diameter()[0]);
   }
 
   // put particles on a grid with random orientation
@@ -692,23 +692,23 @@ System0::System0(
   setDiameters(diameters);
 
   // write header with system parameters to output file
-  output.write(getNumberParticles());
-  output.write(getPotentialParameter());
-  output.write(getPropulsionVelocity());
-  output.write(getTransDiffusivity());
-  output.write(getRotDiffusivity());
-  output.write(getPersistenceLength());
-  output.write(getPackingFraction());
-  output.write(getSystemSize());
-  output.write(randomSeed);
-  output.write(getTimeStep());
-  output.write(framesWork);
-  output.write(dumpParticles);
-  output.write(dumpPeriod);
+  output.write<int>(getNumberParticles());
+  output.write<double>(getPotentialParameter());
+  output.write<double>(getPropulsionVelocity());
+  output.write<double>(getTransDiffusivity());
+  output.write<double>(getRotDiffusivity());
+  output.write<double>(getPersistenceLength());
+  output.write<double>(getPackingFraction());
+  output.write<double>(getSystemSize());
+  output.write<int>(randomSeed);
+  output.write<double>(getTimeStep());
+  output.write<int>(framesWork);
+  output.write<bool>(dumpParticles);
+  output.write<int>(dumpPeriod);
 
   // write particles' diameters
   for (int i=0; i < parameters->getNumberParticles(); i++) {
-    output.write(getParticle(i)->diameter()[0]);
+    output.write<double>(getParticle(i)->diameter()[0]);
   }
 
   // put particles on a grid with random orientation
@@ -756,23 +756,23 @@ System0::System0(
   setDiameters(diameters);
 
   // write header with system parameters to output file
-  output.write(getNumberParticles());
-  output.write(getPotentialParameter());
-  output.write(getPropulsionVelocity());
-  output.write(getTransDiffusivity());
-  output.write(getRotDiffusivity());
-  output.write(getPersistenceLength());
-  output.write(getPackingFraction());
-  output.write(getSystemSize());
-  output.write(randomSeed);
-  output.write(getTimeStep());
-  output.write(framesWork);
-  output.write(dumpParticles);
-  output.write(dumpPeriod);
+  output.write<int>(getNumberParticles());
+  output.write<double>(getPotentialParameter());
+  output.write<double>(getPropulsionVelocity());
+  output.write<double>(getTransDiffusivity());
+  output.write<double>(getRotDiffusivity());
+  output.write<double>(getPersistenceLength());
+  output.write<double>(getPackingFraction());
+  output.write<double>(getSystemSize());
+  output.write<int>(randomSeed);
+  output.write<double>(getTimeStep());
+  output.write<int>(framesWork);
+  output.write<bool>(dumpParticles);
+  output.write<int>(dumpPeriod);
 
   // write particles' diameters
   for (int i=0; i < getNumberParticles(); i++) {
-    output.write(getParticle(i)->diameter()[0]);
+    output.write<double>(getParticle(i)->diameter()[0]);
   }
 
   // initialise cell list
@@ -809,23 +809,23 @@ System0::System0(
   setDiameters(diameters);
 
   // write header with system parameters to output file
-  output.write(getNumberParticles());
-  output.write(getPotentialParameter());
-  output.write(getPropulsionVelocity());
-  output.write(getTransDiffusivity());
-  output.write(getRotDiffusivity());
-  output.write(getPersistenceLength());
-  output.write(getPackingFraction());
-  output.write(getSystemSize());
-  output.write(randomSeed);
-  output.write(getTimeStep());
-  output.write(framesWork);
-  output.write(dumpParticles);
-  output.write(dumpPeriod);
+  output.write<int>(getNumberParticles());
+  output.write<double>(getPotentialParameter());
+  output.write<double>(getPropulsionVelocity());
+  output.write<double>(getTransDiffusivity());
+  output.write<double>(getRotDiffusivity());
+  output.write<double>(getPersistenceLength());
+  output.write<double>(getPackingFraction());
+  output.write<double>(getSystemSize());
+  output.write<int>(randomSeed);
+  output.write<double>(getTimeStep());
+  output.write<int>(framesWork);
+  output.write<bool>(dumpParticles);
+  output.write<int>(dumpPeriod);
 
   // write particles' diameters
   for (int i=0; i < getNumberParticles(); i++) {
-    output.write(getParticle(i)->diameter()[0]);
+    output.write<double>(getParticle(i)->diameter()[0]);
   }
 
   // initialise cell list
@@ -1033,11 +1033,11 @@ void System0::saveInitialState() {
 
     for (int i=0; i < getNumberParticles(); i++) { // output all particles
       for (int dim=0; dim < 2; dim++) { // output position in each dimension
-        output.write(particles[i].position()[dim]);
+        output.write<double>(particles[i].position()[dim]);
       }
-      output.write(particles[i].orientation()[0]); // output orientation
+      output.write<double>(particles[i].orientation()[0]); // output orientation
       for (int dim=0; dim < 2; dim++) { // output velocity in each dimension
-        output.write(0.0); // zero by default for initial frame
+        output.write<double>(0.0); // zero by default for initial frame
       }
     }
   }
@@ -1090,18 +1090,18 @@ void System0::saveNewState(std::vector<Particle>& newParticles) {
         _wrapCoordinate<System0>(this, newParticles[i].position()[dim]);
       // output wrapped position in each dimension
       if ( dumpParticles && dumpFrame % dumpPeriod == 0 ) {
-        output.write(newParticles[i].position()[dim]);
+        output.write<double>(newParticles[i].position()[dim]);
       }
     }
 
     if ( dumpParticles && dumpFrame % dumpPeriod == 0 ) {
 
       // ORIENTATION
-      output.write(newParticles[i].orientation()[0]);
+      output.write<double>(newParticles[i].orientation()[0]);
 
       // VELOCITIES
       for (int dim=0; dim < 2; dim++) {
-        output.write(                                                   // v =
+        output.write<double>(                                           // v =
           getPotentialParameter()*particles[i].force()[dim]             // epsilon*F
           + getPropulsionVelocity()                                     // + v_0
             *cos(particles[i].orientation()[0] - dim*M_PI/2)            // *u(theta)
@@ -1127,10 +1127,10 @@ void System0::saveNewState(std::vector<Particle>& newParticles) {
     orderSum[1] = orderSum[0]/(
       framesWork*dumpPeriod);
     // output normalised rates
-    output.write(workSum[1]);
-    output.write(workForceSum[1]);
-    output.write(workOrientationSum[1]);
-    output.write(orderSum[1]);
+    output.write<double>(workSum[1]);
+    output.write<double>(workForceSum[1]);
+    output.write<double>(workOrientationSum[1]);
+    output.write<double>(orderSum[1]);
     // update time extensive quantities over trajectory since last reset
     workSum[2] += workSum[0]/getNumberParticles();
     workForceSum[2] += workForceSum[0]/getNumberParticles();

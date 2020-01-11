@@ -30,11 +30,29 @@ class Output {
 
     // METHODS
 
-    void write(bool out);
-    void write(int out);
-    void write(double out);
+    template<class OutClass> void write(OutClass out) {
+      // Write to output file.
+
+      if ( outputStream ) {
+        outputStream.write((char*) &out, sizeof(OutClass));
+      }
+    }
+
+    template<class OutClass> void write(OutClass out,
+      long int offset, std::ios_base::seekdir way = std::ios_base::beg) {
+      // Write to output file at a given position given by offset relative to
+      // way.
+
+      if ( outputStream ) {
+        outputStream.seekp(offset, way); // set position in output stream
+        write<OutClass>(out); // write
+        outputStream.seekp(0, std::ios_base::end); // set position to end of file
+      }
+    }
 
     std::string getOutputFile() const; // returns output file name
+
+    long int tellp(); // returns position in output stream
 
   private:
 
