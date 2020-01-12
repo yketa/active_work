@@ -153,7 +153,7 @@ System::System() :
   randomSeed(0), randomGenerator(),
   particles(0),
   cellList(),
-  output(""),
+  output(""), velocitiesDumps(),
   framesWork(0), dumpParticles(0), dumpPeriod(0),
   biasingParameter(0),
   dumpFrame(-1),
@@ -172,7 +172,7 @@ System::System(
   randomSeed(seed), randomGenerator(),
   particles(parameters->getNumberParticles()),
   cellList(),
-  output(filename),
+  output(filename), velocitiesDumps(parameters->getNumberParticles()),
   framesWork(nWork > 0 ? nWork : (int)
     parameters->getPersistenceLength()/(parameters->getTimeStep()*period)),
     dumpParticles(dump), dumpPeriod(period),
@@ -222,7 +222,7 @@ System::System(
   randomSeed(seed), randomGenerator(),
   particles(system->getNumberParticles()),
   cellList(),
-  output(filename),
+  output(filename), velocitiesDumps(system->getNumberParticles()),
   framesWork(nWork > 0 ? nWork : (int)
     system->getPersistenceLength()/(system->getTimeStep()*period)),
     dumpParticles(dump), dumpPeriod(period),
@@ -427,10 +427,14 @@ void System::saveInitialState() {
   if ( dumpParticles ) {
 
     for (int i=0; i < getNumberParticles(); i++) { // output all particles
+      // POSITIONS
       for (int dim=0; dim < 2; dim++) { // output position in each dimension
         output.write<double>(particles[i].position()[dim]);
       }
+      // ORIENTATIONS
       output.write<double>(particles[i].orientation()[0]); // output orientation
+      // VELOCITIES
+      velocitiesDumps[i] = output.tellp(); // location to dump velocities at next time step
       for (int dim=0; dim < 2; dim++) { // output velocity in each dimension
         output.write<double>(0.0); // zero by default for initial frame
       }
@@ -486,23 +490,35 @@ void System::saveNewState(std::vector<Particle>& newParticles) {
       }
     }
 
+    if ( dumpParticles && (dumpFrame - 1) % dumpPeriod == 0 ) {
+
+      // VELOCITIES
+      for (int dim=0; dim < 2; dim++) {
+        output.write<double>(                                               // v =
+          particles[i].force()[dim]/3.0/getPersistenceLength()              // 1/3 sigma/lp F
+          + cos(particles[i].orientation()[0] - dim*M_PI/2)                 // + u(theta)
+          #if CONTROLLED_DYNAMICS
+          *(1.0 - 2.0*getBiasingParameter()                                 // *(1 - 2*s
+            /3.0/getPersistenceLength())                                    // /3/lp)
+          #endif
+          + sqrt(2.0/3.0/getPersistenceLength())*particles[i].noise()[dim], // + sqrt(2/3 sigma/lp)*eta
+          velocitiesDumps[i] + dim*sizeof(double));
+      }
+    }
+
     if ( dumpParticles && dumpFrame % dumpPeriod == 0 ) {
 
       // ORIENTATION
       output.write<double>(newParticles[i].orientation()[0]);
 
       // VELOCITIES
+      velocitiesDumps[i] = output.tellp(); // location to dump velocities at next time step
       for (int dim=0; dim < 2; dim++) {
-        output.write<double>(                                                // v =
-          particles[i].force()[dim]/3.0/getPersistenceLength()               // 1/3 sigma/lp F
-          + cos(particles[i].orientation()[0] - dim*M_PI/2)                  // + u(theta)
-          #if CONTROLLED_DYNAMICS
-          *(1.0 - 2.0*getBiasingParameter()                                  // *(1 - 2*s
-            /3.0/getPersistenceLength())                                     // /3/lp)
-          #endif
-          + sqrt(2.0/3.0/getPersistenceLength())*particles[i].noise()[dim]); // + sqrt(2/3 sigma/lp)*eta
+        output.write<double>(0.0); // zero by default until rewrite at next time step
       }
     }
+
+
   }
 
   // ORDER PARAMETER
@@ -603,7 +619,7 @@ System0::System0() :
   randomSeed(0), randomGenerator(),
   particles(0),
   cellList(),
-  output(""),
+  output(""), velocitiesDumps(),
   framesWork(0), dumpParticles(0), dumpPeriod(0),
   dumpFrame(-1),
   workSum {0, 0, 0}, workForceSum {0, 0, 0}, workOrientationSum {0, 0, 0},
@@ -616,7 +632,7 @@ System0::System0(
   randomSeed(seed), randomGenerator(),
   particles(parameters->getNumberParticles()),
   cellList(),
-  output(filename),
+  output(filename), velocitiesDumps(parameters->getNumberParticles()),
   framesWork(nWork > 0 ? nWork : (int)
     1/(parameters->getRotDiffusivity()*parameters->getTimeStep()*period)),
     dumpParticles(dump), dumpPeriod(period),
@@ -677,7 +693,7 @@ System0::System0(
   randomSeed(seed), randomGenerator(),
   particles(parameters->getNumberParticles()),
   cellList(),
-  output(filename),
+  output(filename), velocitiesDumps(parameters->getNumberParticles()),
   framesWork(nWork > 0 ? nWork : (int)
     1/(parameters->getRotDiffusivity()*parameters->getTimeStep()*period)),
     dumpParticles(dump), dumpPeriod(period),
@@ -737,7 +753,7 @@ System0::System0(
   randomSeed(seed), randomGenerator(),
   particles(system->getNumberParticles()),
   cellList(),
-  output(filename),
+  output(filename), velocitiesDumps(system->getNumberParticles()),
   framesWork(nWork > 0 ? nWork : (int)
     1/(system->getRotDiffusivity()*system->getTimeStep()*period)),
     dumpParticles(dump), dumpPeriod(period),
@@ -794,7 +810,7 @@ System0::System0(
   randomSeed(seed), randomGenerator(),
   particles(system->getNumberParticles()),
   cellList(),
-  output(filename),
+  output(filename), velocitiesDumps(system->getNumberParticles()),
   framesWork(nWork > 0 ? nWork : (int)
     1/(system->getRotDiffusivity()*system->getTimeStep()*period)),
     dumpParticles(dump), dumpPeriod(period),
@@ -1032,10 +1048,14 @@ void System0::saveInitialState() {
   if ( dumpParticles ) {
 
     for (int i=0; i < getNumberParticles(); i++) { // output all particles
+      // POSITIONS
       for (int dim=0; dim < 2; dim++) { // output position in each dimension
         output.write<double>(particles[i].position()[dim]);
       }
+      // ORIENTATIONS
       output.write<double>(particles[i].orientation()[0]); // output orientation
+      // VELOCITIES
+      velocitiesDumps[i] = output.tellp(); // location to dump velocities at next time step
       for (int dim=0; dim < 2; dim++) { // output velocity in each dimension
         output.write<double>(0.0); // zero by default for initial frame
       }
@@ -1094,18 +1114,28 @@ void System0::saveNewState(std::vector<Particle>& newParticles) {
       }
     }
 
+    if ( dumpParticles && (dumpFrame - 1) % dumpPeriod == 0 ) {
+
+      // VELOCITIES
+      for (int dim=0; dim < 2; dim++) {
+        output.write<double>(                                          // v =
+          getPotentialParameter()*particles[i].force()[dim]            // epsilon*F
+          + getPropulsionVelocity()                                    // + v_0
+            *cos(particles[i].orientation()[0] - dim*M_PI/2)           // *u(theta)
+          + sqrt(2.0*getTransDiffusivity())*particles[i].noise()[dim], // + sqrt(2 D)*eta
+          velocitiesDumps[i] + dim*sizeof(double));
+      }
+    }
+
     if ( dumpParticles && dumpFrame % dumpPeriod == 0 ) {
 
       // ORIENTATION
       output.write<double>(newParticles[i].orientation()[0]);
 
       // VELOCITIES
+      velocitiesDumps[i] = output.tellp(); // location to dump velocities at next time step
       for (int dim=0; dim < 2; dim++) {
-        output.write<double>(                                           // v =
-          getPotentialParameter()*particles[i].force()[dim]             // epsilon*F
-          + getPropulsionVelocity()                                     // + v_0
-            *cos(particles[i].orientation()[0] - dim*M_PI/2)            // *u(theta)
-          + sqrt(2.0*getTransDiffusivity())*particles[i].noise()[dim]); // + sqrt(2 D)*eta
+        output.write<double>(0.0); // zero by default until rewrite at next time step
       }
     }
   }

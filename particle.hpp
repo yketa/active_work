@@ -343,6 +343,7 @@ class System {
     CellList cellList; // cell list
 
     Write output; // output class
+    std::vector<long int> velocitiesDumps; // locations in output file to dump velocities
 
     int const framesWork; // number of frames on which to sum the active work before dumping
       // taken roughly equal to lp/dt
@@ -529,6 +530,7 @@ class System0 {
     CellList cellList; // cell list
 
     Write output; // output class
+    std::vector<long int> velocitiesDumps; // locations in output file to dump velocities
 
     int const framesWork; // number of frames on which to sum the active work before dumping
       // taken roughly equal to lp/dt
