@@ -18,6 +18,9 @@ MODE : string
     | 'displacement' | Displacement direction | Relative to  | Displacement   |
     |                |                        | diameter     | norm           |
     |________________|________________________|______________|________________|
+    | 'velocity'     | Velocity direction     | Relative to  | Velocity       |
+    |                |                        | diameter     | norm           |
+    |________________|________________________|______________|________________|
     | 'bare'         | None                   | None         | Black          |
     |________________|________________________|______________|________________|
     DEFAULT: orientation
@@ -505,6 +508,89 @@ class Displacement(_Frame):
             self.draw_arrow(particle,
                 *normalise1D(displacement)*0.75*self.diameters[particle])   # draw displacement direction arrow
 
+class Velocity(_Frame):
+    """
+    Plotting class specific to 'velocity' mode.
+    """
+
+    def __init__(self, dat, frame, box_size, centre,
+        arrow_width=_arrow_width,
+        arrow_head_width=_arrow_head_width,
+        arrow_head_length=_arrow_head_length,
+        pad=_colormap_label_pad,
+        label=False, **kwargs):
+        """
+        Initialises and plots figure.
+
+        Parameters
+        ----------
+        dat : active_work.read.Dat
+    		Data object.
+        frame : int
+            Frame to render.
+        box_size : float
+            Length of the square box to render.
+        centre : 2-uple like
+            Centre of the box to render.
+        arrow_width : float
+            Width of the arrows.
+        arrow_head_width : float
+            Width of the arrows' head.
+        arrow_head_length : float
+            Length of the arrows' head.
+        pad : float
+            Separation between label and colormap.
+            (default: active_work.frame._colormap_label_pad)
+        label : bool
+            Write indexes of particles in circles. (default: False)
+
+        Optional keyword parameters
+        ---------------------------
+        vmin : float
+            Minimum value of the colorbar.
+        vmax : float
+            Maximum value of the colorbar.
+        """
+
+        super().__init__(dat, frame, box_size, centre,
+            arrow_width=arrow_width,
+            arrow_head_width=arrow_head_width,
+            arrow_head_length=arrow_head_length)    # initialise superclass
+
+        self.velocities = dat.getVelocities(frame, *self.particles) # particles' displacements at frame
+
+        self.vmin, self.vmax = amplogwidth(self.velocities)
+        try:
+            self.vmin = np.log10(kwargs['vmin'])
+        except (KeyError, AttributeError): pass # 'vmin' not in keyword arguments or None
+        try:
+            self.vmax = np.log10(kwargs['vmax'])
+        except (KeyError, AttributeError): pass # 'vmax' not in keyword arguments or None
+
+        self.colorbar(self.vmin, self.vmax) # add colorbar to figure
+        self.colormap.set_label(            # colorbar legend
+            r'$\log_{10}||\vec{v}_i(t)||$',
+            labelpad=pad, rotation=270)
+
+        self.label = label  # write labels
+
+        self.draw()
+
+    def draw(self):
+        """
+        Plots figure.
+        """
+
+        for particle, velocity in zip(
+            self.particles, self.velocities):                           # for particle and particle's velocity in rendered box
+            self.draw_circle(particle,
+                color=self.scalarMap.to_rgba(
+                    np.log10(np.linalg.norm(velocity))),
+                fill=True,
+                label=self.label)                                       # draw particle circle with color corresponding to velocity amplitude
+            self.draw_arrow(particle,
+                *normalise1D(velocity)*0.75*self.diameters[particle])   # draw velocity direction arrow
+
 class Bare(_Frame):
     """
     Plotting class specific to 'bare' mode.
@@ -557,6 +643,8 @@ if __name__ == '__main__':  # executing as script
         plotting_object = Orientation
     elif mode == 'displacement':
         plotting_object = Displacement
+    elif mode == 'velocity':
+        plotting_object = Velocity
     elif mode == 'bare':
         plotting_object = Bare
     else: raise ValueError('Mode %s is not known.' % mode)  # mode is not known
@@ -628,14 +716,14 @@ if __name__ == '__main__':  # executing as script
 
         if dat._isDat0:
             suptitle = (
-                str(r'$N=%.2e, \phi=%1.2f, D=%.2e, D_r=%.2e,$'
+                str(r'$N=%.2e, \phi=%1.4f, D=%.2e, D_r=%.2e,$'
         		% (dat.N, dat.phi, dat.D, dat.Dr))
                 + str(r'$\epsilon=%.2e, v_0=%.2e$'
                 % (dat.epsilon, dat.v0)))
             Dr = dat.Dr
         else:
             suptitle = (
-                str(r'$N=%.2e, \phi=%1.2f, l_p/\sigma=%.2e$'
+                str(r'$N=%.2e, \phi=%1.4f, l_p/\sigma=%.2e$'
         		% (dat.N, dat.phi, dat.lp)))
             Dr = 1/dat.lp
 
