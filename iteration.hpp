@@ -25,14 +25,4 @@ template<class SystemClass> void ABP_WCA(SystemClass* system) {
     [&system](int index1, int index2) { system->WCA_force(index1, index2); });
 }
 
-template<class SystemClass> void ABP_WCA(
-  SystemClass* system, std::vector<Particle>& newParticles) {
-  // Compute interactions with WCA potentials between all particles of the
-  // system.
-
-  pairs_ABP<SystemClass>(system,
-    [&system, &newParticles](int index1, int index2)
-      { system->WCA_force(index1, index2, newParticles); });
-}
-
 #endif
