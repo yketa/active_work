@@ -165,7 +165,7 @@ void CloningSerial::doCloning(double tmax, double sValue, int initSim) {
     #endif
     for (int i=0;i<nc;i++) {
       systems[i]->setBiasingParameter(0); // setting 0 biasing parameter (unmodified dynamics to sample initial configurations)
-      for (int j=0; j < tau*initSim; j++) { iterate_ABP_WCA(systems[i]); } // simulate an elementary number of steps
+      iterate_ABP_WCA(systems[i], tau*initSim); // simulate an elementary number of steps
       systems[i]->resetDump(); // reset dumps: important between different runs and to only count the relevant quantities within the cloning framework
     }
 
@@ -217,7 +217,7 @@ void CloningSerial::doCloning(double tmax, double sValue, int initSim) {
       #endif
       for (int i = 0; i < nc; i++) //For each lattice in the current population
       {
-          for (int k=0; k < tau; k++) { iterate_ABP_WCA(systems[pushOffset+i]); } // run dynamics
+          iterate_ABP_WCA(systems[pushOffset+i], tau); // run dynamics
           #if CONTROLLED_DYNAMICS
           sWeight[i] = systems[pushOffset+i]->getBiasingParameter()*(             // sw = s(
             1.0 - systems[pushOffset+i]->getBiasingParameter()/                   // 1 - s/

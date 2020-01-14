@@ -52,8 +52,6 @@ template<class SystemClass> void FIRE_WCA(
   long double dt = dt0; // time step
   long double alpha = alpha0; // strength of force towards steepest descent
 
-  std::vector<Particle> dummyParticles(system->getNumberParticles()); // dummy array of particles
-
   // MINIMISATION LOOP
 
   double NPpos = 0; // number of consecutive steps with positive power
@@ -71,7 +69,7 @@ template<class SystemClass> void FIRE_WCA(
         (system->getParticle(i))->force()[dim] = 0.0; // reset force
       }
     }
-    ABP_WCA<SystemClass>(system, dummyParticles);
+    ABP_WCA<SystemClass>(system);
 
     // COMPUTE POWER
     power = 0;
