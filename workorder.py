@@ -8,8 +8,7 @@ import numpy as np
 from operator import itemgetter
 
 from active_work.work import ActiveWork
-from active_work.maths import Histogram3D
-from active_work.scde import PDF
+from active_work.maths import JointDistribution
 
 class WorkOrder(ActiveWork):
     """
@@ -239,19 +238,9 @@ class WorkOrder(ActiveWork):
                 (2) Proportion.
         """
 
-        workArray, orderParameter = self.nWorkOrder(n, int_max=int_max)
-
-        if work_min == None: work_min = np.min(workArray)
-        if work_max == None: work_max = np.max(workArray)
-        if order_min == None: order_min = np.min(orderParameter)
-        if order_max == None: order_max = np.max(orderParameter)
-
-        histogram = Histogram3D(Nbins,
-            (work_min, order_min), (work_max, order_max),
-            log=False)
-        histogram.values = list(zip(workArray, orderParameter))
-
-        return histogram.get_histogram()
+        return JointDistribution(*self.nWorkOrder(n, int_max=int_max)).hist(
+            Nbins,
+            vmin1=work_min, vmax1=work_max, vmin2=order_min, vmax2=order_max)
 
     def getHistogram3DSC(self, n=1, int_max=None):
         """
@@ -281,13 +270,7 @@ class WorkOrder(ActiveWork):
                   proporition of observations.
         """
 
-        workArray, orderParameter = self.nWorkOrder(n, int_max=int_max)
-        pdf = PDF(workArray, orderParameter)
-
-        return np.transpose(
-            [*(lambda axes: [axes[:, -1], axes[:, -2]])(    # invert axes (work and order) order
-                (pdf.extended_axes.reshape(np.prod(pdf.pdf.shape), 2))),
-            pdf.pdf.flatten()])
+        return JointDistribution(*self.nWorkOrder(n, int_max=int_max)).pdf()
 
     def meanStdCor(self, n=1, int_max=None):
         """

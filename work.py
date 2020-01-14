@@ -8,9 +8,7 @@ from collections import OrderedDict
 from operator import itemgetter
 
 from active_work.read import Dat
-from active_work.scde import PDF
-from active_work.maths import Histogram, mean_sterr, linspace, logspace,\
-    meanStdCut
+from active_work.maths import Distribution, mean_sterr, linspace, logspace
 
 class ActiveWork(Dat):
     """
@@ -106,8 +104,7 @@ class ActiveWork(Dat):
             Values of the probability density function.
         """
 
-        pdf = PDF(self.nWork(n))
-        return pdf.axes[0], pdf.pdf
+        return Distribution(self.nWork(n)).pdf()
 
     def nWorkHist(self, n, nBins, vmin=None, vmax=None, log=False,
         rescaled_to_max=False):
@@ -143,18 +140,8 @@ class ActiveWork(Dat):
             Occupancy of the bins.
         """
 
-        workSums = self.nWork(n)
-
-        if vmin == None: vmin = workSums.min()
-        if vmax == None: vmax = workSums.max()
-        histogram = Histogram(nBins, vmin, vmax)
-        histogram.add_values(*workSums)
-
-        bins = histogram.bins
-        hist = histogram.get_histogram()
-        if rescaled_to_max: hist /= hist.max()
-        if not(log): return bins, hist
-        else: return bins[hist > 0], np.log(hist[hist > 0])
+        return Distribution(self.nWork(n)).hist(nBins,
+            vmin=vmin, vmax=vmax, log=log, rescaled_to_max=rescaled_to_max)
 
     def nWorkGauss(self, n, *x, cut=None,
         rescaled_to_max=False):
@@ -183,19 +170,8 @@ class ActiveWork(Dat):
             Values of the Gaussian function at x.
         """
 
-        workSums = self.nWork(n)
-
-        mean, std = meanStdCut(workSums, cut)
-
-        if rescaled_to_max: norm = 1
-        else: norm = np.sqrt(2*np.pi*(std**2))
-
-        gauss = lambda y: (
-            np.exp(-((y - mean)**2)/(2*(std**2)))
-            /norm)
-
-        return np.array(list(map(gauss, x)))
-
+        return Distribution(self.nWork(n)).gauss(*x,
+            cut=cut, rescaled_to_max=rescaled_to_max)
 
     def corWorkWorkAve(self,
         tau0=1, n_max=100, int_max=None, min=None, max=None, log=True):
