@@ -8,6 +8,12 @@ import numpy as np
 import math
 from collections import OrderedDict
 
+from active_work.scde import PDF
+
+#####################
+### MISCELLANEOUS ###
+#####################
+
 def relative_positions(positions, point, box_size):
     """
     Returns relative positions to point in box of extent
@@ -153,6 +159,336 @@ def divide_arrays(array1, array2):
 
     return np.divide(array1, array2,
         out=np.zeros(array1.shape, dtype=array1.dtype), where=array2!=0)
+
+def linspace(init, fin, number, endpoint=True):
+    """
+    Returns linearly spaced integer between `init' and `fin' with a maximum of
+    `number' of them.
+
+    Parameters
+    ----------
+    init : int
+        Minimum value.
+    fin : int
+        Maximum value.
+    number : int
+        Number of values.
+    endpoint : bool
+        Include `number' in the array.
+
+    Returns
+    -------
+    values : numpy array
+        Array of values.
+    """
+
+    return np.array(list(OrderedDict.fromkeys(np.linspace(
+        init, fin, number,
+        endpoint=endpoint, dtype=int))))
+
+def logspace(init, fin, number, endpoint=True):
+    """
+    Returns logarithmically spaced integer between `init' and `fin' with a
+    maximum of `number' of them.
+
+    Parameters
+    ----------
+    init : int
+        Minimum value.
+    fin : int
+        Maximum value.
+    number : int
+        Number of values.
+    endpoint : bool
+        Include `number' in the array.
+
+    Returns
+    -------
+    values : numpy array
+        Array of values.
+    """
+
+    return np.array(list(OrderedDict.fromkeys(map(lambda x: int(round(x)),
+        np.exp(np.linspace(
+            np.log(init), np.log(fin), number,
+            endpoint=endpoint))))))
+
+def meanStdCut(array, cut=None):
+    """
+    Returns mean and standard deviation of array with values farther than
+    `cut' * array.std() from the mean removed.
+
+    Parameters
+    ----------
+    array : array-like
+        Array of values.
+    cut : float
+        Width in units of array.std() to consider. (default: None)
+        NOTE: if cut==None, then no value is excluded.
+
+    Returns
+    -------
+    mean : float
+        Mean of the truncated ensemble.
+    std : float
+        Standard deviation of the truncated ensemble.
+    """
+
+    array = np.array(array)
+
+    if cut == None: return array.mean(), array.std()
+
+    array = array[np.abs(array - array.mean()) < cut*array.std()]
+    return array.mean(), array.std()
+
+def angle(dx, dy):
+    """
+    Returns angle from in x- and y-coordinates.
+
+    Parameters
+    ----------
+    dx : float
+        x-coordinate or difference in x-coordinate.
+    dy : float
+        y-coordinate or difference in y-coordinate.
+
+    Returns
+    -------
+    ang : float
+        Corresponding angle in radians.
+    """
+
+    return math.atan2(dy, dx)
+
+#####################
+### DISTRIBUTIONS ###
+#####################
+
+class Distribution:
+    """
+    Analyse distribution from array of values.
+    """
+
+    def __init__(self, valuesArray):
+        """
+        Define array of values.
+
+        Parameters
+        ----------
+        valuesArray : float array-like
+            Array of values.
+        """
+
+        self.valuesArray = np.array(valuesArray).flatten()
+
+        self.min = self.valuesArray.min()
+        self.max = self.valuesArray.max()
+
+        self.mean = self.valuesArray.mean()
+        self.std = self.valuesArray.std()
+
+    def pdf(self):
+        """
+        Returns probability density function from array of values.
+
+        Returns
+        -------
+        axes : numpy array
+            Values at which the probability density function is evaluated.
+        pdf : float numpy array
+            Values of the probability density function.
+        """
+
+        pdf = PDF(self.valuesArray)
+        return pdf.axes[0], pdf.pdf
+
+    def hist(self, nBins, vmin=None, vmax=None, log=False,
+        rescaled_to_max=False):
+        """
+        Returns histogram of array of values.
+
+        Parameters
+        ----------
+        nBins : int
+            Number of bins of the histogram.
+        vmin : float
+            Minimum value of the bins. (default: None)
+            NOTE: if vmin==None, then minimum of array is taken.
+        vmax : float
+            Maximum value of the bins. (default: None)
+            NOTE: if vmax==None, then maximum of array is taken.
+        log : bool
+            Consider the log of the occupancy of the bins. (default: False)
+        rescaled_to_max : bool
+            Rescale occupancy of the bins by its maximum over bins.
+            (default: False)
+
+        Returns
+        -------
+        bins : float numpy array
+            Values of the bins.
+        hist : float numpy array
+            Occupancy of the bins.
+        """
+
+        if vmin == None: vmin = self.min
+        if vmax == None: vmax = self.max
+        histogram = Histogram(nBins, vmin, vmax, log=False)
+        histogram.values = self.valuesArray
+
+        bins = histogram.bins
+        hist = histogram.get_histogram()
+        if rescaled_to_max: hist /= hist.max()
+        if not(log): return bins, hist
+        else: return bins[hist > 0], np.log(hist[hist > 0])
+
+    def gauss(self, *x, cut=None, rescaled_to_max=False):
+        """
+        Returns values of the Gaussian function corresponding to the mean and
+        variance of the array of values.
+
+        Parameters
+        ----------
+        x : float
+            Values at which to evaluate the Gaussian function.
+        cut : float or None
+            Width in units of the standard deviation of the array of values to
+            consider when computing mean and standard deviation.
+            (see self._meanStdCut) (default: None)
+            NOTE: if cut==None, the width is taken to infinity, i.e. no value is
+                  excluded.
+        rescaled_to_max : bool
+            Rescale function by its computed maximum. (default: False)
+
+        Returns
+        -------
+        gauss : float numpy array
+            Values of the Gaussian function at x.
+        """
+
+        mean, std = self._meanStdCut(cut=cut)
+
+        if rescaled_to_max: norm = 1
+        else: norm = np.sqrt(2*np.pi*(std**2))
+
+        gauss = lambda y: (
+            np.exp(-((y - mean)**2)/(2*(std**2)))
+            /norm)
+
+        return np.array(list(map(gauss, x)))
+
+    def _meanStdCut(self, cut=None):
+        """
+        Returns mean and standard deviation of values of array with values
+        farther than `cut' * self.valuesArray.std() if the mean removed.
+
+        Parameters
+        ----------
+        array : array-like
+            Array of values.
+        cut : float
+            Width in units of self.valuesArray.std() to consider.
+            (default: None)
+            NOTE: if cut==None, then no value is excluded.
+
+        Returns
+        -------
+        mean : float
+            Mean of the truncated ensemble.
+        std : float
+            Standard deviation of the truncated ensemble.
+        """
+
+        return meanStdCut(self.valuesArray, cut=cut)
+
+class JointDistribution:
+    """
+    Analyse joint distribution from 2 arrays of values.
+    """
+
+    def __init__(self, valuesArray1, valuesArray2):
+        """
+        Define array of values.
+
+        Parameters
+        ----------
+        valuesArray1 : float array-like
+            First array of values.
+        valuesArray2 : float array-like
+            Second array of values.
+        """
+
+        self.valuesArray1 = np.array(valuesArray1).flatten()
+        self.valuesArray2 = np.array(valuesArray2).flatten()
+
+        self.min1 = self.valuesArray1.min()
+        self.max1 = self.valuesArray1.max()
+        self.min2 = self.valuesArray2.min()
+        self.max2 = self.valuesArray2.max()
+
+    def pdf(self):
+        """
+        Returns joint probability density function from arrays of values.
+
+        Returns
+        -------
+        pdf3D : (*, 3) float Numpy array
+            (0) Value of the first quantity at which the PDF is evaluated.
+            (1) Value of the second quantity at which the PDF is evaluated.
+            (2) PDF.
+        """
+
+        pdf = PDF(self.valuesArray1, self.valuesArray2)
+
+        return np.transpose(
+            [*(lambda axes: [axes[:, -1], axes[:, -2]])(    # invert axes order
+                (pdf.extended_axes.reshape(np.prod(pdf.pdf.shape), 2))),
+            pdf.pdf.flatten()])
+
+    def hist(self, nBins, vmin1=None, vmax1=None, vmin2=None, vmax2=None):
+        """
+        Returns 3D histogram of arrays of values.
+
+        Parameters
+        ----------
+        nBins : int or 2-uple-like of int
+            Number of bins of the histogram in all or each direction.
+        vmin1 : float
+            Minimum value of the bins for the first array. (default: None)
+            NOTE: if vmin1==None, then minimum of array is taken.
+        vmax1 : float
+            Maximum value of the bins for the first array. (default: None)
+            NOTE: if vmax1==None, then maximum of array is taken.
+        vmin2 : float
+            Minimum value of the bins for the second array. (default: None)
+            NOTE: if vmin2==None, then minimum of array is taken.
+        vmax2 : float
+            Maximum value of the bins for the second array. (default: None)
+            NOTE: if vmax2==None, then maximum of array is taken.
+
+        Returns
+        -------
+        hist : (nBins.prod(), 3) float Numpy array
+            Values of the histogram:
+                (0) Bin value of the first quantity.
+                (1) Bin value of the second quantity.
+                (2) Proportion.
+        """
+
+        if vmin1 == None: vmin1 = self.min1
+        if vmax1 == None: vmax1 = self.max1
+        if vmin2 == None: vmin2 = self.min2
+        if vmax2 == None: vmax2 = self.max2
+        histogram = Histogram3D(nBins, (vmin1, vmin2), (vmax1, vmax2),
+            log=False)
+        histogram.values = np.array(list(
+            zip(self.valuesArray1, self.valuesArray2)))
+
+        return histogram.get_histogram()
+
+##################
+### HISTOGRAMS ###
+##################
 
 class Histogram:
     """
@@ -336,101 +672,140 @@ class Histogram3D:
             self.hist[:, 2] /= np.sum(self.hist[:, 2])
         return self.hist
 
-def linspace(init, fin, number, endpoint=True):
+#############
+### GRIDS ###
+#############
+
+def vector_vector_grid(vector1, vector2, dtype=None):
     """
-    Returns linearly spaced integer between `init' and `fin' with a maximum of
-    `number' of them.
+    From vector1 = (v1_i)_i and vector2 = (v2_i)_i, returns matrix
+    M = (M_{i, j})_{i, j} = ((v1_i, v2_j))_{i, j}.
 
     Parameters
     ----------
-    init : int
-        Minimum value.
-    fin : int
-        Maximum value.
-    number : int
-        Number of values.
-    endpoint : bool
-        Include `number' in the array.
+    vector1 : 1D array-like
+        Vector 1.
+    vector2 : 1D array-like
+        Vector 2.
+    dtype : Numpy array dtype
+        Data type of the Numpy array to return. (default: None)
+        NOTE: if dtype == None, then the array is not converted to any type.
 
     Returns
     -------
-    values : numpy array
-        Array of values.
+    M : 2D array-like
+        Matrix M.
     """
 
-    return np.array(list(OrderedDict.fromkeys(np.linspace(
-        init, fin, number,
-        endpoint=endpoint, dtype=int))))
+    M = np.zeros((len(vector1), len(vector2), 2))
+    M[:, :, 0] = vector1
+    M = np.transpose(M, (1, 0, 2))
+    M[:, :, 1] = vector2
 
-def logspace(init, fin, number, endpoint=True):
+    if dtype != None: return M.astype(dtype)
+    else: return M
+
+def wave_vectors_2D(nx, ny, d=1):
     """
-    Returns logarithmically spaced integer between `init' and `fin' with a
-    maximum of `number' of them.
+    Returns wave vectors for 2D signals with window lengths nx and ny in the
+    two directions and sample spacing d.
 
     Parameters
     ----------
-    init : int
-        Minimum value.
-    fin : int
-        Maximum value.
-    number : int
-        Number of values.
-    endpoint : bool
-        Include `number' in the array.
+    nx : int
+        Window length in first direction.
+    ny : int
+        Window length in second direction.
+    d : float
+        Sample spacing. (default: 1)
 
     Returns
     -------
-    values : numpy array
-        Array of values.
+    wave_vectors : (nx, ny, 2) Numpy array
+        Grid of wave vectors.
     """
 
-    return np.array(list(OrderedDict.fromkeys(map(lambda x: int(round(x)),
-        np.exp(np.linspace(
-            np.log(init), np.log(fin), number,
-            endpoint=endpoint))))))
+    return 2*np.pi*vector_vector_grid(
+        np.fft.fftfreq(nx, d=d),
+        np.fft.fftfreq(ny, d=d))
 
-def meanStdCut(array, cut):
+def g2Dto1D(g2D, L):
     """
-    Returns mean and standard deviation of array with values farther than
-    `cut' * array.std() if the mean removed.
+    Returns cylindrical average of 2D grid.
 
     Parameters
     ----------
-    array : array-like
-        Array of values.
-    cut : float
-        Width in units of array.std() to consider.
+    g2D : 2D array
+        2D grid.
+        NOTE: g2D[0, 0] is considered the r=0 point on the grid, and we
+        consider periodic boundaries.
+    L : float or float array
+        Length of the box represented by the grid in one dimension or all
+        dimensions.
 
     Returns
     -------
-    mean : float
-        Mean of the truncated ensemble.
-    std : float
-        Standard deviation of the truncated ensemble.
+    g1D : Numpy array
+        Array of (r, g1D(r)) with g1D(r) the averaged 2D grid at radius r.
     """
 
-    array = np.array(array)
+    g2D = np.array(g2D)
+    dL = np.array(L)/np.array(g2D.shape)    # boxes separation in each direction
+    r_max = np.min(L)/2                     # maximum radius to be calculated in number of boxes
 
-    if cut == None: return array.mean(), array.std()
+    g1D_dic = DictList()    # hash table of radii and values at radii
 
-    array = array[np.abs(array - array.mean()) < cut*array.std()]
-    return array.mean(), array.std()
+    for i in range(g2D.shape[0]):
+        for j in range(g2D.shape[1]):
+            radius = np.sqrt(np.sum((np.array((i, j))*dL)**2))  # radius corresponding to coordinates [i, j], [-i, j], [i, -j], [-i, -j]
+            if radius <= r_max:
+                g1D_dic[radius] += [g2D[i, j], g2D[-i, j], g2D[i, -j],
+                    g2D[-i, -j]]
 
-def angle(dx, dy):
+    return np.array(list(map(
+        lambda radius: [radius, np.mean(g1D_dic[radius])],
+        sorted(g1D_dic))))
+
+def g2Dto1Dgrid(g2D, grid, average_grid=False):
     """
-    Returns angle from in x- and y-coordinates.
+    Returns cylindrical average of square 2D grid with values of radius given
+    by other parameter grid.
 
     Parameters
     ----------
-    dx : float
-        x-coordinate or difference in x-coordinate.
-    dy : float
-        y-coordinate or difference in y-coordinate.
+    g2D : 2D array
+        Square 2D grid.
+    grid : 2D array
+        Array of radii.
+    average_grid : bool
+        Return g2D grid with cylindrically averaged values.
 
     Returns
     -------
-    ang : float
-        Corresponding angle in radians.
+    g1D : Numpy array
+        Array of (r, g1D(r)) with g1D(r) the averaged 2D grid at radius r.
+    g2D_cylindrical [average_grid] : Numpy array
+        Cylindrically averaged g2D.
     """
 
-    return math.atan2(dy, dx)
+    g2D = np.array(g2D)
+    grid = np.array(grid)
+
+    g1D_dic = DictList()    # hash table of radii and values at radii
+
+    for i in range(g2D.shape[0]):
+        for j in range(g2D.shape[1]):
+            g1D_dic[grid[i, j]] += [g2D[i, j]]
+
+    g1D = np.array(list(map(
+        lambda radius: [radius, np.mean(g1D_dic[radius])],
+        sorted(g1D_dic))))
+
+    if not(average_grid): return g1D
+
+    g2D_cylindrical = np.zeros(grid.shape)
+    for radius, mean_g in zip(*np.transpose(g1D)):
+        for i, j in zip(*np.where(grid == radius)):
+            g2D_cylindrical[i, j] = mean_g
+
+    return g1D, g2D_cylindrical
