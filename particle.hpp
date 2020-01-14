@@ -36,11 +36,15 @@ class Particle {
 
     double* position(); // returns pointer to position
     double* orientation(); // returns pointer to orientation
+    double* velocity(); // returns pointer to velocity
 
     double* diameter(); // returns pointer to diameter
 
     double* force(); // returns pointer to force
-    double* noise(); // returns pointer to noise realisation
+
+    #if CONTROLLED_DYNAMICS == 2 || CONTROLLED_DYNAMICS == 3
+    double* torque(); // returns pointer to aligning torque
+    #endif
 
   private:
 
@@ -48,11 +52,15 @@ class Particle {
 
     double r[2]; // position (2D)
     double theta; // orientation
+    double v[2]; // velocity (2D)
 
     double sigma; // diameter
 
     double f[2]; // force exerted on particle (2D)
-    double eta[2]; // noise realisation (2D)
+
+    #if CONTROLLED_DYNAMICS == 2 || CONTROLLED_DYNAMICS == 3
+    double gamma; // aligning torque
+    #endif
 
 };
 
@@ -312,12 +320,9 @@ class System {
     double getDistance(int const& index1, int const& index2);
       // Returns distance between two particles in a given system.
 
-    void WCA_force(int const& index1, int const& index2,
-      std::vector<Particle>& newParticles);
+    void WCA_force(int const& index1, int const& index2);
       // Compute WCA forces between particles[index1] and particles[index2],
-      // add to particles[index1].force() and particles[index2].force(), and
-      // increments positions in particles[index1].position() and
-      // particles[index2].position().
+      // and add to particles[index1].force() and particles[index2].force().
 
     void copyParticles(std::vector<Particle>& newParticles);
       // Replace vector of particles by newParticles.
@@ -491,12 +496,9 @@ class System0 {
     double getDistance(int const& index1, int const& index2);
       // Returns distance between two particles in a given system.
 
-    void WCA_force(int const& index1, int const& index2,
-      std::vector<Particle>& newParticles);
+    void WCA_force(int const& index1, int const& index2);
       // Compute WCA forces between particles[index1] and particles[index2],
-      // add to particles[index1].force() and particles[index2].force(), and
-      // increments positions in particles[index1].position() and
-      // particles[index2].position().
+      // and add to particles[index1].force() and particles[index2].force().
 
     void copyParticles(std::vector<Particle>& newParticles);
       // Replace vector of particles by newParticles.

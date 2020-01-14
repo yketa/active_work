@@ -60,6 +60,6 @@ int main() {
 
   // ITERATION
 
-  for (int i=0; i < Niter; i++) { iterate_ABP_WCA(&system); }
+  iterate_ABP_WCA(&system, Niter);
 
 }

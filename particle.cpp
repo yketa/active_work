@@ -18,21 +18,37 @@
 
 // CONSTRUCTORS
 
-Particle::Particle() : r {0, 0}, theta (0), sigma (1), f {0, 0}, eta {0, 0} {}
+Particle::Particle() : r {0, 0}, theta (0), v {0, 0}, sigma (1), f {0, 0}
+  #if CONTROLLED_DYNAMICS == 2 || CONTROLLED_DYNAMICS == 3
+  , gamma (0)
+  #endif
+  {}
 Particle::Particle(double x, double y, double ang) :
-  r {x, y}, theta (ang), sigma (1), f {0, 0}, eta {0, 0} {}
+  r {x, y}, theta (ang), v {0, 0}, sigma (1), f {0, 0}
+  #if CONTROLLED_DYNAMICS == 2 || CONTROLLED_DYNAMICS == 3
+  , gamma (0)
+  #endif
+  {}
 Particle::Particle(double x, double y, double ang, double d) :
-  r {x, y}, theta (ang), sigma (d), f {0, 0}, eta {0, 0} {}
+  r {x, y}, theta (ang), v {0, 0}, sigma (d), f {0, 0}
+  #if CONTROLLED_DYNAMICS == 2 || CONTROLLED_DYNAMICS == 3
+  , gamma (0)
+  #endif
+  {}
 
 // METHODS
 
 double* Particle::position() { return &r[0]; } // returns pointer to position
 double* Particle::orientation() { return &theta; } // returns pointer to orientation
+double* Particle::velocity() { return &v[0]; } // returns pointer to velocity
 
 double* Particle::diameter() { return &sigma; } // returns pointer to diameter
 
 double* Particle::force() { return &f[0]; }; // returns pointer to force
-double* Particle::noise() { return &eta[0]; } // returns pointer to noise realisation
+
+#if CONTROLLED_DYNAMICS == 2 || CONTROLLED_DYNAMICS == 3
+double* Particle::torque() { return &gamma; } // returns pointer to aligning torque
+#endif
 
 
 /*************
@@ -373,12 +389,9 @@ double System::getDistance(int const& index1, int const& index2) {
   return _getDistance<System>(this, index1, index2);
 }
 
-void System::WCA_force(int const& index1, int const& index2,
-  std::vector<Particle>& newParticles) {
+void System::WCA_force(int const& index1, int const& index2) {
   // Compute WCA forces between particles[index1] and particles[index2],
-  // add to particles[index1].force() and particles[index2].force(), and
-  // increments positions in particles[index1].position() and
-  // particles[index2].position().
+  // and add to particles[index1].force() and particles[index2].force().
 
   if ( index1 != index2 ) { // only consider different particles
 
@@ -391,12 +404,6 @@ void System::WCA_force(int const& index1, int const& index2,
         // update force arrays
         particles[index1].force()[dim] += force[dim];
         particles[index2].force()[dim] -= force[dim];
-
-        // increment positions
-        newParticles[index1].position()[dim] +=
-          getTimeStep()*force[dim]/3.0/getPersistenceLength();
-        newParticles[index2].position()[dim] -=
-          getTimeStep()*force[dim]/3.0/getPersistenceLength();
       }
     }
   }
@@ -494,14 +501,8 @@ void System::saveNewState(std::vector<Particle>& newParticles) {
 
       // VELOCITIES
       for (int dim=0; dim < 2; dim++) {
-        output.write<double>(                                               // v =
-          particles[i].force()[dim]/3.0/getPersistenceLength()              // 1/3 sigma/lp F
-          + cos(particles[i].orientation()[0] - dim*M_PI/2)                 // + u(theta)
-          #if CONTROLLED_DYNAMICS
-          *(1.0 - 2.0*getBiasingParameter()                                 // *(1 - 2*s
-            /3.0/getPersistenceLength())                                    // /3/lp)
-          #endif
-          + sqrt(2.0/3.0/getPersistenceLength())*particles[i].noise()[dim], // + sqrt(2/3 sigma/lp)*eta
+        output.write<double>(
+          particles[i].velocity()[dim],
           velocitiesDumps[i] + dim*sizeof(double));
       }
     }
@@ -955,12 +956,9 @@ double System0::getDistance(int const& index1, int const& index2) {
   return _getDistance<System0>(this, index1, index2);
 }
 
-void System0::WCA_force(int const& index1, int const& index2,
-  std::vector<Particle>& newParticles) {
+void System0::WCA_force(int const& index1, int const& index2) {
   // Compute WCA forces between particles[index1] and particles[index2],
-  // add to particles[index1].force() and particles[index2].force(), and
-  // increments positions in particles[index1].position() and
-  // particles[index2].position().
+  // and add to particles[index1].force() and particles[index2].force().
 
   if ( index1 != index2 ) { // only consider different particles
 
@@ -973,12 +971,6 @@ void System0::WCA_force(int const& index1, int const& index2,
         // update force arrays
         particles[index1].force()[dim] += force[dim];
         particles[index2].force()[dim] -= force[dim];
-
-        // increment positions
-        newParticles[index1].position()[dim] +=
-          getTimeStep()*getPotentialParameter()*force[dim];
-        newParticles[index2].position()[dim] -=
-          getTimeStep()*getPotentialParameter()*force[dim];
       }
     }
   }
@@ -1118,11 +1110,8 @@ void System0::saveNewState(std::vector<Particle>& newParticles) {
 
       // VELOCITIES
       for (int dim=0; dim < 2; dim++) {
-        output.write<double>(                                          // v =
-          getPotentialParameter()*particles[i].force()[dim]            // epsilon*F
-          + getPropulsionVelocity()                                    // + v_0
-            *cos(particles[i].orientation()[0] - dim*M_PI/2)           // *u(theta)
-          + sqrt(2.0*getTransDiffusivity())*particles[i].noise()[dim], // + sqrt(2 D)*eta
+        output.write<double>(
+          particles[i].velocity()[dim],
           velocitiesDumps[i] + dim*sizeof(double));
       }
     }

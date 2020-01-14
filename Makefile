@@ -60,6 +60,10 @@ ifeq ($(CELLLIST),yes)
 	CFLAGS+=-DUSE_CELL_LIST
 endif
 
+ifeq ($(HEUN), yes)
+	CFLAGS+=-DHEUN=true
+endif
+
 OBJ=$(addprefix $(OB)/, $(SRC:.cpp=.o))
 
 .PHONY: all memcheck massif clean mrproper
