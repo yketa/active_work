@@ -8,6 +8,7 @@ import numpy as np
 import os
 import pickle
 
+from active_work.init import get_env
 from active_work.maths import relative_positions, angle
 
 class _Read:
@@ -176,7 +177,7 @@ class _Dat(_Read):
             return relative_positions(positions, kwargs['centre'], self.L)
         return positions
 
-    def getDisplacements(self, time0, time1, *particle, jump=1):
+    def getDisplacements(self, time0, time1, *particle, jump=1, norm=False):
         """
         Returns displacements of particles between `time0' and `time1'.
 
@@ -194,10 +195,14 @@ class _Dat(_Read):
             crossed any boundary. (default: 1)
             NOTE: `jump' must be chosen so that particles do not move a distance
                   greater than half the box size during this time.
+        norm : bool
+            Return norm of displacements rather than 2D displacements.
+            (default: False)
 
         Returns
         -------
-        displacements : (*, 2) float Numpy array
+        displacements : [not(norm)] (*, 2) float Numpy array
+                        [norm] (*,) float Numpy array
             Displacements between `time0' and `time1'.
         """
 
@@ -220,6 +225,7 @@ class _Dat(_Read):
                 *self.L)
 
         displacements += positions1 + increments
+        if norm: return np.sqrt(np.sum(displacements**2, axis=-1))
         return displacements
 
     def getDistancePositions(self, time, particle0, particle1):
@@ -297,7 +303,7 @@ class _Dat(_Read):
             lambda index: self._orientation(time, index),
             particle)))
 
-    def getVelocities(self, time, *particle):
+    def getVelocities(self, time, *particle, norm=False):
         """
         Returns velocities of particles at time.
 
@@ -308,18 +314,24 @@ class _Dat(_Read):
         particle : int
             Indexes of particles.
             NOTE: if none is given, then all particles are returned.
+        norm : bool
+            Return norm of velocities rather than 2D velocities.
+            (default: False)
 
         Returns
         -------
-        velocities : (*, 2) float Numpy array
+        velocities : [not(norm)] (*, 2) float Numpy array
+                     [norm] (*,) float Numpy array
             Velocities at `time'.
         """
 
         if particle == (): particle = range(self.N)
 
-        return np.array(list(map(
+        velocities = np.array(list(map(
             lambda index: self._velocity(time, index),
             particle)))
+        if norm: return np.sqrt(np.sum(velocities**2, axis=-1))
+        return velocities
 
     def getDirections(self, time, *particle):
         """
@@ -883,6 +895,9 @@ class Dat(_Dat):
     (active_work.read._Dat) or general parameters (active_work.read._Dat0).
 
     WARNING: Success of this correct loading is not assured in all cases.
+             Set FORCE_DAT (resp. FORCE_DAT0) environment variable to True to
+             enforce choice of data structure with custom relations between
+             parameters (resp. general parameters).
     """
 
     def __init__(self, filename):
@@ -895,7 +910,12 @@ class Dat(_Dat):
             Path to data file.
         """
 
-        try:
-            _Dat.__init__(self, filename)   # simulation with custom relations between parameters
-        except ValueError:
-            _Dat0.__init__(self, filename)  # simulation with general parameters
+        if get_env('FORCE_DAT', default=False, vartype=bool):       # enforce choice of data structure with custom relations between parameters
+            _Dat.__init__(self, filename)
+        elif get_env('FORCE_DAT0', default=False, vartype=bool):    # enforce choice of data structure from simulation with general parameters
+            _Dat0.__init__(self, filename)
+        else:                                                       # guess data structure
+            try:
+                _Dat.__init__(self, filename)                       # simulation with custom relations between parameters
+            except ValueError:
+                _Dat0.__init__(self, filename)                      # simulation with general parameters
