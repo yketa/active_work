@@ -28,9 +28,6 @@ class Force(Dat):
         """
 
         super().__init__(filename)  # initialise with super class
-        if self._isDat0:
-            raise ValueError(
-                "Does not work for simulations with general parameters.")
 
         self.skip = skip    # skip the `skip' first measurements of the active work in the analysis
 
@@ -237,9 +234,15 @@ class Force(Dat):
         if particle0 == particle1: return force # same particle
 
         dist, pos0, pos1 = self.getDistancePositions(time, particle0, particle1)
-        if dist >= 2**(1./6.): return force # distance greater than cut-off
 
-        force = (48/(dist**14) - 24/(dist**8))*np.array([
-            self._diffPeriodic(pos1[0], pos0[0]),
-            self._diffPeriodic(pos1[1], pos0[1])])
+        if self._isDat0:
+            sigma = (self.diameters[particle0] + self.diameters[particle1])/2
+        else: sigma = 1
+
+        if dist/sigma >= 2**(1./6.): return force # distance greater than cut-off
+
+        force = ((48/((dist/sigma)**14) - 24/((dist/sigma)**8))/(sigma**2))*(
+            np.array([
+                self._diffPeriodic(pos1[0], pos0[0]),
+                self._diffPeriodic(pos1[1], pos0[1])]))
         return force
