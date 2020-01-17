@@ -36,6 +36,13 @@ ifeq ($(CONTROLLED_DYNAMICS),3)
 	EXEC:=$(EXEC)_C3
 	CFLAGS+=-DCONTROLLED_DYNAMICS=3
 endif
+ifeq ($(TORQUE_DUMP),yes)
+	CFLAGS+=-DTORQUE_DUMP
+endif
+else
+ifeq ($(ROTORS),yes)
+	EXEC=$(BU)/rotors
+	CPP=mainR.cpp
 else
 ifeq ($(SIM0),yes)
 	EXEC=$(BU)/simulation0
@@ -46,13 +53,14 @@ else
 endif
 endif
 endif
+endif
 ifeq ($(DEBUG),yes)
 	CFLAGS+=-DDEBUG
 endif
 ifneq ($(EXEC_NAME),)
 	EXEC=$(BU)/$(EXEC_NAME)
 endif
-MAIN=main.cpp main0.cpp cloning.cpp test.cpp                       # files with main()
+MAIN=main.cpp main0.cpp mainR.cpp cloning.cpp test.cpp             # files with main()
 SRC=$(filter-out $(filter-out $(CPP), $(MAIN)), $(wildcard *.cpp)) # compile all files but the ones with wrong main()
 
 ifeq ($(CELLLIST),yes)
@@ -109,6 +117,9 @@ $(OB)/main.o: main.cpp env.hpp iteration.hpp particle.hpp
 
 $(OB)/main0.o: main0.cpp env.hpp fire.hpp iteration.hpp maths.hpp particle.hpp
 	$(CC) -o $(OB)/main0.o -c main0.cpp $(CFLAGS)
+
+$(OB)/mainR.o: mainR.cpp env.hpp iteration.hpp particle.hpp
+	$(CC) -o $(OB)/mainR.o -c mainR.cpp $(CFLAGS)
 
 $(OB)/test.o: test.cpp
 	$(CC) -o $(OB)/test.o -c test.cpp $(CFLAGS)

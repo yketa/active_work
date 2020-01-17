@@ -1170,6 +1170,68 @@ void System0::saveNewState(std::vector<Particle>& newParticles) {
 }
 
 
+/**********
+ * ROTORS *
+ **********/
+
+// CONSTRUCTORS
+
+Rotors::Rotors(
+  int N, double Dr, double g, double dt, int seed,
+  std::string filename, int period) :
+  numberParticles(N), rotDiffusivity(Dr), torqueParameter(g),
+  timeStep(dt), dumpPeriod(period),
+  randomSeed(seed), randomGenerator(),
+  orientations(N), torques(N, 0.0),
+  output(filename), dumpFrame(-1) {
+
+  // set seed of random generator
+  randomGenerator.setSeed(randomSeed);
+
+  // give random orientations to rotors
+  for (int i=0; i < numberParticles; i++) { // loop over rotors
+    orientations[i] = 2*M_PI*randomGenerator.random01();
+  }
+
+  // write header with system parameters to output file
+  output.write<int>(numberParticles);
+  output.write<double>(rotDiffusivity);
+  output.write<double>(torqueParameter);
+  output.write<double>(timeStep);
+  output.write<int>(dumpPeriod);
+  output.write<int>(seed);
+}
+
+// DESTRUCTORS
+
+Rotors::~Rotors() {}
+
+// METHODS
+
+int Rotors::getNumberParticles() const { return numberParticles; }
+double Rotors::getRotDiffusivity() const { return rotDiffusivity; }
+double Rotors::getTorqueParameter() const { return torqueParameter; }
+
+double Rotors::getTimeStep() const { return timeStep; }
+
+double* Rotors::getOrientation(int index) { return &(orientations[index]); }
+double* Rotors::getTorque(int index) { return &(torques[index]); }
+
+rnd* Rotors::getRandomGenerator() { return &randomGenerator; }
+
+void Rotors::saveState() {
+  // Save current state.
+
+  dumpFrame++;
+
+  if ( dumpFrame % dumpPeriod == 0 ) {
+    for (int i=0; i < numberParticles; i++) {
+      output.write<double>(orientations[i]);
+    }
+  }
+}
+
+
 ///////////////
 // FUNCTIONS //
 ///////////////

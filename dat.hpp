@@ -12,6 +12,7 @@
 
 class Dat;
 class Dat0;
+class DatR;
 
 
 /*  DAT
@@ -184,6 +185,59 @@ class Dat0 {
     std::vector<double> activeWorkForce; // computed active work (force) sums
     std::vector<double> activeWorkOri; // computed active work (orientation) sums
     std::vector<double> orderParameter; // computer order parameter sums
+
+};
+
+
+/*  DATR
+ *  ----
+ *  Read files as defined by the Rotors class (see particle.hpp).
+ */
+
+class DatR {
+
+  public:
+
+    // CONSTRUCTORS
+
+    DatR(std::string filename);
+
+    // DESTRUCTORS
+
+    ~DatR();
+
+    // METHODS
+
+    int getNumberParticles() const; // returns number of rotors
+    double getRotDiffusivity() const; // returns rotational diffusivity
+    double getTorqueParameter() const; // returns aligning torque parameter
+    double getTimeStep() const; // returns time step
+    int getDumpPeriod() const; // returns period of dumping of orientations in number of frames
+    int getRandomSeed() const; // returns random seed
+
+    long int getFrames() const; // returns number of frames
+
+    double getOrientation(int const& frame, int const& rotor);
+      // Returns position of a given rotor at a given frame.
+
+  private:
+
+    // ATTRIBUTES
+
+    int const numberParticles; // number of rotors
+    double const rotDiffusivity; // rotational diffusivity
+    double const torqueParameter; // aligning torque parameter
+    double const timeStep; // time step
+    int const dumpPeriod; // period of dumping of orientations in number of frames
+    int const randomSeed; // random seed
+
+    Read input; // input class
+
+    long int headerLength; // length of header in input file
+    long int rotorLength; // length the data of a single rotor takes in a frame
+    long int frameLength; // length the data of a single frame takes in a file
+
+    long int frames; // number of frames
 
 };
 

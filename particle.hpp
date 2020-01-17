@@ -15,6 +15,8 @@ class Particle;
 class CellList;
 class Parameters;
 class System;
+class System0;
+class Rotors;
 
 
 /*  PARTICLE
@@ -368,7 +370,7 @@ class System {
     double orderSum[3]; // integrated order parameter norm (in units of the time step)
 
     #if CONTROLLED_DYNAMICS == 2 || CONTROLLED_DYNAMICS == 3
-    double torqueParameter; // torque parameter [cloning algorithm]
+    double torqueParameter; // aligning torque parameter [cloning algorithm]
 
     // Quantities
     // (0): integral since last dump (in units of the time step)
@@ -548,6 +550,78 @@ class System0 {
     double workForceSum[3]; //force part of the active work
     double workOrientationSum[3]; // orientation part of the active work
     double orderSum[3]; // integrated order parameter norm (in units of the time step)
+
+};
+
+
+/*  ROTORS
+ *  ------
+ *  Store physical and integration parameter.
+ *  Save system state to output file.
+ */
+
+class Rotors {
+  /*  Contains all the details to simulate a system of interacting Brownian
+   *  rotors.
+   *  (see https://yketa.github.io/DAMTP_2019_Wiki/#N-interacting%20Brownian%20rotors)
+   *
+   *  Parameters are stored in a binary file with the following structure:
+   *
+   *  [HEADER (see Rotors::Rotors)]
+   *  | (int) N | (double) Dr | (double) g | (double) dt | (int) period | (int) seed |
+   *
+   *  [FRAMES (see Rotors::saveState)] (all double)
+   *  ||      FRAME i*period     || ...
+   *  || ROTOR 1 | ... | ROTOR N || ...
+   *  ||  theta  | ... |  theta  || ...
+   */
+
+  public:
+
+    // CONSTRUCTORS
+
+    Rotors(
+      int N, double Dr, double g, double dt, int seed = 0,
+      std::string filename = "", int period = 1);
+
+    // DESTRUCTORS
+
+    ~Rotors();
+
+    // METHODS
+
+    int getNumberParticles() const; // returns number of particles
+    double getRotDiffusivity() const; // returns rotational diffusivity
+    double getTorqueParameter() const; // returns aligning torque parameter
+
+    double getTimeStep() const; // returns simulation time step
+
+    double* getOrientation(int index); // returns pointer to orientation of given rotor
+    double* getTorque(int index); // returns pointer to torque applied on a given rotor
+
+    rnd* getRandomGenerator(); // returns pointer to random generator
+
+    void saveState(); // save current state
+
+  private:
+
+    // ATTRIBUTES
+
+    int const numberParticles; // number of particles
+    double const rotDiffusivity; // rotational diffusivity
+    double const torqueParameter; // aligning torque parameter
+
+    double const timeStep; // simulation time step
+    int const dumpPeriod; // period of dumping of orientations in number of frames
+
+    int const randomSeed; // random seed
+    rnd randomGenerator; // random number generator
+
+    std::vector<double> orientations; // vector of orientations
+    std::vector<double> torques; // vector of torques
+
+    Write output; // output class
+    int dumpFrame; // number of frames dumped
 
 };
 

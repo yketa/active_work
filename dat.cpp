@@ -258,3 +258,62 @@ double Dat0::getVelocity(
     + 3*sizeof(double)                               // positions and orientation
     + dimension*sizeof(double));                     // dimension
 }
+
+
+/********
+ * DATR *
+ ********/
+
+// CONSTRUCTORS
+
+DatR::DatR(std::string filename) :
+  numberParticles(), rotDiffusivity(), torqueParameter(), timeStep(),
+    dumpPeriod(), randomSeed(),
+  input(filename) {
+
+  // HEADER INFORMATION
+  input.read<const int>(&numberParticles);
+  input.read<const double>(&rotDiffusivity);
+  input.read<const double>(&torqueParameter);
+  input.read<const double>(&timeStep);
+  input.read<const int>(&dumpPeriod);
+  input.read<const int>(&randomSeed);
+
+  // FILE PARTS LENGTHS
+  headerLength = input.tellg();
+  rotorLength = 1*sizeof(double);
+  frameLength = numberParticles*rotorLength;
+
+  // ESTIMATION OF NUMBER OF FRAMES
+  frames = (input.getFileSize() - headerLength)/frameLength;
+
+  // FILE CORRUTION CHECK
+  if ( input.getFileSize() != headerLength + frames*frameLength ) {
+    std::cout << "Invalid file size." << std::endl;
+    exit(0);
+  }
+}
+
+// DESTRUCTORS
+
+DatR::~DatR() {}
+
+// METHODS
+
+int DatR::getNumberParticles() const { return numberParticles; }
+double DatR::getRotDiffusivity() const { return rotDiffusivity; }
+double DatR::getTorqueParameter() const { return torqueParameter; }
+double DatR::getTimeStep() const { return timeStep; }
+int DatR::getDumpPeriod() const { return dumpPeriod; }
+int DatR::getRandomSeed() const { return randomSeed; }
+
+long int DatR::getFrames() const { return frames; }
+
+double DatR::getOrientation(int const& frame, int const& rotor) {
+  // Returns position of a given rotor at a given frame.
+
+  return input.read<double>(
+    headerLength          // header
+    + frame*frameLength   // other frames
+    + rotor*rotorLength); // other rotors
+}

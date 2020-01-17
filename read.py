@@ -919,3 +919,154 @@ class Dat(_Dat):
                 _Dat.__init__(self, filename)                       # simulation with custom relations between parameters
             except ValueError:
                 _Dat0.__init__(self, filename)                      # simulation with general parameters
+
+class DatR(_Read):
+    """
+    Read data files from simulations of interacting Brownian rotors.
+
+    (see active_work/particle.hpp -> class Rotors & active_work/launchR.py)
+    """
+
+    def __init__(self, filename):
+        """
+        Get data from header.
+
+        Parameters
+        ----------
+        filename : string
+            Path to data file.
+        """
+
+        # FILE
+        super().__init__(filename)
+
+        # HEADER INFORMATION
+        self.N = self._read('i')            # number of rotors
+        self.Dr = self._read('d')           # rotational diffusivity
+        self.g = self._read('d')            # aligning torque parameter
+        self.dt = self._read('d')           # time step
+        self.dumpPeriod = self._read('i')   # period of dumping of orientations in number of frames
+        self.seed = self._read('i')         # random seed
+
+        # FILE PARTS LENGTHS
+        self.headerLength = self.file.tell()        # length of header in bytes
+        self.rotorLength = 1*self._bpe('d')         # length the data of a single rotor takes in a frame
+        self.frameLength = self.N*self.rotorLength  # length the data of a single frame takes in a file
+
+        # ESTIMATION OF NUMBER OF FRAMES
+        self.frames = (self.fileSize - self.headerLength)//self.frameLength # number of frames which the file contains
+
+        # FILE CORRUPTION CHECK
+        if self.fileSize != (
+            self.headerLength                   # header
+            + self.frames*self.frameLength):    # frames
+            raise ValueError("Invalid data file size.")
+
+    def getOrientations(self, time, *rotor):
+        """
+        Returns orientations of rotors at time.
+
+        Parameters
+        ----------
+        time : int
+            Frame
+        rotor : int
+            Indexes of rotors.
+            NOTE: if none is given, then all rotors are returned.
+
+        Returns
+        -------
+        orientations : (*,) float Numpy array
+            Orientations at `time'.
+        """
+
+        if rotor == (): rotor = range(self.N)
+
+        return np.array(list(map(
+            lambda index: self._orientation(time, index),
+            rotor)))
+
+    def getDirections(self, time, *rotor):
+        """
+        Returns self-propulsion vector of rotors at time.
+
+        Parameters
+        ----------
+        time : int
+            Frame
+        rotor : int
+            Indexes of rotors.
+            NOTE: if none is given, then all rotors are returned.
+
+        Returns
+        -------
+        orientations : (*, 2) float Numpy array
+            Unitary self-propulsion vectors at `time'.
+        """
+
+        if rotor == (): rotor = range(self.N)
+
+        return np.array(list(map(
+            lambda theta: np.array([np.cos(theta), np.sin(theta)]),
+            self.getOrientations(time, *rotor))))
+
+    def getOrderParameter(self, time, norm=False):
+        """
+        Returns order parameter, i.e. mean direction, at time.
+
+        Parameters
+        ----------
+        time : int
+            Frame.
+        norm : bool
+            Return norm of order parameter. (default: False)
+
+        Returns
+        -------
+        orderParameter : float if `norm' else (2,) float Numpy array
+            Order parameter at `time'.
+        """
+
+        orderParameter = np.sum(self.getDirections(time), axis=0)/self.N
+        if norm: return np.sqrt(np.sum(orderParameter**2))
+        return orderParameter
+
+    def getGlobalPhase(self, time):
+        """
+        Returns global phase at time `time'.
+
+        Parameters
+        ----------
+        time : int
+            Frame.
+
+        Returns
+        -------
+        phi : float
+            Global phase in radians.
+        """
+
+        return angle(*self.getOrderParameter(time, norm=False))
+
+    def _orientation(self, time, rotor):
+        """
+        Returns orientation of rotor at time.
+
+        Parameters
+        ----------
+        time : int
+            Frame.
+        particle : int
+            Index of rotor.
+
+        Returns
+        -------
+        orientation : (2,) float Numpy array
+            Orientation of `rotor' at `time'.
+        """
+
+        self.file.seek(
+            self.headerLength           # header
+            + time*self.frameLength     # other frames
+            + rotor*self.rotorLength)   # other rotors
+        return self._read('d')

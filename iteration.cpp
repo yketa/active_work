@@ -9,6 +9,11 @@
 #include <iostream>
 #endif
 
+
+///////////////////////////////
+// ACTIVE BROWNIAN PARTICLES //
+///////////////////////////////
+
 void iterate_ABP_WCA(System* system, int Niter) {
   // Updates system to next step according to the dynamics of active Brownian
   // particles with WCA potential, using custom dimensionless parameters
@@ -85,7 +90,11 @@ void iterate_ABP_WCA(System* system, int Niter) {
     // FORCES AND ALIGNING TORQUES
     ABP_WCA<System>(system); // compute forces
     #if CONTROLLED_DYNAMICS == 2 || CONTROLLED_DYNAMICS == 3
-    aligningTorque(system); // compute torques
+    aligningTorque<System>(system,
+      [&system](int index) {
+        return (system->getParticle(index))->orientation(); },
+      [&system](int index) {
+        return (system->getParticle(index))->torque(); }); // compute torques
     #endif
 
     for (int i=0; i < parameters->getNumberParticles(); i++) {
@@ -131,7 +140,11 @@ void iterate_ABP_WCA(System* system, int Niter) {
     // FORCES AND ALIGNING TORQUES
     ABP_WCA<System>(system); // re-compute forces
     #if CONTROLLED_DYNAMICS == 2 || CONTROLLED_DYNAMICS == 3
-    aligningTorque(system); // re-compute torques
+    aligningTorque<System>(system,
+      [&system](int index) {
+        return (system->getParticle(index))->orientation(); },
+      [&system](int index) {
+        return (system->getParticle(index))->torque(); }); // re-compute torques
     #endif
 
     for (int i=0; i < parameters->getNumberParticles(); i++) {
@@ -325,19 +338,70 @@ void iterate_ABP_WCA(System0* system, int Niter) {
   }
 }
 
-#if CONTROLLED_DYNAMICS == 2 || CONTROLLED_DYNAMICS == 3
-void aligningTorque(System* system) {
-  // Compute aligning torques between all particles of the system.
 
-  double torque;
-  for (int i=0; i < system->getNumberParticles(); i++) {
-    for (int j=i + 1; j < system->getNumberParticles(); j++) {
-      torque = 2.0*system->getTorqueParameter()/system->getNumberParticles()
-        *sin((system->getParticle(i))->orientation()[0]
-          - (system->getParticle(j))->orientation()[0]);
-      (system->getParticle(i))->torque()[0] += torque;
-      (system->getParticle(j))->torque()[0] -= torque;
+/////////////////////////////////
+// INTERACTING BROWNIAN ROTORS //
+/////////////////////////////////
+
+void iterate_rotors(Rotors* rotors, int Niter) {
+  // Updates system to next step according to the dynamics of interacting
+  // Brownian rotors.
+
+  #if HEUN // HEUN'S SCHEME
+  std::vector<double> orientations(rotors->getNumberParticles(), 0.0); // orientations backup
+  std::vector<double> torques(rotors->getNumberParticles(), 0.0); // torques backup
+  #endif
+
+  for (int iter=0; iter < Niter; iter++) {
+
+    // COMPUTATION
+    for (int i=0; i < rotors->getNumberParticles(); i++) {
+      // reset torques
+      rotors->getTorque(i)[0] = 0.0;
+      // add noise
+      rotors->getOrientation(i)[0] +=
+        sqrt(2.0*rotors->getRotDiffusivity()*rotors->getTimeStep())
+        *(rotors->getRandomGenerator())->gauss_cutoff();
     }
+    // compute aligning torques
+    aligningTorque<Rotors>(rotors,
+      [&rotors](int index) {
+        return rotors->getOrientation(index); },
+      [&rotors](int index) {
+        return rotors->getTorque(index); }); // compute torques
+    // add torque
+    for (int i=0; i < rotors->getNumberParticles(); i++) {
+      rotors->getOrientation(i)[0] +=
+        rotors->getTorque(i)[0]*rotors->getTimeStep();
+    }
+
+    // HEUN'S SCHEME
+    #if HEUN
+    for (int i=0; i < rotors->getNumberParticles(); i++) {
+      // save initial torques
+      torques[i] = rotors->getTorque(i)[0];
+      // reset torques
+      rotors->getTorque(i)[0] = 0;
+    }
+    // re-compute aligning torques
+    aligningTorque<Rotors>(rotors,
+      [&rotors](int index) {
+        return rotors->getOrientation(index); },
+      [&rotors](int index) {
+        return rotors->getTorque(index); }); // compute torques
+    for (int i=0; i < rotors->getNumberParticles(); i++) {
+      // correction to orientations
+      rotors->getOrientation(i)[0] +=
+        (rotors->getTorque(i)[0] - torques[i])*rotors->getTimeStep()
+        /2;
+      // correction to torques
+      rotors->getTorque(i)[0] =
+        (rotors->getTorque(i)[0] + torques[i])
+        /2;
+    }
+    #endif
+
+    // SAVE
+    rotors->saveState();
   }
 }
-#endif
