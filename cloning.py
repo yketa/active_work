@@ -46,7 +46,9 @@ class CloningOutput:
             Path to data file.
         """
 
-        with open(filename, 'rb') as input:
+        self.filename = filename
+
+        with open(self.filename, 'rb') as input:
             (self.exec_path,        # executable path (can help discriminate controlled dynamics method)
             self.tmax,              # dimensionless time simulated
             self.nc,                # number of clones
@@ -168,6 +170,77 @@ class _CloningOutput(_Read):
             self.orderParameter[i] = self._read('d')
             self.walltime[i] = self._read('d')
 
+class TorqueDump:
+    """
+    Read torque parameter dump file.
+
+    NOTE: Cloning simulations have to be run with CONTROLLED_DYNAMICS set to 2
+          or 3 and witg TORQUE_DUMP defined. (see active_work/cloningserial.hpp)
+    """
+
+    def __init__(self, filename):
+        """
+        Get data.
+
+        Parameters
+        ----------
+        filename : string
+            Path to data file. (default: torque.dump)
+        """
+
+        self.filename = filename
+
+        with open(self.filename, 'rb') as input:
+            (self.exec_path,        # executable path (can help discriminate controlled dynamics method)
+            self.tmax,              # dimensionless time simulated
+            self.nc,                # number of clones
+            self.nRuns,             # number of different runs
+            self.initSim,           # number of initial elementary number of iterations to "randomise"
+            self.sValues,           # biasing parameters
+            self.seed,              # master random seed of master random seeds
+            self.seeds,             # master random seeds
+            self.N,                 # number of particles in the system
+            self.lp,                # dimensionless persistence length
+            self.phi,               # packing fraction
+            self._tau,              # elementary number of steps
+            self.dt,                # time step
+            self.torqueParameter    # array of torque parameters along the simulation
+            ) = pickle.load(input)
+
+        self.tau = self._tau*self.dt        # dimensionless elementary time
+        self.tinit = self.tau*self.initSim  # dimensionless initial simulation time
+
+class _TorqueDump(_Read):
+    """
+    Read torque parameter from a single cloning simulation.
+
+    NOTE: Cloning simulations have to be run with CONTROLLED_DYNAMICS set to 2
+          or 3 and witg TORQUE_DUMP defined. (see active_work/cloningserial.hpp)
+    """
+
+    def __init__(self, filename='torque.dump'):
+        """
+        Get data.
+
+        Parameters
+        ----------
+        filename : string
+            Path to data file. (default: torque.dump)
+        """
+
+        # FILE
+        super().__init__(filename)
+
+        # FILE CORRUPTION CHECK
+        if self.fileSize % self._bpe('d') != 0:
+            raise ValueError("Invalid data file size.")
+
+        # GET TORQUE PARAMETERS
+        self.torqueParameter = []
+        for i in range(self.fileSize//self._bpe('d')):
+            self.torqueParameter += [self._read('d')]
+        self.torqueParameter = np.array(self.torqueParameter)
+
 def filename(N, phi, lp, nc, launch):
     """
     Name of simulation output directory.
@@ -269,15 +342,17 @@ if __name__ == '__main__':
     exec_path = path.join(exec_dir, exec_name)                          # executable path
 
     # OUTPUT FILES PARAMETERS
-    launch = get_env('LAUNCH', default=_launch, vartype=float)  # launch identifier
-    out_dir = get_env('OUT_DIR', default=_out_dir, vartype=str) # output directory
-    sim_name = filename(N, phi, lp, nc, launch)                 # simulation output name
-    sim_dir = path.join(out_dir, sim_name)                      # simulation output directory name
+    launch = get_env('LAUNCH', default=_launch, vartype=float)      # launch identifier
+    out_dir = get_env('OUT_DIR', default=_out_dir, vartype=str)     # output directory
+    sim_name = filename(N, phi, lp, nc, launch)                     # simulation output name
+    sim_dir = path.join(out_dir, sim_name)                          # simulation output directory name
     mkdir(sim_dir, replace=True)
-    tmp_dir = path.join(sim_dir, 'tmp')                         # temporary files directory
+    tmp_dir = path.join(sim_dir, 'tmp')                             # temporary files directory
     mkdir(tmp_dir, replace=True)
-    tmp_template = '%010d.cloning.out'                          # template of temporary files
-    out_file = path.join(sim_dir, sim_name + '.clo')            # simulation output file name
+    tmp_template = '%010d.cloning.out'                              # template of temporary files
+    out_file = path.join(sim_dir, sim_name + '.clo')                # simulation output file name
+    torque_tmp_template = tmp_template.replace('cloning', 'torque') # template of temporary torque parameter dump files
+    torque_file = out_file.replace('.clo', '.torque.dump')          # torque parameter dump file name
 
     # LAUNCH
 
@@ -291,16 +366,20 @@ if __name__ == '__main__':
                     'THREADS': str(threads),
                     'N': str(N), 'LP': str(lp), 'PHI': str(phi),
                     'TAU': str(tau), 'DT': str(dt),
-                    'FILE': path.join(tmp_dir, tmp_template % i)})
+                    'FILE': path.join(tmp_dir,
+                        tmp_template % i),
+                    'TORQUE_DUMP_FILE': path.join(tmp_dir,
+                        torque_tmp_template % i)})
             for i in range(sNum)]       # launch computations
         for proc in procs: proc.wait()  # wait for them to finish
 
-    # CREATING OUTPUT
+    # CLONING OUTPUT FILE
 
     # LOAD TEMPORARY FILES
     tmp_out = []
     for i in range(sNum):
-        tmp_out += [_CloningOutput(path.join(tmp_dir, tmp_template % i))]
+        tmp_out += [_CloningOutput(
+            path.join(tmp_dir, tmp_template % i))]
 
     # ARRAYS OF DATA
     tSCGF = np.array(
@@ -328,7 +407,40 @@ if __name__ == '__main__':
                 walltime],
             output)
 
+    # TORQUE PARAMETER OUTPUT FILE
+
+    # LOAD TEMPORARY FILES
+    torque_tmp_out = []
+    for i in range(sNum):
+        try:
+            torque_tmp_out += [_TorqueDump(
+                path.join(tmp_dir, torque_tmp_template % i))]
+        except (FileNotFoundError, ValueError):
+            del torque_tmp_out
+            break
+
+    try: torque_tmp_out
+    except NameError: torque_tmp_out = None
+    if torque_tmp_out != None:
+
+        # ARRAYS OF DATA
+        torqueParameter = np.array(
+            [torque_tmp_out[i].torqueParameter for i in range(sNum)])
+
+        # OUT
+        with open(torque_file, 'wb') as output:
+            pickle.dump([
+                exec_path,
+                tmax, nc, nRuns, initSim, sValues,
+                seed, seeds,
+                N, lp, phi,
+                tau, dt,
+                torqueParameter],
+                output)
+
     # CLEAN
     if get_env('CLEAN', default=True, vartype=bool):
-        move(out_file, path.join(out_dir, sim_name + '.clo'))   # move output file to output directory
-        rmr(sim_dir)                                            # delete simulation directory
+        move(out_file, path.join(out_dir, sim_name + '.clo'))                   # move output file to output directory
+        if torque_tmp_out:
+            move(torque_file, path.join(out_dir, sim_name + '.torque.dump'))    # move output file to output directory
+        rmr(sim_dir)                                                            # delete simulation directory
