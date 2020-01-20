@@ -28,6 +28,12 @@ ABP model and simulation procedure is detailed in [this tiddler](https://yketa.g
 - Simulations with custom relations between parameters are launched using [`launch.py`](https://github.com/yketa/active_work/blob/master/launch.py).
 - Simulations of general ABPs are launched using [`launch0.py`](https://github.com/yketa/active_work/blob/master/launch0.py).
 
+### Simulations of interacting Brownian rotors
+
+Interacting Brownian rotors model is detailed in [this tiddler](https://yketa.github.io/DAMTP_2019_Wiki/#N-interacting%20Brownian%20rotors).
+
+- Simulations are launched using [`launchR.py`](https://github.com/yketa/active_work/blob/master/launchR.py).
+
 ### Cloning
 
 Principle and computation scheme of the scaled cumulant generating function (SCGF) of the active work and corresponding averages in the biased ensemble are detailed in [this tiddler](https://yketa.github.io/DAMTP_2019_Wiki/#ABP%20cloning%20algorithm).
