@@ -75,7 +75,7 @@ if __name__ == '__main__':
 
     # VARIABLE DEFINITIONS
 
-    # SYSTEM PARAMETERS
+    # SYSTEM PARAMETERS [consider if input file is not given]
     N = get_env('N', default=_N, vartype=int)                       # number of particles in the system
     Dr = get_env('DR', default=_Dr, vartype=float)                  # rotational diffusivity
     epsilon = get_env('EPSILON', default=Dr/3., vartype=float)      # coefficient parameter of potential
@@ -83,6 +83,10 @@ if __name__ == '__main__':
     D = get_env('D', default=epsilon, vartype=float)                # translational diffusivity
     phi = get_env('PHI', default=_phi, vartype=float)               # packing fraction
     I = get_env('I', default=_I, vartype=float)                     # polydispersity index
+
+    # INPUT FILE PARAMETERS [consider if input file is given]
+    inputFilename = get_env('INPUT_FILENAME', default='', vartype=str)  # input file from which to copy data
+    inputFrame = get_env('INPUT_FRAME', default=0, vartype=int)         # frame to copy as initial frame
 
     # SIMULATION PARAMETERS
     seed = get_env('SEED', default=_seed, vartype=int)      # random seed
@@ -118,6 +122,7 @@ if __name__ == '__main__':
     run(['setsid', path.join(exec_dir, exec_name)], env={
         'N': str(N), 'EPSILON': str(epsilon), 'V0': str(v0), 'D': str(D),
             'DR': str(Dr), 'PHI': str(phi), 'I': str(I),
+        'INPUT_FILENAME': str(inputFilename), 'INPUT_FRAME': str(inputFrame),
         'SEED': str(seed),
         'FILE': path.join(out_dir, out_file),
         'DT': str(dt), 'NITER': str(Niter),

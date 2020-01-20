@@ -153,7 +153,7 @@ class CellList {
 
 /*  PARAMETERS
  *  ----------
- *  Store parameters relative to a system.
+ *  Store parameters relative to a system of active Brownian particles.
  */
 
 class Parameters {
@@ -176,29 +176,29 @@ class Parameters {
 
     // METHODS
 
-    int getNumberParticles() const; // returns number of particles in the system
-    double getPotentialParameter() const; // returns coefficient parameter of potential
-    double getPropulsionVelocity() const; // returns self-propulsion velocity
-    double getTransDiffusivity() const; // returns translational diffusivity
-    double getRotDiffusivity() const; // returns rotational diffusivity
-    double getPersistenceLength() const; // returns persistence length
-    double getPackingFraction() const; // returns packing fraction
-    double getSystemSize() const; // returns system size
-    double getTimeStep() const; // returns time step
+    int getNumberParticles(); // returns number of particles in the system
+    double getPotentialParameter(); // returns coefficient parameter of potential
+    double getPropulsionVelocity(); // returns self-propulsion velocity
+    double getTransDiffusivity(); // returns translational diffusivity
+    double getRotDiffusivity(); // returns rotational diffusivity
+    double getPersistenceLength(); // returns persistence length
+    double getPackingFraction(); // returns packing fraction
+    double getSystemSize(); // returns system size
+    double getTimeStep(); // returns time step
 
   private:
 
     // ATTRIBUTES
 
-    int const numberParticles; // number of particles in the system
-    double const potentialParameter; // coefficient parameter of potential
-    double const propulsionVelocity; // self-propulsion velocity
-    double const transDiffusivity; // translational diffusivity
-    double const rotDiffusivity; // rotational diffusivity
-    double const persistenceLength; // persistence length
-    double const packingFraction; // packing fraction
-    double const systemSize; // system size
-    double const timeStep; // time step
+    int numberParticles; // number of particles in the system
+    double potentialParameter; // coefficient parameter of potential
+    double propulsionVelocity; // self-propulsion velocity
+    double transDiffusivity; // translational diffusivity
+    double rotDiffusivity; // rotational diffusivity
+    double persistenceLength; // persistence length
+    double packingFraction; // packing fraction
+    double systemSize; // system size
+    double timeStep; // time step
 
 };
 
@@ -247,10 +247,14 @@ class System {
     System();
     System(
       Parameters* parameters, int seed = 0, std::string filename = "",
-      int nWork = 0, bool dump = true, int period = 1);
+      int nWork = 1, bool dump = true, int period = 1);
     System(
       System* system, int seed = 0, std::string filename = "",
-      int nWork = 0, bool dump = true, int period = 1);
+      int nWork = 1, bool dump = true, int period = 1);
+    System(
+      std::string inputFilename, int inputFrame = 0, double dt = 0,
+      int seed = 0, std::string filename = "",
+      int nWork = 1, bool dump = true, int period = 1);
 
     // DESTRUCTORS
 
@@ -260,11 +264,11 @@ class System {
 
     Parameters* getParameters(); // returns pointer to class of parameters
 
-    int getNumberParticles() const; // returns number of particles
-    double getPersistenceLength() const; // returns dimensionless persistence length
-    double getPackingFraction() const; // returns packing fraction
-    double getSystemSize() const; // returns system size
-    double getTimeStep() const; // returns time step
+    int getNumberParticles(); // returns number of particles
+    double getPersistenceLength(); // returns dimensionless persistence length
+    double getPackingFraction(); // returns packing fraction
+    double getSystemSize(); // returns system size
+    double getTimeStep(); // returns time step
 
     void setTimeStep(double dt); // changes time step
 
@@ -428,18 +432,22 @@ class System0 {
     System0();
     System0(
       Parameters* parameters, int seed = 0, std::string filename = "",
-      int nWork = 0, bool dump = true, int period = 1);
+      int nWork = 1, bool dump = true, int period = 1);
     System0(
       Parameters* parameters, std::vector<double>& diameters, int seed = 0,
-      std::string filename = "", int nWork = 0, bool dump = true,
+      std::string filename = "", int nWork = 1, bool dump = true,
       int period = 1);
     System0(
       System0* system, int seed = 0, std::string filename = "",
-      int nWork = 0, bool dump = true, int period = 1);
+      int nWork = 1, bool dump = true, int period = 1);
     System0(
       System0* system, std::vector<double>& diameters, int seed = 0,
-      std::string filename = "", int nWork = 0, bool dump = true,
+      std::string filename = "", int nWork = 1, bool dump = true,
       int period = 1);
+    System0(
+      std::string inputFilename, int inputFrame = 0, double dt = 0,
+      int seed = 0, std::string filename = "",
+      int nWork = 1, bool dump = true, int period = 1);
 
     // DESTRUCTORS
 
@@ -449,15 +457,15 @@ class System0 {
 
     Parameters* getParameters(); // returns pointer to class of parameters
 
-    int getNumberParticles() const; // returns number of particles
-    double getPotentialParameter() const; // returns coefficient parameter of potential
-    double getPropulsionVelocity() const; // returns self-propulsion velocity
-    double getTransDiffusivity() const; // returns translational diffusivity
-    double getRotDiffusivity() const; // returns rotational diffusivity
-    double getPersistenceLength() const; // returns persistence length
-    double getPackingFraction() const; // returns packing fraction
-    double getSystemSize() const; // returns system size
-    double getTimeStep() const; // returns time step
+    int getNumberParticles(); // returns number of particles
+    double getPotentialParameter(); // returns coefficient parameter of potential
+    double getPropulsionVelocity(); // returns self-propulsion velocity
+    double getTransDiffusivity(); // returns translational diffusivity
+    double getRotDiffusivity(); // returns rotational diffusivity
+    double getPersistenceLength(); // returns persistence length
+    double getPackingFraction(); // returns packing fraction
+    double getSystemSize(); // returns system size
+    double getTimeStep(); // returns time step
 
     void setTimeStep(double dt); // changes time step
 

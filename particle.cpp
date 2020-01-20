@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <iostream>
 
+#include "dat.hpp"
 #include "particle.hpp"
 #include "maths.hpp"
 
@@ -147,15 +148,15 @@ Parameters::Parameters(Parameters* parameters) :
 
 // METHODS
 
-int Parameters::getNumberParticles() const { return numberParticles; }
-double Parameters::getPotentialParameter() const { return potentialParameter; }
-double Parameters::getPropulsionVelocity() const { return propulsionVelocity; }
-double Parameters::getTransDiffusivity() const { return transDiffusivity; }
-double Parameters::getRotDiffusivity() const { return rotDiffusivity; }
-double Parameters::getPersistenceLength() const { return persistenceLength; }
-double Parameters::getPackingFraction() const {return packingFraction; }
-double Parameters::getSystemSize() const { return systemSize; }
-double Parameters::getTimeStep() const { return timeStep; }
+int Parameters::getNumberParticles() { return numberParticles; }
+double Parameters::getPotentialParameter() { return potentialParameter; }
+double Parameters::getPropulsionVelocity() { return propulsionVelocity; }
+double Parameters::getTransDiffusivity() { return transDiffusivity; }
+double Parameters::getRotDiffusivity() { return rotDiffusivity; }
+double Parameters::getPersistenceLength() { return persistenceLength; }
+double Parameters::getPackingFraction() {return packingFraction; }
+double Parameters::getSystemSize() { return systemSize; }
+double Parameters::getTimeStep() { return timeStep; }
 
 
 /**********
@@ -274,6 +275,62 @@ System::System(
   copyDump(system);
 }
 
+System::System(
+  std::string inputFilename, int inputFrame, double dt,
+  int seed, std::string filename,
+  int nWork, bool dump, int period) :
+  param(new Parameters()),
+  randomSeed(seed), randomGenerator(),
+  particles(0),
+  cellList(),
+  output(filename), velocitiesDumps(0),
+  framesWork(nWork), dumpParticles(dump), dumpPeriod(period),
+  biasingParameter(0),
+  dumpFrame(-1),
+  workSum {0, 0, 0}, workForceSum {0, 0, 0}, workOrientationSum {0, 0, 0},
+    orderSum {0, 0, 0}
+  #if CONTROLLED_DYNAMICS == 2 || CONTROLLED_DYNAMICS == 3
+  , torqueParameter(0),
+  torqueIntegral1 {0, 0, 0}, torqueIntegral2 {0, 0, 0}
+  #endif
+  {
+
+  // load data
+  Dat inputDat(inputFilename, false); // data object
+  param = Parameters( // set parameters
+    inputDat.getNumberParticles(),
+    inputDat.getPersistenceLength(),
+    inputDat.getPackingFraction(),
+    dt > 0 ? dt : inputDat.getTimeStep());
+  particles.resize(getNumberParticles()); // resize vector of particles
+  velocitiesDumps.resize(2*getNumberParticles()); // resize vector of locations of velocity dumps
+  for (int i=0; i < getNumberParticles(); i++) {
+    // set positions
+    for (int dim=0; dim < 2; dim++) {
+      particles[i].position()[dim] = inputDat.getPosition(inputFrame, i, dim);
+    }
+    // set orientation
+    particles[i].orientation()[0] = inputDat.getOrientation(inputFrame, i);
+  }
+
+  // set seed of random generator
+  randomGenerator.setSeed(randomSeed);
+
+  // write header with system parameters to output file
+  output.write<int>(getNumberParticles());
+  output.write<double>(getPersistenceLength());
+  output.write<double>(getPackingFraction());
+  output.write<double>(getSystemSize());
+  output.write<int>(randomSeed);
+  output.write<double>(getTimeStep());
+  output.write<int>(framesWork);
+  output.write<bool>(dumpParticles);
+  output.write<int>(dumpPeriod);
+
+  // initialise cell list
+  cellList.initialise<System>(this, pow(2., 1./6.));
+}
+
 // DESTRUCTORS
 
 System::~System() {}
@@ -282,19 +339,19 @@ System::~System() {}
 
 Parameters* System::getParameters() { return &param; }
 
-int System::getNumberParticles() const {
+int System::getNumberParticles() {
   return param.getNumberParticles(); }
-double System::getPersistenceLength() const {
+double System::getPersistenceLength() {
   return param.getPersistenceLength(); }
-double System::getPackingFraction() const {
+double System::getPackingFraction() {
   return param.getPackingFraction(); }
-double System::getSystemSize() const {
+double System::getSystemSize() {
   return param.getSystemSize(); }
-double System::getTimeStep() const {
+double System::getTimeStep() {
   return param.getTimeStep(); }
 
 void System::setTimeStep(double dt) {
-  Parameters param (
+  param = Parameters(
     getNumberParticles(), getPersistenceLength(), getPackingFraction(), dt);
 }
 
@@ -664,7 +721,7 @@ System0::System0(
   output.write<int>(dumpPeriod);
 
   // write particles' diameters
-  for (int i=0; i < parameters->getNumberParticles(); i++) {
+  for (int i=0; i < getNumberParticles(); i++) {
     output.write<double>(getParticle(i)->diameter()[0]);
   }
 
@@ -858,6 +915,76 @@ System0::System0(
   copyDump(system);
 }
 
+System0::System0(
+  std::string inputFilename, int inputFrame, double dt,
+  int seed, std::string filename,
+  int nWork, bool dump, int period) :
+  param(new Parameters()),
+  randomSeed(seed), randomGenerator(),
+  particles(0),
+  cellList(),
+  output(filename), velocitiesDumps(0),
+  framesWork(nWork), dumpParticles(dump), dumpPeriod(period),
+  dumpFrame(-1),
+  workSum {0, 0, 0}, workForceSum {0, 0, 0}, workOrientationSum {0, 0, 0},
+    orderSum {0, 0, 0} {
+
+  // load data
+  Dat0 inputDat(inputFilename, false); // data object
+  param = Parameters( // set parameters
+    inputDat.getNumberParticles(),
+    inputDat.getPotentialParameter(),
+    inputDat.getPropulsionVelocity(),
+    inputDat.getTransDiffusivity(),
+    inputDat.getRotDiffusivity(),
+    inputDat.getPackingFraction(),
+    inputDat.getSystemSize(),
+    dt > 0 ? dt : inputDat.getTimeStep());
+  particles.resize(getNumberParticles()); // resize vector of particles
+  velocitiesDumps.resize(2*getNumberParticles()); // resize vector of locations of velocity dumps
+  std::vector<double> diameters = inputDat.getDiameters(); // diameters of particles
+  for (int i=0; i < getNumberParticles(); i++) {
+    // set positions
+    for (int dim=0; dim < 2; dim++) {
+      particles[i].position()[dim] = inputDat.getPosition(inputFrame, i, dim);
+    }
+    // set orientation
+    particles[i].orientation()[0] = inputDat.getOrientation(inputFrame, i);
+    // set diameter
+    particles[i].diameter()[0] = diameters[i];
+  }
+
+  // set seed of random generator
+  randomGenerator.setSeed(randomSeed);
+
+  // write header with system parameters to output file
+  output.write<int>(getNumberParticles());
+  output.write<double>(getPotentialParameter());
+  output.write<double>(getPropulsionVelocity());
+  output.write<double>(getTransDiffusivity());
+  output.write<double>(getRotDiffusivity());
+  output.write<double>(getPersistenceLength());
+  output.write<double>(getPackingFraction());
+  output.write<double>(getSystemSize());
+  output.write<int>(randomSeed);
+  output.write<double>(getTimeStep());
+  output.write<int>(framesWork);
+  output.write<bool>(dumpParticles);
+  output.write<int>(dumpPeriod);
+
+  // write particles' diameters
+  for (int i=0; i < getNumberParticles(); i++) {
+    output.write<double>(getParticle(i)->diameter()[0]);
+  }
+
+  // initialise cell list
+  double maxDiameter (0.0);
+  for (int i=0; i < getNumberParticles(); i++) {
+    maxDiameter = std::max(maxDiameter, getParticle(i)->diameter()[0]);
+  }
+  cellList.initialise<System0>(this, pow(2.0*maxDiameter, 1./6.));
+}
+
 // DESTRUCTORS
 
 System0::~System0() {}
@@ -866,27 +993,27 @@ System0::~System0() {}
 
 Parameters* System0::getParameters() { return &param; }
 
-int System0::getNumberParticles() const {
+int System0::getNumberParticles() {
   return param.getNumberParticles(); }
-double System0::getPotentialParameter() const {
+double System0::getPotentialParameter() {
   return param.getPotentialParameter(); }
-double System0::getPropulsionVelocity() const {
+double System0::getPropulsionVelocity() {
   return param.getPropulsionVelocity(); }
-double System0::getTransDiffusivity() const {
+double System0::getTransDiffusivity() {
   return param.getTransDiffusivity(); }
-double System0::getRotDiffusivity() const {
+double System0::getRotDiffusivity() {
   return param.getRotDiffusivity(); }
-double System0::getPersistenceLength() const {
+double System0::getPersistenceLength() {
   return param.getPersistenceLength(); }
-double System0::getPackingFraction() const {
+double System0::getPackingFraction() {
   return param.getPackingFraction(); }
-double System0::getSystemSize() const {
+double System0::getSystemSize() {
   return param.getSystemSize(); }
-double System0::getTimeStep() const {
+double System0::getTimeStep() {
   return param.getTimeStep(); }
 
 void System0::setTimeStep(double dt) {
-  Parameters param (
+  param = Parameters(
     getNumberParticles(), getPotentialParameter(), getPropulsionVelocity(),
     getTransDiffusivity(), getRotDiffusivity(), getPackingFraction(),
     getSystemSize(), dt);
@@ -1019,7 +1146,8 @@ void System0::setDiameters(std::vector<double>& diameters) {
   // Set all diameters and re-define system size.
 
   if ( (int) diameters.size() != getNumberParticles() ) { // check size of diameters array
-    std::cout << "Size of diameters array does not match number of particles."; std::cout << std::endl;
+    std::cout << "Size of diameters array does not match number of particles.";
+    std::cout << std::endl;
     exit(0);
   }
   double totalArea (0.0);
@@ -1027,7 +1155,7 @@ void System0::setDiameters(std::vector<double>& diameters) {
     getParticle(i)->diameter()[0] = diameters[i]; // set diameter
     totalArea += M_PI*pow(diameters[i], 2)/4.0; // add corresponding area
   }
-  Parameters param (
+  param = Parameters(
     getNumberParticles(), getPotentialParameter(), getPropulsionVelocity(),
     getTransDiffusivity(), getRotDiffusivity(), getPackingFraction(),
     sqrt(getPackingFraction()/totalArea), getTimeStep());
