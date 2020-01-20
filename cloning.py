@@ -8,7 +8,7 @@ Controlled dynamics is chosen with environment variable `CONTROLLED_DYNAMICS':
     (2) Modified translational and rotational EOM, choosing free parameter as
         function of the order parameter norm,
     (3) Modified translational and rotational EOM, choosing free parameter as
-        root of defined polynomial.
+        to minimise the SCGF.
 (see https://yketa.github.io/DAMTP_2019_Wiki/#ABP%20cloning%20algorithm)
 """
 
