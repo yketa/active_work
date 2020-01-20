@@ -26,7 +26,7 @@ class Dat {
 
     // CONSTRUCTORS
 
-    Dat(std::string filename);
+    Dat(std::string filename, bool loadWork = true);
 
     // DESTRUCTORS
 
@@ -107,7 +107,7 @@ class Dat0 {
 
     // CONSTRUCTORS
 
-    Dat0(std::string filename);
+    Dat0(std::string filename, bool loadWork = true);
 
     // DESTRUCTORS
 

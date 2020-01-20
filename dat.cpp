@@ -11,7 +11,7 @@
 
 // CONSTRUCTORS
 
-Dat::Dat(std::string filename) :
+Dat::Dat(std::string filename, bool loadWork) :
   numberParticles(), persistenceLength(), packingFraction(), systemSize(),
     randomSeed(), timeStep(), framesWork(), dumpParticles(), dumpPeriod(),
   input(filename) {
@@ -47,20 +47,22 @@ Dat::Dat(std::string filename) :
   }
 
   // ACTIVE WORK AND ORDER PARAMETER
-  double work;
-  for (int i=0; i < numberWork; i++) {
-    input.read<double>(&work,
-      headerLength                     // header
-      + frameLength                    // frame with index 0
-      + (1 + i)*framesWork*frameLength // all following packs of framesWork frames
-      + i*workLength);                 // previous values of the active work
-    activeWork.push_back(work);
-    input.read<double>(&work);
-    activeWorkForce.push_back(work);
-    input.read<double>(&work);
-    activeWorkOri.push_back(work);
-    input.read<double>(&work);
-    orderParameter.push_back(work);
+  if ( loadWork ) {
+    double work;
+    for (int i=0; i < numberWork; i++) {
+      input.read<double>(&work,
+        headerLength                     // header
+        + frameLength                    // frame with index 0
+        + (1 + i)*framesWork*frameLength // all following packs of framesWork frames
+        + i*workLength);                 // previous values of the active work
+      activeWork.push_back(work);
+      input.read<double>(&work);
+      activeWorkForce.push_back(work);
+      input.read<double>(&work);
+      activeWorkOri.push_back(work);
+      input.read<double>(&work);
+      orderParameter.push_back(work);
+    }
   }
 }
 
@@ -129,7 +131,7 @@ double Dat::getVelocity(
 
 // CONSTRUCTORS
 
-Dat0::Dat0(std::string filename) :
+Dat0::Dat0(std::string filename, bool loadWork) :
   numberParticles(), potentialParameter(), propulsionVelocity(),
     transDiffusivity(), rotDiffusivity(), persistenceLength(),
     packingFraction(), systemSize(), randomSeed(), timeStep(), framesWork(),
@@ -178,20 +180,22 @@ Dat0::Dat0(std::string filename) :
   }
 
   // ACTIVE WORK AND ORDER PARAMETER
-  double work;
-  for (int i=0; i < numberWork; i++) {
-    input.read<double>(&work,
-      headerLength                     // header
-      + frameLength                    // frame with index 0
-      + (1 + i)*framesWork*frameLength // all following packs of framesWork frames
-      + i*workLength);                 // previous values of the active work
-    activeWork.push_back(work);
-    input.read<double>(&work);
-    activeWorkForce.push_back(work);
-    input.read<double>(&work);
-    activeWorkOri.push_back(work);
-    input.read<double>(&work);
-    orderParameter.push_back(work);
+  if ( loadWork ) {
+    double work;
+    for (int i=0; i < numberWork; i++) {
+      input.read<double>(&work,
+        headerLength                     // header
+        + frameLength                    // frame with index 0
+        + (1 + i)*framesWork*frameLength // all following packs of framesWork frames
+        + i*workLength);                 // previous values of the active work
+      activeWork.push_back(work);
+      input.read<double>(&work);
+      activeWorkForce.push_back(work);
+      input.read<double>(&work);
+      activeWorkOri.push_back(work);
+      input.read<double>(&work);
+      orderParameter.push_back(work);
+    }
   }
 }
 
