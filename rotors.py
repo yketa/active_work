@@ -164,7 +164,7 @@ def nu_pdf_th(N, g, Dr, *nu):
         Probability density function.
     """
 
-    Z = (2*N*(1 + g/Dr))/(1 - np.exp(-N*(1 + g/Dr)))    # partition function
+    Z = (1 - np.exp(-N*(1 + g/Dr)))/(2*N*(1 + g/Dr))    # partition function
 
     return np.array(list(map(
         lambda _nu: _nu*np.exp(-N*(1 + g/Dr)*(_nu**2))/Z,
