@@ -30,9 +30,8 @@ class Particle {
 
     // CONSTRUCTORS
 
-    Particle();
-    Particle(double x, double y, double ang);
-    Particle(double x, double y, double ang, double d);
+    Particle(double d = 1);
+    Particle(double x, double y, double ang, double d = 1);
 
     // METHODS
 
@@ -40,7 +39,7 @@ class Particle {
     double* orientation(); // returns pointer to orientation
     double* velocity(); // returns pointer to velocity
 
-    double* diameter(); // returns pointer to diameter
+    double diameter() const; // returns pointer to diameter
 
     double* force(); // returns pointer to force
 
@@ -56,7 +55,7 @@ class Particle {
     double theta; // orientation
     double v[2]; // velocity (2D)
 
-    double sigma; // diameter
+    double const sigma; // diameter
 
     double f[2]; // force exerted on particle (2D)
 
@@ -154,6 +153,7 @@ class CellList {
 /*  PARAMETERS
  *  ----------
  *  Store parameters relative to a system of active Brownian particles.
+ *  All parameters are constant throughout all the algorithm.
  */
 
 class Parameters {
@@ -165,40 +165,39 @@ class Parameters {
     Parameters();
     Parameters( // using custom dimensionless parameters relations
       int N, double lp, double phi, double dt);
-    Parameters( // defining all parameters independently except system size
-      int N, double epsilon, double v0, double D, double Dr, double phi,
-      double dt);
     Parameters( // defining all parameters independently
       int N, double epsilon, double v0, double D, double Dr, double phi,
       double L, double dt);
-    Parameters( // copy other class, changing system size
+    Parameters( // copy other class
+      Parameters const& parameters);
+    Parameters( // copy other class
       Parameters* parameters);
 
     // METHODS
 
-    int getNumberParticles(); // returns number of particles in the system
-    double getPotentialParameter(); // returns coefficient parameter of potential
-    double getPropulsionVelocity(); // returns self-propulsion velocity
-    double getTransDiffusivity(); // returns translational diffusivity
-    double getRotDiffusivity(); // returns rotational diffusivity
-    double getPersistenceLength(); // returns persistence length
-    double getPackingFraction(); // returns packing fraction
-    double getSystemSize(); // returns system size
-    double getTimeStep(); // returns time step
+    int getNumberParticles() const; // returns number of particles in the system
+    double getPotentialParameter() const; // returns coefficient parameter of potential
+    double getPropulsionVelocity() const; // returns self-propulsion velocity
+    double getTransDiffusivity() const; // returns translational diffusivity
+    double getRotDiffusivity() const; // returns rotational diffusivity
+    double getPersistenceLength() const; // returns persistence length
+    double getPackingFraction() const; // returns packing fraction
+    double getSystemSize() const; // returns system size
+    double getTimeStep() const; // returns time step
 
   private:
 
     // ATTRIBUTES
 
-    int numberParticles; // number of particles in the system
-    double potentialParameter; // coefficient parameter of potential
-    double propulsionVelocity; // self-propulsion velocity
-    double transDiffusivity; // translational diffusivity
-    double rotDiffusivity; // rotational diffusivity
-    double persistenceLength; // persistence length
-    double packingFraction; // packing fraction
-    double systemSize; // system size
-    double timeStep; // time step
+    int const numberParticles; // number of particles in the system
+    double const potentialParameter; // coefficient parameter of potential
+    double const propulsionVelocity; // self-propulsion velocity
+    double const transDiffusivity; // translational diffusivity
+    double const rotDiffusivity; // rotational diffusivity
+    double const persistenceLength; // persistence length
+    double const packingFraction; // packing fraction
+    double const systemSize; // system size
+    double const timeStep; // time step
 
 };
 
@@ -264,26 +263,24 @@ class System {
 
     Parameters* getParameters(); // returns pointer to class of parameters
 
-    int getNumberParticles(); // returns number of particles
-    double getPersistenceLength(); // returns dimensionless persistence length
-    double getPackingFraction(); // returns packing fraction
-    double getSystemSize(); // returns system size
-    double getTimeStep(); // returns time step
-
-    void setTimeStep(double dt); // changes time step
+    int getNumberParticles() const; // returns number of particles
+    double getPersistenceLength() const; // returns dimensionless persistence length
+    double getPackingFraction() const; // returns packing fraction
+    double getSystemSize() const; // returns system size
+    double getTimeStep() const; // returns time step
 
     int getRandomSeed() const; // returns random seed
     rnd* getRandomGenerator(); // returns pointer to random generator
 
-    Particle* getParticle(int index); // returns pointer to given particle
+    Particle* getParticle(int const& index); // returns pointer to given particle
     std::vector<Particle> getParticles(); // returns vector of particles
 
     CellList* getCellList(); // returns pointer to CellList object
 
     std::string getOutputFile() const; // returns output file name
 
-    void setBiasingParameter(double sValue); // set new biasing parameter
-    double getBiasingParameter(); // returns biasing parameter
+    double getBiasingParameter(); // returns biasing parameter [cloning algorithm]
+    void setBiasingParameter(double s); // set biasing parameter [cloning algorithm]
 
     int getDump(); // returns number of frames dumped since last reset
     void resetDump();
@@ -307,7 +304,7 @@ class System {
     //       All these quantities are extensive in time since last reset.
 
     #if CONTROLLED_DYNAMICS == 2 || CONTROLLED_DYNAMICS == 3
-    void setTorqueParameter(double g); // set new torque parameter
+    void setTorqueParameter(double& g); // set new torque parameter
     double getTorqueParameter(); // returns torque parameter
 
     double getTorqueIntegral1(); // returns last computed normalised first integral in the expression of the modified active work
@@ -331,9 +328,9 @@ class System {
       // and add to particles[index1].force() and particles[index2].force().
 
     void copyParticles(std::vector<Particle>& newParticles);
-      // Replace vector of particles by newParticles.
+      // Copy positions and orientations.
     void copyParticles(System* system);
-      // Replace vector of particles by the one from system.
+      // Copy positions and orientations.
 
     void saveInitialState();
       // Saves initial state of particles to output file.
@@ -457,22 +454,20 @@ class System0 {
 
     Parameters* getParameters(); // returns pointer to class of parameters
 
-    int getNumberParticles(); // returns number of particles
-    double getPotentialParameter(); // returns coefficient parameter of potential
-    double getPropulsionVelocity(); // returns self-propulsion velocity
-    double getTransDiffusivity(); // returns translational diffusivity
-    double getRotDiffusivity(); // returns rotational diffusivity
-    double getPersistenceLength(); // returns persistence length
-    double getPackingFraction(); // returns packing fraction
-    double getSystemSize(); // returns system size
-    double getTimeStep(); // returns time step
-
-    void setTimeStep(double dt); // changes time step
+    int getNumberParticles() const; // returns number of particles
+    double getPotentialParameter() const; // returns coefficient parameter of potential
+    double getPropulsionVelocity() const; // returns self-propulsion velocity
+    double getTransDiffusivity() const; // returns translational diffusivity
+    double getRotDiffusivity() const; // returns rotational diffusivity
+    double getPersistenceLength() const; // returns persistence length
+    double getPackingFraction() const; // returns packing fraction
+    double getSystemSize() const; // returns system size
+    double getTimeStep() const; // returns time step
 
     int getRandomSeed() const; // returns random seed
     rnd* getRandomGenerator(); // returns pointer to random generator
 
-    Particle* getParticle(int index); // returns pointer to given particle
+    Particle* getParticle(int const& index); // returns pointer to given particle
     std::vector<Particle> getParticles(); // returns vector of particles
 
     CellList* getCellList(); // returns pointer to CellList object
@@ -511,22 +506,14 @@ class System0 {
       // and add to particles[index1].force() and particles[index2].force().
 
     void copyParticles(std::vector<Particle>& newParticles);
-      // Replace vector of particles by newParticles.
+      // Copy positions and orientations.
     void copyParticles(System0* system);
-      // Replace vector of particles by the one from system.
-    void copyParticles(System0* system, std::vector<double>& diameters);
-      // Replace vector of particles by the one from system.
-      // Replace particles' diameters by the ones in diameters.
-
-    void setDiameters(std::vector<double>& diameters);
-      // Set all diameters and re-define system size.
+      // Copy positions and orientations.
 
     void saveInitialState();
       // Saves initial state of particles to output file.
     void saveNewState(std::vector<Particle>& newParticles);
       // Saves new state of particles to output file then copy it.
-
-    void updateCellList() { cellList.update<System0>(this); }
 
   private:
 
@@ -739,8 +726,8 @@ template<class SystemClass> double WCA_potential(SystemClass* system) {
 
     double dist = system->getDistance(index1, index2); // dimensionless distance between particles
     double sigma =
-      ((system->getParticle(index1))->diameter()[0]
-      + (system->getParticle(index2))->diameter()[0])/2.0; // equivalent diameter
+      ((system->getParticle(index1))->diameter()
+      + (system->getParticle(index2))->diameter())/2.0; // equivalent diameter
 
     if (dist/sigma < pow(2., 1./6.)) { // distance lower than cut-off
       // compute potential

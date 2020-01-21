@@ -212,7 +212,10 @@ void iterate_ABP_WCA(System0* system, int Niter) {
 
   Parameters* parameters = system->getParameters();
 
-  std::vector<Particle> newParticles(parameters->getNumberParticles());
+  std::vector<Particle> newParticles(0);
+  for (int i=0; i < parameters->getNumberParticles(); i++) {
+    newParticles.push_back(Particle((system->getParticle(i))->diameter()));
+  }
 
   double selfPropulsion; // self-propulsion force
   double noise; // noise realisation
