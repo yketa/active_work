@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <math.h>
 
 #include "env.hpp"
 #include "fire.hpp"
@@ -49,17 +50,25 @@ int main() {
 
     // diameters
     double I = getEnvDouble("I", 0); // polydispersity index
-    std::vector<double> diameters (N); // array of diameters
-    for (int i=0; i < N; i++) {
-      diameters[i] = 1 - I + 2*I*i/(N - 1);
+    std::vector<double> diameters (N, 1.0); // array of diameters
+    if ( N > 1 ) {
+      for (int i=0; i < N; i++) {
+        diameters[i] = 1 - I + 2*I*i/(N - 1);
+      }
     }
     // randomisation of diameters order
     rnd randomGenerator;
     randomGenerator.setSeed(seed);
     std::random_shuffle(diameters.begin(), diameters.end(),
       [&randomGenerator](int max) { return randomGenerator.randomInt(max); });
+    // system size
+    double totalArea = 0.0;
+    for (int i=0; i < N; i++) {
+      totalArea += M_PI*pow(diameters[i], 2)/4.0;
+    }
+    double L = sqrt(totalArea/phi);
 
-    Parameters parameters(N, epsilon, v0, D, Dr, phi, dt); // class of simulation parameters
+    Parameters parameters(N, epsilon, v0, D, Dr, phi, L, dt); // class of simulation parameters
 
     // system
     System0 system(
