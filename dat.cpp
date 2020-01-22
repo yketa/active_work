@@ -35,7 +35,7 @@ Dat::Dat(std::string filename, bool loadWork) :
 
   // ESTIMATION OF NUMBER OF COMPUTED WORK AND ORDER PARAMETER SUMS AND FRAMES
   numberWork = (input.getFileSize() - headerLength - frameLength)/(
-    framesWork*frameLength*dumpParticles + workLength);
+    framesWork*frameLength + workLength);
   frames = !dumpParticles ? 0 :
     (input.getFileSize() - headerLength - numberWork*workLength)/frameLength;
 
@@ -168,7 +168,7 @@ Dat0::Dat0(std::string filename, bool loadWork) :
 
   // ESTIMATION OF NUMBER OF COMPUTED WORK AND ORDER PARAMETER SUMS AND FRAMES
   numberWork = (input.getFileSize() - headerLength - frameLength)/(
-    framesWork*frameLength*dumpParticles + workLength);
+    framesWork*frameLength + workLength);
   frames = !dumpParticles ? 0 :
     (input.getFileSize() - headerLength - numberWork*workLength)/frameLength;
 
