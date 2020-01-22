@@ -19,7 +19,7 @@ int main() {
   int Niter = getEnvInt("NITER", 1000000); // number of iterations
 
   // active work computation
-  int nWork = getEnvInt("NWORK", 1); // number of frames on which to compute active work
+  int nWork = getEnvInt("NWORK", 0); // number of frames on which to compute active work
 
   // output
   std::string filename = getEnvString("FILE", "out.dat0"); // output file name

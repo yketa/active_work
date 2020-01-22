@@ -280,15 +280,11 @@ System::System(
   int nWork, bool dump, int period) :
   param(
     [&]{ // necessary initialisation with a lambda function due to const attributes
-      Dat0 inputDat(inputFilename, false); // data object
+      Dat inputDat(inputFilename, false); // data object
       Parameters param(
         inputDat.getNumberParticles(),
-        inputDat.getPotentialParameter(),
-        inputDat.getPropulsionVelocity(),
-        inputDat.getTransDiffusivity(),
-        inputDat.getRotDiffusivity(),
+        inputDat.getPersistenceLength(),
         inputDat.getPackingFraction(),
-        inputDat.getSystemSize(),
         dt > 0 ? dt : inputDat.getTimeStep());
       return param;
     }()),
@@ -296,7 +292,9 @@ System::System(
   particles(0),
   cellList(),
   output(filename), velocitiesDumps(0),
-  framesWork(nWork), dumpParticles(dump), dumpPeriod(period),
+  framesWork(nWork > 0 ? nWork : (int)
+    getPersistenceLength()/(getTimeStep()*period)),
+    dumpParticles(dump), dumpPeriod(period),
   biasingParameter(0),
   dumpFrame(-1),
   workSum {0, 0, 0}, workForceSum {0, 0, 0}, workOrientationSum {0, 0, 0},
@@ -308,7 +306,7 @@ System::System(
   {
 
   // load data
-  Dat0 inputDat(inputFilename, false); // data object
+  Dat inputDat(inputFilename, false); // data object
 
   // resize vector of particles
   particles.resize(getNumberParticles());
@@ -955,7 +953,9 @@ System0::System0(
   particles(0),
   cellList(),
   output(filename), velocitiesDumps(0),
-  framesWork(nWork), dumpParticles(dump), dumpPeriod(period),
+  framesWork(nWork > 0 ? nWork : (int)
+    1/(getRotDiffusivity()*getTimeStep()*period)),
+    dumpParticles(dump), dumpPeriod(period),
   dumpFrame(-1),
   workSum {0, 0, 0}, workForceSum {0, 0, 0}, workOrientationSum {0, 0, 0},
     orderSum {0, 0, 0} {
