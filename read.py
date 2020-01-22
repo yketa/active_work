@@ -32,8 +32,13 @@ class _Read:
         self.fileSize = os.path.getsize(filename)
 
     def __del__(self):
-        try: self.file.close()
-        except AttributeError: return   # self.file was not loaded
+        try:
+            self.file.close()
+            return True
+        except AttributeError: return False # self.file was not loaded
+
+    def __enter__(self): return self
+    def __exit__(self, exc_type, exc_value, tb): return self.__del__()
 
     def _bpe(self, type):
         """
@@ -66,7 +71,7 @@ class _Dat(_Read):
     (see active_work/particle.hpp -> class System & active_work/launch.py)
     """
 
-    def __init__(self, filename):
+    def __init__(self, filename, loadWork=True):
         """
         Get data from header.
 
@@ -74,6 +79,8 @@ class _Dat(_Read):
         ----------
         filename : string
             Path to data file.
+        loadWork : bool
+            Load active work and order parameter arrays.
         """
 
         # SIMULATION TYPE
@@ -118,7 +125,7 @@ class _Dat(_Read):
             raise ValueError("Invalid data file size.")
 
         # COMPUTED NORMALISED RATE OF ACTIVE WORK
-        self._loadWork()
+        if loadWork: self._loadWork()
 
     def getWork(self, time0, time1):
         """
@@ -826,7 +833,7 @@ class _Dat0(_Dat):
     (see active_work/particle.hpp -> class System0 & active_work/launch0.py)
     """
 
-    def __init__(self, filename):
+    def __init__(self, filename, loadWork=True):
         """
         Get data from header.
 
@@ -834,6 +841,8 @@ class _Dat0(_Dat):
         ----------
         filename : string
             Path to data file.
+        loadWork : bool
+            Load active work and order parameter arrays.
         """
 
         # SIMULATION TYPE
@@ -886,7 +895,7 @@ class _Dat0(_Dat):
             raise ValueError("Invalid data file size.")
 
         # COMPUTED NORMALISED RATE OF ACTIVE WORK
-        self._loadWork()
+        if loadWork: self._loadWork()
 
 class Dat(_Dat):
     """
@@ -900,7 +909,7 @@ class Dat(_Dat):
              parameters (resp. general parameters).
     """
 
-    def __init__(self, filename):
+    def __init__(self, filename, loadWork=True):
         """
         Get data from header.
 
@@ -908,17 +917,19 @@ class Dat(_Dat):
         ----------
         filename : string
             Path to data file.
+        loadWork : bool
+            Load active work and order parameter arrays.
         """
 
         if get_env('FORCE_DAT', default=False, vartype=bool):       # enforce choice of data structure with custom relations between parameters
-            _Dat.__init__(self, filename)
+            _Dat.__init__(self, filename, loadWork=loadWork)
         elif get_env('FORCE_DAT0', default=False, vartype=bool):    # enforce choice of data structure from simulation with general parameters
-            _Dat0.__init__(self, filename)
+            _Dat0.__init__(self, filename, loadWork=loadWork)
         else:                                                       # guess data structure
             try:
-                _Dat.__init__(self, filename)                       # simulation with custom relations between parameters
+                _Dat.__init__(self, filename, loadWork=loadWork)    # simulation with custom relations between parameters
             except ValueError:
-                _Dat0.__init__(self, filename)                      # simulation with general parameters
+                _Dat0.__init__(self, filename, loadWork=loadWork)   # simulation with general parameters
 
 class DatR(_Read):
     """
