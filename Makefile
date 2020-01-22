@@ -10,15 +10,20 @@ CFLAGS=-std=gnu++11 -O3 -Wall
 LDFLAGS=
 MPIFLAGS=
 
+# CUSTOM DEFINITIONS
 ifneq ($(DEFINITIONS),)
 	CFLAGS+=$(foreach definition, $(DEFINITIONS),-D$(definition))
 endif
+
+# TEST
 ifeq ($(TEST),yes)
 	EXEC=$(BU)/test
 	CPP=test.cpp
 	LDFLAGS+=-fopenmp  # compile with openMP
 	MPIFLAGS+=-fopenmp # compile with openMP
 else
+
+# CLONING ALGORITHM
 ifeq ($(CLONING),yes)
 	EXEC=$(BU)/cloning
 	CPP=cloning.cpp
@@ -40,10 +45,14 @@ ifeq ($(TORQUE_DUMP),yes)
 	CFLAGS+=-DTORQUE_DUMP
 endif
 else
+
+# ROTORS
 ifeq ($(ROTORS),yes)
 	EXEC=$(BU)/rotors
 	CPP=mainR.cpp
 else
+
+# ABPs
 ifeq ($(SIM0),yes)
 	EXEC=$(BU)/simulation0
 	CPP=main0.cpp
@@ -51,26 +60,34 @@ else
 	EXEC=$(BU)/simulation
 	CPP=main.cpp
 endif
+
 endif
 endif
 endif
+
+# DEBUGGING OUTPUT
 ifeq ($(DEBUG),yes)
 	CFLAGS+=-DDEBUG
 endif
-ifneq ($(EXEC_NAME),)
-	EXEC=$(BU)/$(EXEC_NAME)
-endif
-MAIN=main.cpp main0.cpp mainR.cpp cloning.cpp test.cpp             # files with main()
-SRC=$(filter-out $(filter-out $(CPP), $(MAIN)), $(wildcard *.cpp)) # compile all files but the ones with wrong main()
 
+# CELL LIST
 ifeq ($(CELLLIST),yes)
 	EXEC:=$(EXEC)_cell_list
 	CFLAGS+=-DUSE_CELL_LIST
 endif
 
+# HEUN'S SCHEEM
 ifeq ($(HEUN), yes)
 	CFLAGS+=-DHEUN=true
 endif
+
+# NAME OF EXECTUABLE
+ifneq ($(EXEC_NAME),)
+	EXEC=$(BU)/$(EXEC_NAME)
+endif
+
+MAIN=main.cpp main0.cpp mainR.cpp cloning.cpp test.cpp             # files with main()
+SRC=$(filter-out $(filter-out $(CPP), $(MAIN)), $(wildcard *.cpp)) # compile all files but the ones with wrong main()
 
 OBJ=$(addprefix $(OB)/, $(SRC:.cpp=.o))
 
