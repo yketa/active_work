@@ -4,6 +4,7 @@ Module launch0 launches simulations with all different parameters.
 
 from active_work.exponents import float_to_letters
 from active_work.init import get_env
+from active_work.read import _Dat0 as Dat
 
 from numpy.random import randint
 
@@ -75,18 +76,33 @@ if __name__ == '__main__':
 
     # VARIABLE DEFINITIONS
 
-    # SYSTEM PARAMETERS [consider if input file is not given]
-    N = get_env('N', default=_N, vartype=int)                       # number of particles in the system
-    Dr = get_env('DR', default=_Dr, vartype=float)                  # rotational diffusivity
-    epsilon = get_env('EPSILON', default=Dr/3., vartype=float)      # coefficient parameter of potential
-    v0 = get_env('V0', default=_v0, vartype=float)                  # self-propulsion velocity
-    D = get_env('D', default=epsilon, vartype=float)                # translational diffusivity
-    phi = get_env('PHI', default=_phi, vartype=float)               # packing fraction
-    I = get_env('I', default=_I, vartype=float)                     # polydispersity index
-
-    # INPUT FILE PARAMETERS [consider if input file is given]
+    # INPUT FILE PARAMETERS
     inputFilename = get_env('INPUT_FILENAME', default='', vartype=str)  # input file from which to copy data
     inputFrame = get_env('INPUT_FRAME', default=0, vartype=int)         # frame to copy as initial frame
+
+    if inputFilename == '':
+
+        # SYSTEM PARAMETERS
+        N = get_env('N', default=_N, vartype=int)                       # number of particles in the system
+        Dr = get_env('DR', default=_Dr, vartype=float)                  # rotational diffusivity
+        epsilon = get_env('EPSILON', default=Dr/3., vartype=float)      # coefficient parameter of potential
+        v0 = get_env('V0', default=_v0, vartype=float)                  # self-propulsion velocity
+        D = get_env('D', default=epsilon, vartype=float)                # translational diffusivity
+        phi = get_env('PHI', default=_phi, vartype=float)               # packing fraction
+        I = get_env('I', default=_I, vartype=float)                     # polydispersity index
+
+    else:
+
+        # SYSTEM PARAMETERS
+        with Dat(inputFilename, loadWork=False) as dat: # data object
+            N = dat.N                                   # number of particles in the system
+            Dr = dat.Dr                                 # rotational diffusivity
+            epsilon = dat.epsilon                       # coefficient parameter of potential
+            v0 = dat.v0                                 # self-propulsion velocity
+            D = dat.D                                   # translational diffusivity
+            phi = dat.phi                               # packing fraction
+            I = -1                                      # polydispersity index
+            del dat
 
     # SIMULATION PARAMETERS
     seed = get_env('SEED', default=_seed, vartype=int)      # random seed

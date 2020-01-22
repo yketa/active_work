@@ -4,6 +4,7 @@ Module launch launches simulations with custom relations between parameters.
 
 from active_work.exponents import float_to_letters
 from active_work.init import get_env
+from active_work.read import _Dat as Dat
 
 from numpy.random import randint
 
@@ -64,14 +65,24 @@ if __name__ == '__main__':
 
     # VARIABLE DEFINITIONS
 
-    # SYSTEM PARAMETERS [consider if input file is not given]
-    N = get_env('N', default=_N, vartype=int)           # number of particles in the system
-    lp = get_env('LP', default=_lp, vartype=float)      # dimensionless persistence length
-    phi = get_env('PHI', default=_phi, vartype=float)   # packing fraction
-
-    # INPUT FILE PARAMETERS [consider if input file is given]
+    # INPUT FILE PARAMETERS
     inputFilename = get_env('INPUT_FILENAME', default='', vartype=str)  # input file from which to copy data
     inputFrame = get_env('INPUT_FRAME', default=0, vartype=int)         # frame to copy as initial frame
+
+    if inputFilename == '':
+
+        # SYSTEM PARAMETERS
+        N = get_env('N', default=_N, vartype=int)           # number of particles in the system
+        lp = get_env('LP', default=_lp, vartype=float)      # dimensionless persistence length
+        phi = get_env('PHI', default=_phi, vartype=float)   # packing fraction
+
+    else:
+
+        # SYSTEM PARAMETERS
+        with Dat(inputFilename, loadWork=False) as dat: # data object
+            N = dat.N                                   # number of particles in the system
+            lp = dat.lp                                 # dimensionless persistence length
+            phi = dat.phi                               # packing fraction
 
     # SIMULATION PARAMETERS
     seed = get_env('SEED', default=_seed, vartype=int)      # random seed
