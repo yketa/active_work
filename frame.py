@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+
 """
 Module frame renders images of the 2D system, with particles rendered as
 circles and arrows indicating their displacement.

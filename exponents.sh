@@ -1,5 +1,5 @@
 #! /bin/bash
-#
+
 # This bash shell script enables one to use functions
 # active_work.exponents.float_to_letters and
 # active_work.exponents.letters_to_float from the shell.
