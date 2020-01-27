@@ -264,8 +264,8 @@ def filename(N, phi, lp, nc, launch):
         File name.
     """
 
-    return 'N%s_D%s_L%s_NC%s_E%s' % (*map(float_to_letters,
-        (N, phi, lp, nc, launch)),)
+    return 'N%s_D%s_L%s_NC%s_E%s' % tuple(map(float_to_letters,
+        (N, phi, lp, nc, launch)))
 
 # DEFAULT PARAMETERS
 

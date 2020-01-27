@@ -34,8 +34,8 @@ def filename(N, phi, lp, launch):
         File name.
     """
 
-    return 'N%s_D%s_L%s_E%s.dat' % (*map(float_to_letters,
-        (N, phi, lp, launch)),)
+    return 'N%s_D%s_L%s_E%s.dat' % tuple(map(float_to_letters,
+        (N, phi, lp, launch)))
 
 # DEFAULT VARIABLES
 
