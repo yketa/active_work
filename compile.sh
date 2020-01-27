@@ -2,7 +2,11 @@
 
 # Compile all executables.
 
-USE_HEUN=no # use Heun's integrations scheme
+# move to script directory
+cd "$( dirname "${BASH_SOURCE[0]}" )"
+
+# use Heun's integrations scheme
+USE_HEUN=no
 
 # ROTORS
 (make clean && ROTORS=yes HEUN=$USE_HEUN make) || exit 0;
