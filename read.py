@@ -594,9 +594,15 @@ class _Dat(_Read):
 
     def _loadWork(self):
         """
-        Loads work from file self.filename + '.work.pickle' if it exists or
-        extract it from self.filename and pickle it to
-        self.filename + '.work.pickle.
+        Loads active work and order parameter dumps from
+            * self.filename + '.work.pickle': normalised rate of active work,
+            * self.filename + '.work.force.pickle': force part of the normalised
+            rate of active work,
+            * self.filename + '.work.ori.pickle': orientation part of the
+            normalised rate of active work,
+            * self.filename + '.order.pickle': order parameter,
+        if they exist or extract them from data file and then pickle them to
+        files.
         """
 
         # ACTIVE WORK
