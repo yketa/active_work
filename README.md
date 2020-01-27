@@ -11,15 +11,22 @@ Simulation and cloning scripts are written in C++. Wrapper scripts to launch the
 
 While C++ files can be quite cumbersome, Python wrappers are hopefully more readable and commented enough so that their functioning can be easily understood.
 
-## Compilation
+## Requirements
 
-All code was developped and tested on 64-bit linux. C++ cloning scripts necessitate `OpenMP`. Python scripts are written for `python3.*`, call the `active_work` package which necessitates this directory to be added to the `$PYTHONPATH`, and use `matplotlib` and `numpy`.
+All code was developped and tested on 64-bit linux. C++ cloning scripts necessitate `OpenMP`. Python scripts are written for `python3.*`, import the `active_work` package which necessitates this directory to be added to the `$PYTHONPATH`, and rely on the following packages:
 
-Direct compilation of all relevant executables, using `g++`, is possible by running the [`compile.sh`](https://github.com/yketa/active_work/blob/master/compile.sh) file.
+- `matplotlib`: plotting,
+- `numpy`: mathematical functions and array manipulation,
+- `scipy`: grid interpolation ([`scde.py`](https://github.com/yketa/active_work/blob/master/scde.py)),
+- `fastkde`: kernel density estimation ([`scde.py`](https://github.com/yketa/active_work/blob/master/scde.py)),
+
+which can be installed by running [`pip.sh`](https://github.com/yketa/active_work/blob/master/pip.sh), provided that `pip` is installed.
 
 ## Execution
 
-Given that all relevant executables have been compiled, they can be executed with the Python scripts listed below.
+Compilation of all relevant executables, using `g++`, is possible by running [`compile.sh`](https://github.com/yketa/active_work/blob/master/compile.sh).
+
+Given these have been compiled, they can be executed with the Python scripts listed below.
 
 ### Simulations of ABPs
 
