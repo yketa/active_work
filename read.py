@@ -104,7 +104,7 @@ class _Dat(_Read):
         self.headerLength = self.file.tell()                        # length of header in bytes
         self.particleLength = 5*self._bpe('d')*self.dumpParticles   # length the data of a single particle takes in a frame
         self.frameLength = self.N*self.particleLength               # length the data of a single frame takes in a file
-        self.workLength = 4*self._bpe('d')                          # length the data of a single work and order parameter dump take in a file
+        self.workLength = 4*self._bpe('d')                          # length the data of a single work and order parameter dump takes in a file
 
         # ESTIMATION OF NUMBER OF COMPUTED WORK AND ORDER SUMS AND FRAMES
         self.numberWork = (self.fileSize
@@ -594,7 +594,7 @@ class _Dat(_Read):
 
     def _loadWork(self):
         """
-        Loads active work and order parameter dumps from
+        Load active work and order parameter dumps from
             * self.filename + '.work.pickle': normalised rate of active work,
             * self.filename + '.work.force.pickle': force part of the normalised
             rate of active work,
@@ -880,7 +880,7 @@ class _Dat0(_Dat):
         self.headerLength = self.file.tell()                        # length of header in bytes
         self.particleLength = 5*self._bpe('d')*self.dumpParticles   # length the data of a single particle takes in a frame
         self.frameLength = self.N*self.particleLength               # length the data of a single frame takes in a file
-        self.workLength = 4*self._bpe('d')                          # length the data of a single work and order parameter dump take in a file
+        self.workLength = 4*self._bpe('d')                          # length the data of a single work and order parameter dump takes in a file
 
         # ESTIMATION OF NUMBER OF COMPUTED WORK AND ORDER SUMS AND FRAMES
         self.numberWork = (self.fileSize
@@ -944,7 +944,7 @@ class DatR(_Read):
     (see active_work/particle.hpp -> class Rotors & active_work/launchR.py)
     """
 
-    def __init__(self, filename):
+    def __init__(self, filename, loadOrder=True):
         """
         Get data from header.
 
@@ -952,6 +952,8 @@ class DatR(_Read):
         ----------
         filename : string
             Path to data file.
+        loadOrder : bool
+            Load order parameter array.
         """
 
         # FILE
@@ -962,6 +964,8 @@ class DatR(_Read):
         self.Dr = self._read('d')           # rotational diffusivity
         self.g = self._read('d')            # aligning torque parameter
         self.dt = self._read('d')           # time step
+        self.framesOrder = self._read('i')  # number of frames on which to average the order parameter before dumping
+        self.dumpRotors = self._read('b')   # dump orientations to output file
         self.dumpPeriod = self._read('i')   # period of dumping of orientations in number of frames
         self.seed = self._read('i')         # random seed
 
@@ -969,15 +973,28 @@ class DatR(_Read):
         self.headerLength = self.file.tell()        # length of header in bytes
         self.rotorLength = 1*self._bpe('d')         # length the data of a single rotor takes in a frame
         self.frameLength = self.N*self.rotorLength  # length the data of a single frame takes in a file
+        self.orderLength = 2*self._bpe('d')         # length the data of a single order parameter dump takes in a file
 
         # ESTIMATION OF NUMBER OF FRAMES
-        self.frames = (self.fileSize - self.headerLength)//self.frameLength # number of frames which the file contains
+        self.numberOrder = (self.fileSize
+            - self.headerLength                                     # header
+            - self.frameLength                                      # first frame
+            )//(
+            self.framesOrder*self.frameLength
+                + self.orderLength)                                 # number of cumputed order sums
+        self.frames = 0 if not(self.dumpRotors) else (
+            self.fileSize - self.headerLength
+            - self.numberOrder*self.orderLength)//self.frameLength  # number of frames which the file contains
 
         # FILE CORRUPTION CHECK
         if self.fileSize != (
-            self.headerLength                   # header
-            + self.frames*self.frameLength):    # frames
+            self.headerLength                       # header
+            + self.frames*self.frameLength          # frames
+            + self.numberOrder*self.orderLength):   # work sums
             raise ValueError("Invalid data file size.")
+
+        # COMPUTED ORDER PARAMETER
+        if loadOrder: self._loadOrder()
 
     def getOrientations(self, time, *rotor):
         """
@@ -1083,7 +1100,68 @@ class DatR(_Read):
         """
 
         self.file.seek(
-            self.headerLength           # header
-            + time*self.frameLength     # other frames
-            + rotor*self.rotorLength)   # other rotors
+            self.headerLength                                               # header
+            + time*self.frameLength                                         # other frames
+            + rotor*self.rotorLength                                        # other rotors
+            + (np.max([time - 1, 0])//self.framesOrder)*self.orderLength)   # active work sums (taking into account the frame with index 0)
         return self._read('d')
+
+    def _loadOrder(self):
+        """
+        Load order parameter dumps from
+            * self.filename + '.order.pickle': order parameter,
+            * self.filename + '.order.sq.pickle': squared order parameter,
+        if they exist or extract them from data file and then pickle them to
+        files.
+        """
+
+        # ORDER PARAMETER
+
+        try:    # try loading
+
+            with open(self.filename + '.order.pickle', 'rb') as orderFile:
+                self.orderParameter = pickle.load(orderFile)
+                if self.orderParameter.size != self.numberOrder:
+                    raise ValueError("Invalid order parameter array size.")
+
+        except (FileNotFoundError, EOFError):   # order parameter file does not exist or file is empty
+
+            # COMPUTE
+            self.orderParameter = np.empty(self.numberOrder)
+            for i in range(self.numberOrder):
+                self.file.seek(
+                    self.headerLength                           # header
+                    + self.frameLength                          # frame with index 0
+                    + (1 + i)*self.framesOrder*self.frameLength # all following packs of self.framesOrder frames
+                + i*self.orderLength)                           # previous values of the order parameter
+                self.orderParameter[i] = self._read('d')
+
+            # DUMP
+            with open(self.filename + '.order.pickle', 'wb') as orderFile:
+                pickle.dump(self.orderParameter, orderFile)
+
+        # SQUARED ORDER PARAMETER
+
+        try:    # try loading
+
+            with open(self.filename + '.order.sq.pickle', 'rb') as orderFile:
+                self.orderParameterSq = pickle.load(orderFile)
+                if self.orderParameterSq.size != self.numberOrder:
+                    raise ValueError("Invalid sq. order parameter array size.")
+
+        except (FileNotFoundError, EOFError):   # squared order parameter file does not exist or file is empty
+
+            # COMPUTE
+            self.orderParameterSq = np.empty(self.numberOrder)
+            for i in range(self.numberOrder):
+                self.file.seek(
+                    self.headerLength                           # header
+                    + self.frameLength                          # frame with index 0
+                    + (1 + i)*self.framesOrder*self.frameLength # all following packs of self.framesOrder frames
+                    + i*self.orderLength                        # previous values of the order parameter
+                    + self._bpe('d'))                           # value of active work
+                self.orderParameterSq[i] = self._read('d')
+
+            # DUMP
+            with open(self.filename + '.order.sq.pickle', 'wb') as orderFile:
+                pickle.dump(self.orderParameterSq, orderFile)

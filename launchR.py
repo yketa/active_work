@@ -47,6 +47,8 @@ _Niter = 5e4            # default number of iterations
 
 _launch = 0 # default launch identifier
 
+_nOrder = 0 # default number of frames on which to sum the order parameter
+_dump = 1   # default boolean to indicate to dump orientations to output file
 _period = 1 # default period of dumping of orientations in number of frames
 
 _exec_dir = path.join(path.dirname(path.realpath(__file__)), 'build')   # default executable directory
@@ -74,6 +76,8 @@ if __name__ == '__main__':
     launch = get_env('LAUNCH', default=_launch, vartype=float)  # launch identifier
 
     # OUTPUT PARAMETERS
+    nOrder = get_env('NORDER', default=_nOrder, vartype=int)    # number of frames on which to sum the order parameter
+    dump = get_env('DUMP', default=_dump, vartype=int)          # boolean to indicate to dump orientations to output file
     period = get_env('PERIOD', default=_period, vartype=int)    # period of dumping of orientations in number of frames
 
     # EXECUTABLE PARAMETERS
@@ -91,4 +95,4 @@ if __name__ == '__main__':
         'SEED': str(seed),
         'FILE': path.join(out_dir, out_file),
         'DT': str(dt), 'NITER': str(Niter),
-        'PERIOD': str(period)})
+        'NORDER': str(nOrder), 'DUMP': str(dump), 'PERIOD': str(period)})

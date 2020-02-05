@@ -19,13 +19,17 @@ int main() {
   double dt = getEnvDouble("DT", 1e-3); // time step
   int Niter = getEnvInt("NITER", 1000000); // number of iterations
 
+  // order parameter computation
+  int nOrder = getEnvInt("NORDER", 0); // number of frames on which to compute order parameter
+
   // rotors output
+  bool dump = getEnvBool("DUMP", 1); // dump orientations to output file
   int period = getEnvInt("PERIOD", 1); // period of dumping of orientations in number of frames
 
   // SYSTEM
 
-  Rotors rotors(N, Dr, g, dt, seed, filename, period); // define system
-  rotors.saveState(); // save first frame
+  Rotors rotors(N, Dr, dt, seed, g, filename, nOrder, dump, period); // define system
+  rotors.saveInitialState(); // save first frame
 
   // ITERATION
 

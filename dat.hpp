@@ -45,14 +45,10 @@ class Dat {
     long int getNumberWork() const; // returns number of computed work sums
     long int getFrames() const; // returns number of frames
 
-    std::vector<double> getActiveWork();
-      // Returns vector of computed active work sums.
-    std::vector<double> getActiveWorkForce();
-      // Returns vector of computed active work (force) sums.
-    std::vector<double> getActiveWorkOri();
-      // Returns vector of computed active work (orientation) sums.
-    std::vector<double> getOrderParameter();
-      // Returns vector of computed order parameter sums.
+    std::vector<double> getActiveWork(); // returns vector of computed active work sums
+    std::vector<double> getActiveWorkForce(); // returns vector of computed active work (force) sums
+    std::vector<double> getActiveWorkOri(); // returns vector of computed active work (orientation) sums
+    std::vector<double> getOrderParameter(); // returns vector of computed order parameter sums
 
     double getPosition(
       int const& frame, int const& particle, int const& dimension);
@@ -82,7 +78,7 @@ class Dat {
     long int headerLength; // length of header in input file
     long int particleLength; // length the data of a single particle takes in a frame
     long int frameLength; // length the data of a single frame takes in a file
-    long int workLength; // length the data of a single work dump take in a file
+    long int workLength; // length the data of a single work dump takes in a file
 
     long int numberWork; // number of computed work sums
     long int frames; // number of frames
@@ -130,17 +126,12 @@ class Dat0 {
     long int getNumberWork() const; // returns number of computed work sums
     long int getFrames() const; // returns number of frames
 
-    std::vector<double> getDiameters();
-      // Returns vector of diameters.
+    std::vector<double> getDiameters(); // returns vector of diameters
 
-    std::vector<double> getActiveWork();
-      // Returns vector of computed active work sums.
-    std::vector<double> getActiveWorkForce();
-      // Returns vector of computed active work (force) sums.
-    std::vector<double> getActiveWorkOri();
-      // Returns vector of computed active work (orientation) sums.
-    std::vector<double> getOrderParameter();
-      // Returns vector of computed order parameter sums.
+    std::vector<double> getActiveWork(); // returns vector of computed active work sums
+    std::vector<double> getActiveWorkForce(); // returns vector of computed active work (force) sums
+    std::vector<double> getActiveWorkOri(); // returns vector of computed active work (orientation) sums
+    std::vector<double> getOrderParameter(); // returns vector of computed order parameter sums
 
     double getPosition(
       int const& frame, int const& particle, int const& dimension);
@@ -174,7 +165,7 @@ class Dat0 {
     long int headerLength; // length of header in input file
     long int particleLength; // length the data of a single particle takes in a frame
     long int frameLength; // length the data of a single frame takes in a file
-    long int workLength; // length the data of a single work dump take in a file
+    long int workLength; // length the data of a single work dump takes in a file
 
     long int numberWork; // number of computed work sums
     long int frames; // number of frames
@@ -200,7 +191,7 @@ class DatR {
 
     // CONSTRUCTORS
 
-    DatR(std::string filename);
+    DatR(std::string filename, bool loadOrder = true);
 
     // DESTRUCTORS
 
@@ -217,6 +208,9 @@ class DatR {
 
     long int getFrames() const; // returns number of frames
 
+    std::vector<double> getOrderParameter(); // returns vector of computed order parameter sums
+    std::vector<double> getOrderParameterSq(); // returns vector of computed squared order parameter sums
+
     double getOrientation(int const& frame, int const& rotor);
       // Returns position of a given rotor at a given frame.
 
@@ -228,6 +222,8 @@ class DatR {
     double const rotDiffusivity; // rotational diffusivity
     double const torqueParameter; // aligning torque parameter
     double const timeStep; // time step
+    int const framesOrder; // number of frames on which to average the order parameter before dumping
+    bool const dumpRotors; // orientations dumped in file
     int const dumpPeriod; // period of dumping of orientations in number of frames
     int const randomSeed; // random seed
 
@@ -236,8 +232,13 @@ class DatR {
     long int headerLength; // length of header in input file
     long int rotorLength; // length the data of a single rotor takes in a frame
     long int frameLength; // length the data of a single frame takes in a file
+    long int orderLength; // length the data of a single order dump takes in a file
 
+    long int numberOrder; // number of computed order parameter sums
     long int frames; // number of frames
+
+    std::vector<double> orderParameter; // computed order parameter sums
+    std::vector<double> orderParameterSq; // computed squared order parameter sums
 
 };
 

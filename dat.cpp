@@ -270,9 +270,9 @@ double Dat0::getVelocity(
 
 // CONSTRUCTORS
 
-DatR::DatR(std::string filename) :
+DatR::DatR(std::string filename, bool loadOrder) :
   numberParticles(), rotDiffusivity(), torqueParameter(), timeStep(),
-    dumpPeriod(), randomSeed(),
+    framesOrder(), dumpRotors(), dumpPeriod(), randomSeed(),
   input(filename) {
 
   // HEADER INFORMATION
@@ -280,6 +280,8 @@ DatR::DatR(std::string filename) :
   input.read<const double>(&rotDiffusivity);
   input.read<const double>(&torqueParameter);
   input.read<const double>(&timeStep);
+  input.read<const int>(&framesOrder);
+  input.read<const bool>(&dumpRotors);
   input.read<const int>(&dumpPeriod);
   input.read<const int>(&randomSeed);
 
@@ -287,14 +289,34 @@ DatR::DatR(std::string filename) :
   headerLength = input.tellg();
   rotorLength = 1*sizeof(double);
   frameLength = numberParticles*rotorLength;
+  orderLength = 2*sizeof(double);
 
-  // ESTIMATION OF NUMBER OF FRAMES
-  frames = (input.getFileSize() - headerLength)/frameLength;
+  // ESTIMATION OF NUMBER OF COMPUTED ORDER PARAMETER SUMS AND FRAMES
+  numberOrder = (input.getFileSize() - headerLength - frameLength)/(
+    framesOrder*frameLength + orderLength);
+  frames = !dumpRotors ? 0 :
+    (input.getFileSize() - headerLength - numberOrder*orderLength)/frameLength;
 
   // FILE CORRUTION CHECK
-  if ( input.getFileSize() != headerLength + frames*frameLength ) {
+  if ( input.getFileSize() !=
+    headerLength + frames*frameLength + numberOrder*orderLength ) {
     std::cout << "Invalid file size." << std::endl;
     exit(0);
+  }
+
+  // ORDER PARAMETER
+  if ( loadOrder ) {
+    double order;
+    for (int i=0; i < numberOrder; i++) {
+      input.read<double>(&order,
+        headerLength                      // header
+        + frameLength                     // frame with index 0
+        + (1 + i)*framesOrder*frameLength // all following packs of framesOrder frames
+        + i*orderLength);                 // previous values of the order parameter
+      orderParameter.push_back(order);
+      input.read<double>(&order);
+      orderParameterSq.push_back(order);
+    }
   }
 }
 
@@ -313,11 +335,15 @@ int DatR::getRandomSeed() const { return randomSeed; }
 
 long int DatR::getFrames() const { return frames; }
 
+std::vector<double> DatR::getOrderParameter() { return orderParameter; }
+std::vector<double> DatR::getOrderParameterSq() { return orderParameterSq; }
+
 double DatR::getOrientation(int const& frame, int const& rotor) {
   // Returns position of a given rotor at a given frame.
 
   return input.read<double>(
-    headerLength          // header
-    + frame*frameLength   // other frames
-    + rotor*rotorLength); // other rotors
+    headerLength                                         // header
+    + frame*frameLength                                  // other frames
+    + rotor*rotorLength                                  // other rotors
+    + (std::max(frame - 1, 0)/framesOrder)*orderLength); // order parameter sums (taking into account the frame with index 0)
 }

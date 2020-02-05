@@ -23,7 +23,7 @@ ifeq ($(TEST),yes)
 	MPIFLAGS+=-fopenmp # compile with openMP
 else
 
-# CLONING ALGORITHM
+# ABP CLONING ALGORITHM
 ifeq ($(CLONING),yes)
 	EXEC=$(BU)/cloning
 	CPP=cloning.cpp
@@ -46,6 +46,14 @@ ifeq ($(TORQUE_DUMP),yes)
 endif
 else
 
+# ROTORS CLONING ALGORITHM
+ifeq ($(CLONINGR),yes)
+	EXEC=$(BU)/cloningR
+	CPP=cloningR.cpp
+	LDFLAGS+=-fopenmp  # compile with openMP
+	MPIFLAGS+=-fopenmp # compile with openMP
+else
+
 # ROTORS
 ifeq ($(ROTORS),yes)
 	EXEC=$(BU)/rotors
@@ -61,6 +69,7 @@ else
 	CPP=main.cpp
 endif
 
+endif
 endif
 endif
 endif
@@ -86,8 +95,8 @@ ifneq ($(EXEC_NAME),)
 	EXEC=$(BU)/$(EXEC_NAME)
 endif
 
-MAIN=main.cpp main0.cpp mainR.cpp cloning.cpp test.cpp             # files with main()
-SRC=$(filter-out $(filter-out $(CPP), $(MAIN)), $(wildcard *.cpp)) # compile all files but the ones with wrong main()
+MAIN=main.cpp main0.cpp mainR.cpp cloning.cpp cloningR.cpp test.cpp	# files with main()
+SRC=$(filter-out $(filter-out $(CPP), $(MAIN)), $(wildcard *.cpp))	# compile all files but the ones with wrong main()
 
 OBJ=$(addprefix $(OB)/, $(SRC:.cpp=.o))
 
@@ -128,6 +137,9 @@ $(OB)/readwrite.o: readwrite.cpp readwrite.hpp
 
 $(OB)/cloning.o: cloning.cpp cloningserial.hpp env.hpp particle.hpp readwrite.hpp
 	$(CC) -o $(OB)/cloning.o -c cloning.cpp $(CFLAGS) $(MPIFLAGS)
+
+$(OB)/cloningR.o: cloningR.cpp cloningserial.hpp env.hpp particle.hpp readwrite.hpp
+	$(CC) -o $(OB)/cloningR.o -c cloningR.cpp $(CFLAGS) $(MPIFLAGS)
 
 $(OB)/main.o: main.cpp env.hpp iteration.hpp particle.hpp
 	$(CC) -o $(OB)/main.o -c main.cpp $(CFLAGS)

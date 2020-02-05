@@ -3,7 +3,6 @@
 #include <vector>
 #include <string>
 #include <algorithm>
-#include <iostream>
 
 #include "dat.hpp"
 #include "particle.hpp"
@@ -269,7 +268,7 @@ System::System(
   // initialise cell list
   cellList.initialise<System>(this, pow(2., 1./6.));
   // copy positions and orientations and update cell list
-  copyParticles(system);
+  copyState(system);
   // copy dumps
   copyDump(system);
 }
@@ -472,7 +471,7 @@ void System::WCA_force(int const& index1, int const& index2) {
   }
 }
 
-void System::copyParticles(std::vector<Particle>& newParticles) {
+void System::copyState(std::vector<Particle>& newParticles) {
   // Copy positions and orientations.
 
   for (int i=0; i < getNumberParticles(); i++) {
@@ -488,7 +487,7 @@ void System::copyParticles(std::vector<Particle>& newParticles) {
   cellList.update<System>(this);
 }
 
-void System::copyParticles(System* system) {
+void System::copyState(System* system) {
   // Copy positions and orientations.
 
   for (int i=0; i < getNumberParticles(); i++) {
@@ -682,7 +681,7 @@ void System::saveNewState(std::vector<Particle>& newParticles) {
   // COPYING //
   /////////////
 
-  copyParticles(newParticles);
+  copyState(newParticles);
 }
 
 
@@ -873,7 +872,7 @@ System0::System0(
   double maxDiameter = *std::max_element(diameters.begin(), diameters.end()); // maximum diameter
   cellList.initialise<System0>(this, pow(2.0*maxDiameter, 1./6.));
   // copy positions and orientations and update cell list
-  copyParticles(system);
+  copyState(system);
   // copy dumps
   copyDump(system);
 }
@@ -926,7 +925,7 @@ System0::System0(
   double maxDiameter = *std::max_element(diameters.begin(), diameters.end()); // maximum diameter
   cellList.initialise<System0>(this, pow(2.0*maxDiameter, 1./6.));
   // copy positions and orientations and update cell list
-  copyParticles(system);
+  copyState(system);
   // copy dumps
   copyDump(system);
 }
@@ -1122,7 +1121,7 @@ void System0::WCA_force(int const& index1, int const& index2) {
   }
 }
 
-void System0::copyParticles(std::vector<Particle>& newParticles) {
+void System0::copyState(std::vector<Particle>& newParticles) {
   // Copy positions and orientations.
 
   for (int i=0; i < getNumberParticles(); i++) {
@@ -1138,7 +1137,7 @@ void System0::copyParticles(std::vector<Particle>& newParticles) {
   cellList.update<System0>(this);
 }
 
-void System0::copyParticles(System0* system) {
+void System0::copyState(System0* system) {
   // Copy positions and orientations.
 
   for (int i=0; i < getNumberParticles(); i++) {
@@ -1287,7 +1286,7 @@ void System0::saveNewState(std::vector<Particle>& newParticles) {
   // COPYING //
   /////////////
 
-  copyParticles(newParticles);
+  copyState(newParticles);
 }
 
 
@@ -1297,14 +1296,25 @@ void System0::saveNewState(std::vector<Particle>& newParticles) {
 
 // CONSTRUCTORS
 
+Rotors::Rotors() :
+  numberParticles(0), rotDiffusivity(0), torqueParameter(0),
+  timeStep(0), framesOrder(0), dumpRotors(0), dumpPeriod(0),
+  randomSeed(0), randomGenerator(),
+  orientations(), torques(),
+  output(""), biasingParameter(0), dumpFrame(-1),
+  orderSum {0, 0, 0}, orderSumSq {0, 0, 0} {}
+
 Rotors::Rotors(
-  int N, double Dr, double g, double dt, int seed,
-  std::string filename, int period) :
+  int N, double Dr, double dt, int seed, double g, std::string filename,
+  int nOrder, bool dump, int period) :
   numberParticles(N), rotDiffusivity(Dr), torqueParameter(g),
-  timeStep(dt), dumpPeriod(period),
+  timeStep(dt), framesOrder(nOrder > 0 ? nOrder : (int)
+    1/(getRotDiffusivity()*getTimeStep()*period)), dumpRotors(dump),
+    dumpPeriod(period),
   randomSeed(seed), randomGenerator(),
   orientations(N), torques(N, 0.0),
-  output(filename), dumpFrame(-1) {
+  output(filename), biasingParameter(0), dumpFrame(-1),
+  orderSum {0, 0, 0}, orderSumSq {0, 0, 0} {
 
   // set seed of random generator
   randomGenerator.setSeed(randomSeed);
@@ -1319,8 +1329,43 @@ Rotors::Rotors(
   output.write<double>(rotDiffusivity);
   output.write<double>(torqueParameter);
   output.write<double>(timeStep);
+  output.write<int>(framesOrder);
+  output.write<bool>(dumpRotors);
   output.write<int>(dumpPeriod);
-  output.write<int>(seed);
+  output.write<int>(randomSeed);
+}
+
+Rotors::Rotors(
+  Rotors* rotors, int seed, std::string filename, int nOrder, bool dump,
+  int period) :
+  numberParticles(rotors->getNumberParticles()),
+    rotDiffusivity(rotors->getRotDiffusivity()),
+    torqueParameter(rotors->getTorqueParameter()),
+  timeStep(rotors->getTimeStep()), framesOrder(nOrder > 0 ? nOrder : (int)
+    1/(getRotDiffusivity()*getTimeStep()*period)), dumpRotors(dump),
+    dumpPeriod(period),
+  randomSeed(seed), randomGenerator(),
+  orientations(getNumberParticles()), torques(getNumberParticles(), 0.0),
+  output(filename), biasingParameter(0), dumpFrame(-1),
+  orderSum {0, 0, 0}, orderSumSq {0, 0, 0} {
+
+  // set seed of random generator
+  randomGenerator.setSeed(randomSeed);
+
+  // give random orientations to rotors
+  for (int i=0; i < numberParticles; i++) { // loop over rotors
+    orientations[i] = 2*M_PI*randomGenerator.random01();
+  }
+
+  // write header with system parameters to output file
+  output.write<int>(numberParticles);
+  output.write<double>(rotDiffusivity);
+  output.write<double>(torqueParameter);
+  output.write<double>(timeStep);
+  output.write<int>(framesOrder);
+  output.write<bool>(dumpRotors);
+  output.write<int>(dumpPeriod);
+  output.write<int>(randomSeed);
 }
 
 // DESTRUCTORS
@@ -1331,25 +1376,128 @@ Rotors::~Rotors() {}
 
 int Rotors::getNumberParticles() const { return numberParticles; }
 double Rotors::getRotDiffusivity() const { return rotDiffusivity; }
-double Rotors::getTorqueParameter() const { return torqueParameter; }
+
+double Rotors::getTorqueParameter() { return torqueParameter; }
+void Rotors::setTorqueParameter(double g) { torqueParameter = g; }
 
 double Rotors::getTimeStep() const { return timeStep; }
 
-double* Rotors::getOrientation(int index) { return &(orientations[index]); }
-double* Rotors::getTorque(int index) { return &(torques[index]); }
+double* Rotors::getOrientation(int const& index)
+  { return &(orientations[index]); }
+double* Rotors::getTorque(int const& index) { return &(torques[index]); }
 
 rnd* Rotors::getRandomGenerator() { return &randomGenerator; }
 
-void Rotors::saveState() {
-  // Save current state.
+double Rotors::getBiasingParameter() { return biasingParameter; }
+void Rotors::setBiasingParameter(double s) { biasingParameter = s; }
 
+int Rotors::getDump() { return dumpFrame; }
+
+void Rotors::resetDump() {
+  // Reset time-extensive quantities over trajectory.
+
+  dumpFrame = 0;
+
+  orderSum[0] = 0;
+  orderSumSq[0] = 0;
+
+  orderSum[2] = 0;
+  orderSumSq[2] = 0;
+}
+
+void Rotors::copyDump(Rotors* rotors) {
+  // Copy dumps from other system.
+  // WARNING: This also copies the index of last frame dumped. Consistency
+  //          has to be checked.
+
+  dumpFrame = rotors->getDump();
+
+  orderSum[2] = rotors->getTotalOrder();
+  orderSumSq[2] = rotors->getTotalOrderSq();
+}
+
+double Rotors::getOrder() { return orderSum[1]; }
+double Rotors::getOrderSq() { return orderSumSq[1]; }
+
+double Rotors::getTotalOrder() { return orderSum[2]; }
+double Rotors::getTotalOrderSq() { return orderSumSq[2]; }
+
+void Rotors::copyState(std::vector<double>& newOrientations) {
+  // Copy orientations.
+
+  for (int i=0; i < getNumberParticles(); i++) {
+    // ORIENTATIONS
+    orientations[i] = newOrientations[i];
+  }
+}
+
+void Rotors::copyState(Rotors* rotors) {
+  // Copy orientations.
+
+  for (int i=0; i < getNumberParticles(); i++) {
+    // ORIENTATIONS
+    orientations[i] = rotors->getOrientation(i)[0];
+  }
+}
+
+void Rotors::saveInitialState() {
+  // Saves initial state of rotors to output file.
+
+  // output
+  if ( dumpRotors ) {
+      for (int i=0; i < numberParticles; i++) {
+        output.write<double>(orientations[i]);
+      }
+  }
+
+  // reset dump
+  resetDump();
+}
+
+void Rotors::saveNewState(std::vector<double>& newOrientations) {
+  // Saves new state of rotors to output file then copy it.
+
+  // DUMP FRAME
   dumpFrame++;
 
-  if ( dumpFrame % dumpPeriod == 0 ) {
-    for (int i=0; i < numberParticles; i++) {
-      output.write<double>(orientations[i]);
+  ////////////
+  // SAVING //
+  ////////////
+
+  for (int i=0; i < getNumberParticles(); i++) { // output all rotors
+
+    if ( dumpRotors && dumpFrame % dumpPeriod == 0 ) {
+
+      // ORIENTATION
+      output.write<double>(newOrientations[i]);
     }
   }
+
+  // ORDER PARAMETER
+  double oldOrder = getOrderParameterNorm(orientations);
+  double newOrder = getOrderParameterNorm(newOrientations);
+  orderSum[0] += (oldOrder + newOrder)/2;
+  orderSumSq[0] += (pow(oldOrder, 2.0) + pow(newOrder, 2.0))/2;
+  if ( dumpFrame % (framesOrder*dumpPeriod) == 0 ) {
+    // compute normalised rates since last dump
+    orderSum[1] = orderSum[0]/(framesOrder*dumpPeriod);
+    orderSumSq[1] = orderSumSq[0]/(framesOrder*dumpPeriod);
+    // output normalised rates
+    output.write<double>(orderSum[1]);
+    output.write<double>(orderSumSq[1]);
+    // update time extensive quantities over trajectory since last reset
+    orderSum[2] += orderSum[0];
+    orderSumSq[2] += orderSumSq[0];
+    // reset sums
+    orderSum[0] = 0;
+    orderSumSq[0] = 0;
+  }
+
+  /////////////
+  // COPYING //
+  /////////////
+
+  copyState(newOrientations);
 }
 
 
@@ -1357,23 +1505,30 @@ void Rotors::saveState() {
 // FUNCTIONS //
 ///////////////
 
-double getGlobalPhase(std::vector<Particle>& particles) {
-  // Returns global phase.
-
-  std::vector<double> order = getOrderParameter(particles);
-
-  return getAngle(order[0]/sqrt(pow(order[0], 2) + pow(order[1], 2)), order[1]);
-}
-
 std::vector<double> getOrderParameter(std::vector<Particle>& particles) {
   // Returns order parameter.
 
   std::vector<double> order(2, 0);
 
-  for (int i=0; i < (int) particles.size(); i++) { // loop over particles
+  int N = particles.size();
+  for (int i=0; i < N; i++) { // loop over particles
     for (int dim=0; dim < 2; dim++) { // loop over dimensions
-      order[dim] += cos(particles[i].orientation()[0] - dim*M_PI/2)
-        /particles.size();
+      order[dim] += cos(particles[i].orientation()[0] - dim*M_PI/2)/N;
+    }
+  }
+
+  return order;
+}
+
+std::vector<double> getOrderParameter(std::vector<double>& orientations) {
+  // Returns order parameter.
+
+  std::vector<double> order(2, 0);
+
+  int N = orientations.size();
+  for (int i=0; i < N; i++) { // loop over particles
+    for (int dim=0; dim < 2; dim++) { // loop over dimensions
+      order[dim] += cos(orientations[i] - dim*M_PI/2)/N;
     }
   }
 
@@ -1385,7 +1540,31 @@ double getOrderParameterNorm(std::vector<Particle>& particles) {
 
   std::vector<double> order = getOrderParameter(particles);
 
-  return sqrt(pow(order[0], 2) + pow(order[1], 2));
+  return sqrt(pow(order[0], 2.0) + pow(order[1], 2.0));
+}
+
+double getOrderParameterNorm(std::vector<double>& orientations) {
+  // Returns order parameter norm.
+
+  std::vector<double> order = getOrderParameter(orientations);
+
+  return sqrt(pow(order[0], 2.0) + pow(order[1], 2.0));
+}
+
+double getGlobalPhase(std::vector<Particle>& particles) {
+  // Returns global phase.
+
+  std::vector<double> order = getOrderParameter(particles);
+
+  return getAngle(order[0]/sqrt(pow(order[0], 2) + pow(order[1], 2)), order[1]);
+}
+
+double getGlobalPhase(std::vector<double>& orientations) {
+  // Returns global phase.
+
+  std::vector<double> order = getOrderParameter(orientations);
+
+  return getAngle(order[0]/sqrt(pow(order[0], 2) + pow(order[1], 2)), order[1]);
 }
 
 void _WCA_force(

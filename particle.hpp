@@ -255,6 +255,10 @@ class System {
       int seed = 0, std::string filename = "",
       int nWork = 1, bool dump = true, int period = 1);
 
+    // cloning constructor
+    System(System* dummy, int seed, int tau) :
+      System(dummy, seed, "", tau, false, 1) { resetDump(); }
+
     // DESTRUCTORS
 
     ~System();
@@ -327,9 +331,9 @@ class System {
       // Compute WCA forces between particles[index1] and particles[index2],
       // and add to particles[index1].force() and particles[index2].force().
 
-    void copyParticles(std::vector<Particle>& newParticles);
+    void copyState(std::vector<Particle>& newParticles);
       // Copy positions and orientations.
-    void copyParticles(System* system);
+    void copyState(System* system);
       // Copy positions and orientations.
 
     void saveInitialState();
@@ -354,7 +358,6 @@ class System {
     std::vector<long int> velocitiesDumps; // locations in output file to dump velocities
 
     int const framesWork; // number of frames on which to sum the active work before dumping
-      // taken roughly equal to lp/dt
     bool const dumpParticles; // dump positions and orientations to output file
     int const dumpPeriod; // period of dumping of positions and orientations in number of frames
 
@@ -505,9 +508,9 @@ class System0 {
       // Compute WCA forces between particles[index1] and particles[index2],
       // and add to particles[index1].force() and particles[index2].force().
 
-    void copyParticles(std::vector<Particle>& newParticles);
+    void copyState(std::vector<Particle>& newParticles);
       // Copy positions and orientations.
-    void copyParticles(System0* system);
+    void copyState(System0* system);
       // Copy positions and orientations.
 
     void saveInitialState();
@@ -532,7 +535,6 @@ class System0 {
     std::vector<long int> velocitiesDumps; // locations in output file to dump velocities
 
     int const framesWork; // number of frames on which to sum the active work before dumping
-      // taken roughly equal to lp/dt
     bool const dumpParticles; // dump positions and orientations to output file
     int const dumpPeriod; // period of dumping of positions and orientations in number of frames
 
@@ -563,21 +565,39 @@ class Rotors {
    *  Parameters are stored in a binary file with the following structure:
    *
    *  [HEADER (see Rotors::Rotors)]
-   *  | (int) N | (double) Dr | (double) g | (double) dt | (int) period | (int) seed |
+   *  | (int) N | (double) Dr | (double) g | (double) dt | (int) framesOrder | (bool) dump | (int) period | (int) seed |
    *
-   *  [FRAMES (see Rotors::saveState)] (all double)
-   *  ||      FRAME i*period     || ...
-   *  || ROTOR 1 | ... | ROTOR N || ...
-   *  ||  theta  | ... |  theta  || ...
+   *  [INITIAL FRAME (see Rotors::saveInitialState)] (all double)
+   *  ||         FRAME 0         ||
+   *  || ROTOR 1 | ... | ROTOR N ||
+   *  ||  theta  | ... |  theta  ||
+   *
+   *  [BODY (see Rotors::saveNewState)] (all double)
+   *  ||      FRAME 1 + i*period     || ... || FRAME 1 + (i + framesOrder - 1)*period |~
+   *  ||  ROTOR 1  | ... |  ROTOR N  || ... ||                  ...                   |~
+   *  ||   theta   | ... |   theta   || ... ||                  ...                   |~
+   *
+   *  ~|                 |                         || ...
+   *  ~| ORDER PARAMETER | SQUARED ORDER PARAMETER || ...
+   *  ~|        nu       |            nu2          || ...
    */
 
   public:
 
     // CONSTRUCTORS
 
+    Rotors();
     Rotors(
-      int N, double Dr, double g, double dt, int seed = 0,
-      std::string filename = "", int period = 1);
+      int N, double Dr, double dt, int seed = 0, double g = 0,
+      std::string filename = "", int nOrder = 1, bool dump = true,
+      int period = 1);
+    Rotors(
+      Rotors* rotors, int seed = 0, std::string filename = "", int nOrder = 1,
+      bool dump = true, int period = 1);
+
+    // cloning constructor
+    Rotors(Rotors* dummy, int seed, int tau) :
+      Rotors(dummy, seed, "", tau, false, 1) { resetDump(); }
 
     // DESTRUCTORS
 
@@ -585,18 +605,48 @@ class Rotors {
 
     // METHODS
 
-    int getNumberParticles() const; // returns number of particles
+    int getNumberParticles() const; // returns number of rotors
     double getRotDiffusivity() const; // returns rotational diffusivity
-    double getTorqueParameter() const; // returns aligning torque parameter
+
+    double getTorqueParameter(); // returns aligning torque parameter
+    void setTorqueParameter(double g); // sets aligning torque parameter
 
     double getTimeStep() const; // returns simulation time step
 
-    double* getOrientation(int index); // returns pointer to orientation of given rotor
-    double* getTorque(int index); // returns pointer to torque applied on a given rotor
+    double* getOrientation(int const& index); // returns pointer to orientation of given rotor
+    double* getTorque(int const& index); // returns pointer to torque applied on a given rotor
 
     rnd* getRandomGenerator(); // returns pointer to random generator
 
-    void saveState(); // save current state
+    double getBiasingParameter(); // returns biasing parameter [cloning algorithm]
+    void setBiasingParameter(double s); // set biasing parameter [cloning algorithm]
+
+    int getDump(); // returns number of frames dumped since last reset
+    void resetDump();
+      // Reset time-extensive quantities over trajectory.
+    void copyDump(Rotors* rotors);
+      // Copy dumps from other system.
+      // WARNING: This also copies the index of last frame dumped. Consistency
+      //          has to be checked.
+
+    double getOrder(); // returns last computed averaged integrated order parameter
+    double getOrderSq(); // returns last computed averaged integrated squared order parameter
+    // NOTE: All these quantities are computed every framesOrder*dumpPeriod iterations.
+
+    double getTotalOrder(); // returns computed integrated order parameter since last reset
+    double getTotalOrderSq(); // returns computed integrated squared order parameter since last reset
+    // NOTE: All these quantities are updated every framesOrder*dumpPeriod iterations.
+    //       All these quantities are extensive in time since last reset.
+
+    void copyState(std::vector<double>& newOrientations);
+      // Copy orientations.
+    void copyState(Rotors* rotors);
+      // Copy orientations.
+
+    void saveInitialState();
+      // Saves initial state of rotors to output file.
+    void saveNewState(std::vector<double>& newOrientations);
+      // Saves new state of rotors to output file then copy it.
 
   private:
 
@@ -604,9 +654,13 @@ class Rotors {
 
     int const numberParticles; // number of particles
     double const rotDiffusivity; // rotational diffusivity
-    double const torqueParameter; // aligning torque parameter
+
+    double torqueParameter; // aligning torque parameter
 
     double const timeStep; // simulation time step
+
+    int const framesOrder; // number of frames on which to average the order parameter before dumping
+    bool const dumpRotors; // dump orientations to output file
     int const dumpPeriod; // period of dumping of orientations in number of frames
 
     int const randomSeed; // random seed
@@ -616,7 +670,16 @@ class Rotors {
     std::vector<double> torques; // vector of torques
 
     Write output; // output class
-    int dumpFrame; // number of frames dumped
+
+    double biasingParameter; // biasing parameter [cloning algorithm]
+
+    int dumpFrame; // number of frames dumped since last reset
+    // Quantities
+    // (0): sum of quantity since last dump
+    // (1): normalised quantity over last dump period
+    // (2): time-extensive quantity over trajectory since last reset
+    double orderSum[3]; // integrated order parameter norm (in units of the time step)
+    double orderSumSq[3]; // integrated squared order parameter norm (in units of the time step)
 
 };
 
@@ -625,14 +688,23 @@ class Rotors {
 // PROTOTYPES //
 ////////////////
 
-double getGlobalPhase(std::vector<Particle>& particles);
-  // Returns global phase.
-
 std::vector<double> getOrderParameter(std::vector<Particle>& particles);
+  // Returns order parameter.
+
+std::vector<double> getOrderParameter(std::vector<double>& orientations);
   // Returns order parameter.
 
 double getOrderParameterNorm(std::vector<Particle>& particles);
   // Returns order parameter norm.
+
+double getOrderParameterNorm(std::vector<double>& orientations);
+  // Returns order parameter norm.
+
+double getGlobalPhase(std::vector<Particle>& particles);
+  // Returns global phase.
+
+double getGlobalPhase(std::vector<double>& orientations);
+  // Returns global phase.
 
 void _WCA_force(
   System* system, int const& index1, int const& index2, double* force);
@@ -643,6 +715,11 @@ void _WCA_force(
   System0* system, int const& index1, int const& index2, double* force);
   // Writes to `force' the force deriving from the WCA potential between
   // particles `index1' and `index2'.
+
+
+///////////////
+// FUNCTIONS //
+///////////////
 
 template<class SystemClass, typename F> void pairs_ABP(
   SystemClass* system, F function) {

@@ -41,8 +41,14 @@ Interacting Brownian rotors model is detailed in [this tiddler](https://yketa.gi
 
 - Simulations are launched using [`launchR.py`](https://github.com/yketa/active_work/blob/master/launchR.py).
 
-### Cloning
+### Cloning of ABPs
 
 Principle and computation scheme of the scaled cumulant generating function (SCGF) of the active work and corresponding averages in the biased ensemble are detailed in [this tiddler](https://yketa.github.io/DAMTP_2019_Wiki/#ABP%20cloning%20algorithm).
 
 - Cloning of trajectories of ABPs systems with custom relations between parameters are launched using [`cloning.py`](https://github.com/yketa/active_work/blob/master/cloning.py).
+
+### Cloning of non-interacting Brownian rotors
+
+Principle and computation scheme of the scaled cumulant generating function (SCGF) of the (squared) polarisation and corresponding averages in the biased ensemble are detailed in [this tiddler](https://yketa.github.io/DAMTP_2019_Wiki/#Brownian%20rotors%20cloning%20algorithm).
+
+- Cloning of trajectories of Brownian rotors are launched using [`cloningR.py`](https://github.com/yketa/active_work/blob/master/cloningR.py).

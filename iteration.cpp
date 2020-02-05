@@ -5,10 +5,6 @@
 #include "iteration.hpp"
 #include "particle.hpp"
 
-#ifdef DEBUG
-#include <iostream>
-#endif
-
 
 ///////////////////////////////
 // ACTIVE BROWNIAN PARTICLES //
@@ -350,6 +346,8 @@ void iterate_rotors(Rotors* rotors, int Niter) {
   // Updates system to next step according to the dynamics of interacting
   // Brownian rotors.
 
+  std::vector<double> newOrientations(rotors->getNumberParticles());
+
   #if HEUN // HEUN'S SCHEME
   std::vector<double> orientations(rotors->getNumberParticles(), 0.0); // orientations backup
   std::vector<double> torques(rotors->getNumberParticles(), 0.0); // torques backup
@@ -359,10 +357,12 @@ void iterate_rotors(Rotors* rotors, int Niter) {
 
     // COMPUTATION
     for (int i=0; i < rotors->getNumberParticles(); i++) {
+      // initialise new orientations with previous ones
+      newOrientations[i] = rotors->getOrientation(i)[0];
       // reset torques
       rotors->getTorque(i)[0] = 0.0;
       // add noise
-      rotors->getOrientation(i)[0] +=
+      newOrientations[i] +=
         sqrt(2.0*rotors->getRotDiffusivity()*rotors->getTimeStep())
         *(rotors->getRandomGenerator())->gauss_cutoff();
     }
@@ -374,17 +374,19 @@ void iterate_rotors(Rotors* rotors, int Niter) {
         return rotors->getTorque(index); }); // compute torques
     // add torque
     for (int i=0; i < rotors->getNumberParticles(); i++) {
-      rotors->getOrientation(i)[0] +=
+      newOrientations[i] +=
         rotors->getTorque(i)[0]*rotors->getTimeStep();
     }
 
     // HEUN'S SCHEME
     #if HEUN
     for (int i=0; i < rotors->getNumberParticles(); i++) {
-      // save initial torques
-      torques[i] = rotors->getTorque(i)[0];
-      // reset torques
-      rotors->getTorque(i)[0] = 0;
+      // ORIENTATIONS
+      orientations = rotors->getOrientation(i)[0]; // save initial orientation
+      rotors->getOrientation(i)[0] = newOrientations[i]; // integration orientation as if using Euler's scheme
+      // TORQUES
+      torques[i] = rotors->getTorque(i)[0]; // save computed torque at initial orientation
+      rotors->getTorque(i)[0] = 0; // re-initialise torques
     }
     // re-compute aligning torques
     aligningTorque<Rotors>(rotors,
@@ -394,17 +396,19 @@ void iterate_rotors(Rotors* rotors, int Niter) {
         return rotors->getTorque(index); }); // compute torques
     for (int i=0; i < rotors->getNumberParticles(); i++) {
       // correction to orientations
-      rotors->getOrientation(i)[0] +=
+      newOrientations[i] +=
         (rotors->getTorque(i)[0] - torques[i])*rotors->getTimeStep()
         /2;
       // correction to torques
       rotors->getTorque(i)[0] =
         (rotors->getTorque(i)[0] + torques[i])
         /2;
+      // reset initial orientations
+      rotors->getOrientation(i)[0] = orientations[i];
     }
     #endif
 
     // SAVE
-    rotors->saveState();
+    rotors->saveNewState(newOrientations);
   }
 }
