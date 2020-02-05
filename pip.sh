@@ -11,8 +11,8 @@
 
 # PARAMETERS
 
-PYTHON=python
-PIP=pip
+PYTHON=${PYTHON-python}
+PIP=${PIP-pip}
 
 # INSTALL
 
