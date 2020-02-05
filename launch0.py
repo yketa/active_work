@@ -60,7 +60,7 @@ _Emin = 1   # default minimum energy at which to stop the minimisation
 
 _launch = 0 # default launch identifier
 
-_nWork = 0  # default number of frames on which to sum the active work before dumping (0 => nWork = lp/dt)
+_nWork = 0  # default number of frames on which to sum the active work before dumping
 _dump = 1   # default boolean to indicate to dump positions and orientations to output file
 _period = 1 # default period of dumping of positions and orientations in number of frames
 
@@ -120,7 +120,7 @@ if __name__ == '__main__':
     launch = get_env('LAUNCH', default=_launch, vartype=float)  # launch identifier
 
     # OUTPUT PARAMETERS
-    nWork = get_env('NWORK', default=_nWork, vartype=int)       # number of frames on which to sum the active work before dumping (0 => nWork = lp/dt)
+    nWork = get_env('NWORK', default=_nWork, vartype=int)       # number of frames on which to sum the active work before dumping
     dump = get_env('DUMP', default=_dump, vartype=int)          # boolean to indicate to dump positions and orientations to output file
     period = get_env('PERIOD', default=_period, vartype=int)    # period of dumping of positions and orientations in number of frames
 
