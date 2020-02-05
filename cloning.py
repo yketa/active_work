@@ -1,6 +1,6 @@
 """
-Module cloning launches cloning simulations and provides classes to read output
-data files from these simulations.
+Module cloning launches cloning simulations of ABPs and provides classes to read
+output data files from these simulations.
 
 Controlled dynamics is chosen with environment variable `CONTROLLED_DYNAMICS':
     (0) Unmodified dynamics,
@@ -293,7 +293,6 @@ _launch = 0 # default launch identifier
 _N_cell = 100                                                               # number of particles above which simulations should be launched with a cell list
 _exec_dir = path.join(path.dirname(path.realpath(__file__)), 'build')       # default executable directory
 _exec_name = {0: 'cloning', **{i: 'cloning_C%i' % i for i in range(1, 4)}}  # default executable name
-
 
 _out_dir = _exec_dir    # default simulation output directory
 
