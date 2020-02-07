@@ -5,6 +5,7 @@ read output data files from these simulations.
 Bias is chosen with environment variable `CLONING_BIAS':
     (0) order parameter,
     (1) squared order parameter.
+(see https://yketa.github.io/DAMTP_2019_Wiki/#Brownian%20rotors%20cloning%20algorithm)
 """
 
 import numpy as np
@@ -57,12 +58,13 @@ class CloningOutput:
             self.Dr,                # rotational diffusivity
             self._tau,              # elementary number of steps
             self.dt,                # time step
-            self.SCGF,              # array of different measurements of the SCGF per value of the biasing parameter
+            self.tSCGF,             # array of different measurements of the time scaled CGF per value of the biasing parameter
             self.orderParameter,    # array of different measurements of the order parameter per value of the biasing parameter
             self.orderParameterSq,  # array of different measurements of the squared order parameter per value of the biasing parameter
             self.walltime           # array of different running time per value of the biasing parameter
             ) = pickle.load(input)
 
+        self.SCGF = self.tSCGF/self.N       # scaled cumulant generating function
         self.tau = self._tau*self.dt        # dimensionless elementary time
         self.tinit = self.tau*self.initSim  # dimensionless initial simulation time
 
@@ -138,12 +140,12 @@ class _CloningOutput(_Read):
             raise ValueError("Invalid data file size.")
 
         # MEASUREMENTS
-        self.SCGF = np.empty((self.nRuns,))             # scaled cumulant generating function
+        self.tSCGF = np.empty((self.nRuns,))            # time scaled cumulant generating function
         self.orderParameter = np.empty((self.nRuns,))   # order parameter
         self.orderParameterSq = np.empty((self.nRuns,)) # squared order parameter
         self.walltime = np.empty((self.nRuns,))         # time taken for each run
         for i in range(self.nRuns):
-            self.SCGF[i] = self._read('d')
+            self.tSCGF[i] = self._read('d')
             self.orderParameter[i] = self._read('d')
             self.orderParameterSq[i] = self._read('d')
             self.walltime[i] = self._read('d')
@@ -198,7 +200,9 @@ _dt = 0.001 # default time step
 _launch = 0 # default launch identifier
 
 _exec_dir = path.join(path.dirname(path.realpath(__file__)), 'build')   # default executable directory
-_exec_name = 'cloningR'                                                 # default executable name
+_exec_name = {                                                          # default executable name
+    0: ('cloningR_B0', 'cloningR_B0'),                                  # cloning bias `0' without and with control
+    1: ('cloningR_B1', 'cloningR_B1_C')}                                # cloning bias `1' without and with control
 
 _out_dir = _exec_dir    # default simulation output directory
 
@@ -238,9 +242,12 @@ if __name__ == '__main__':
     dt = get_env('DT', default=_dt, vartype=float)  # time step
 
     # EXECUTABLE PARAMETERS
-    exec_dir = get_env('EXEC_DIR', default=_exec_dir, vartype=str)      # executable directory
-    exec_name = get_env('EXEC_NAME', default=_exec_name, vartype=str)   # executable name
-    exec_path = path.join(exec_dir, exec_name)                          # executable path
+    exec_dir = get_env('EXEC_DIR', default=_exec_dir, vartype=str)  # executable directory
+    exec_name = get_env('EXEC_NAME',                                # executable name
+        default=_exec_name[bias][
+            get_env('CONTROLLED_DYNAMICS', default=False, vartype=bool)],
+        vartype=str)
+    exec_path = path.join(exec_dir, exec_name)                      # executable path
 
     # OUTPUT FILES PARAMETERS
     launch = get_env('LAUNCH', default=_launch, vartype=float)      # launch identifier
@@ -261,7 +268,7 @@ if __name__ == '__main__':
                 stdout=DevNull, stderr=DevNull, env={
                     'TMAX': str(tmax), 'NC': str(nc), 'SVALUE': str(sValues[i]),
                         'SEED': str(seeds[i]), 'NRUNS': str(nRuns),
-                        'INITSIM': str(initSim), 'CLONING_BIAS': str(bias),
+                        'INITSIM': str(initSim),
                     'THREADS': str(threads),
                     'N': str(N), 'DR': str(Dr),
                     'TAU': str(tau), 'DT': str(dt),
@@ -279,8 +286,8 @@ if __name__ == '__main__':
             path.join(tmp_dir, tmp_template % i))]
 
     # ARRAYS OF DATA
-    SCGF = np.array(
-        [tmp_out[i].SCGF for i in range(sNum)])
+    tSCGF = np.array(
+        [tmp_out[i].tSCGF for i in range(sNum)])
     orderParameter = np.array(
         [tmp_out[i].orderParameter for i in range(sNum)])
     orderParameterSq = np.array(
@@ -296,7 +303,7 @@ if __name__ == '__main__':
             seed, seeds,
             N, Dr,
             tau, dt,
-            SCGF, orderParameter, orderParameterSq, walltime],
+            tSCGF, orderParameter, orderParameterSq, walltime],
             output)
 
     # CLEAN

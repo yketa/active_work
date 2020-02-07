@@ -12,7 +12,9 @@ USE_HEUN=no
 (make clean && ROTORS=yes HEUN=$USE_HEUN make) || exit 0;
 
 # ROTORS CLONING
-(make clean && CLONINGR=yes HEUN=$USE_HEUN make) || exit 0;
+(make clean && CLONINGR=yes BIAS=0 HEUN=$USE_HEUN make) || exit 0; # biasing by polarisation
+(make clean && CLONINGR=yes BIAS=1 CONTROLLED_DYNAMICS=no HEUN=$USE_HEUN make) || exit 0; # biasing by squared polarisation without controlled dynamics
+(make clean && CLONINGR=yes BIAS=1 CONTROLLED_DYNAMICS=yes HEUN=$USE_HEUN make) || exit 0; # biasing by squared polarisation with controlled dynamics
 
 for CL in yes no; do  # with and without cell lists
 

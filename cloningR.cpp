@@ -19,7 +19,6 @@ int main() {
 	int nRuns = getEnvInt("NRUNS", 1); // number of different runs
 	int cloneMethod = 2; // should keep this set to 2 (!!)
 	int initSim = getEnvInt("INITSIM", 1); // number of initial elementary number of iterations to "randomise" the systems
-	int cloningBias = getEnvInt("CLONING_BIAS", 0); // bias (0: order parameter, 1: squared order parameter)
 
 	// openMP parameters
 	#ifdef _OPENMP
@@ -54,7 +53,7 @@ int main() {
 	output.write<double>(Dr);
 	output.write<int>(tau);
 	output.write<double>(dt);
-	output.write<int>(cloningBias);
+	output.write<int>(BIAS);
 
 	// dummy system
 	Rotors dummy(N, Dr, dt);
@@ -68,6 +67,20 @@ int main() {
 	clones.init(&dummy, seed);
 	std::cout << "## master seed " << seed << std::endl;
 
+	#if BIAS == 0
+	double sFactor = N*tau*dt;
+	double sOffset = 0;
+	#endif
+	#if BIAS == 1
+	#ifdef CONTROLLED_DYNAMICS
+	double sFactor = sValue/Dr;
+	double sOffset = tau*dt;
+	#else
+	double sFactor = N*tau*dt;
+	double sOffset = 0;
+	#endif
+	#endif
+
 	for (int run = 0; run<nRuns;run++) {
 
 		// go! (this includes generating "random" [different] initial conditions for the clones)
@@ -77,20 +90,27 @@ int main() {
 			[](Rotors* rotors, int Niter) { iterate_rotors(rotors, Niter); },
 
 			// GET WEIGHT FUNCTION
-			[&cloningBias](Rotors* rotors) {
+			[&sValue, &sFactor, &sOffset](Rotors* rotors) {
 
 				double sWeight = 0;
 
 				// biasing with order parameter
-				if ( cloningBias == 0 ) {
-					sWeight = rotors->getBiasingParameter() // sw = s
-						*rotors->getOrder();                  // *nu
-				}
+				#if BIAS == 0
+				sWeight = rotors->getBiasingParameter() // sw = s
+					*rotors->getOrder()                   // *nu
+					*sFactor;                             // *N*tau
+				#endif
 				// biasing with squared order parameter
-				if ( cloningBias == 1 ) {
-					sWeight = rotors->getBiasingParameter() // sw = s
-						*rotors->getOrderSq();                // *nu
-				}
+				#if BIAS == 1
+				#ifdef CONTROLLED_DYNAMICS
+				sWeight = rotors->getBiasingParameter()           // sw = s
+					*(sOffset - sFactor*rotors->getBiasIntegral()); // *(tau - s/Dr)*int nu^2 sin(theta-phi)^2)
+				#else
+				sWeight = rotors->getBiasingParameter() // sw = s
+					*rotors->getOrderSq()                 // *nu^2
+					*sFactor;                             // *N*tau
+				#endif
+				#endif
 
 				return sWeight;
 			},
@@ -111,7 +131,7 @@ int main() {
 
 		std::cout << std::endl;
 		std::cout << "##s "    << sValue << std::endl
-		          << "##bias " << cloningBias << std::endl
+		          << "##bias " << BIAS << std::endl
 		          << "#SCGF "  << clones.outputPsi/N << std::endl
 		          << "#nu "    << clones.outputOP[0] << std::endl
 		          << "#nu^2 "  << clones.outputOP[1] << std::endl << std::endl

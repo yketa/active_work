@@ -1302,7 +1302,13 @@ Rotors::Rotors() :
   randomSeed(0), randomGenerator(),
   orientations(), torques(),
   output(""), biasingParameter(0), dumpFrame(-1),
-  orderSum {0, 0, 0}, orderSumSq {0, 0, 0} {}
+  orderSum {0, 0, 0}, orderSumSq {0, 0, 0}
+  #if BIAS == 1
+  #ifdef CONTROLLED_DYNAMICS
+  , biasIntegral {0, 0}
+  #endif
+  #endif
+  {}
 
 Rotors::Rotors(
   int N, double Dr, double dt, int seed, double g, std::string filename,
@@ -1314,7 +1320,13 @@ Rotors::Rotors(
   randomSeed(seed), randomGenerator(),
   orientations(N), torques(N, 0.0),
   output(filename), biasingParameter(0), dumpFrame(-1),
-  orderSum {0, 0, 0}, orderSumSq {0, 0, 0} {
+  orderSum {0, 0, 0}, orderSumSq {0, 0, 0}
+  #if BIAS == 1
+  #ifdef CONTROLLED_DYNAMICS
+  , biasIntegral {0, 0}
+  #endif
+  #endif
+  {
 
   // set seed of random generator
   randomGenerator.setSeed(randomSeed);
@@ -1347,7 +1359,13 @@ Rotors::Rotors(
   randomSeed(seed), randomGenerator(),
   orientations(getNumberParticles()), torques(getNumberParticles(), 0.0),
   output(filename), biasingParameter(0), dumpFrame(-1),
-  orderSum {0, 0, 0}, orderSumSq {0, 0, 0} {
+  orderSum {0, 0, 0}, orderSumSq {0, 0, 0}
+  #if BIAS == 1
+  #ifdef CONTROLLED_DYNAMICS
+  , biasIntegral {0, 0}
+  #endif
+  #endif
+  {
 
   // set seed of random generator
   randomGenerator.setSeed(randomSeed);
@@ -1389,7 +1407,14 @@ double* Rotors::getTorque(int const& index) { return &(torques[index]); }
 rnd* Rotors::getRandomGenerator() { return &randomGenerator; }
 
 double Rotors::getBiasingParameter() { return biasingParameter; }
-void Rotors::setBiasingParameter(double s) { biasingParameter = s; }
+void Rotors::setBiasingParameter(double s) {
+  biasingParameter = s;
+  #if BIAS == 1
+  #ifdef CONTROLLED_DYNAMICS
+  setTorqueParameter(getBiasingParameter());
+  #endif
+  #endif
+}
 
 int Rotors::getDump() { return dumpFrame; }
 
@@ -1421,6 +1446,12 @@ double Rotors::getOrderSq() { return orderSumSq[1]; }
 
 double Rotors::getTotalOrder() { return orderSum[2]; }
 double Rotors::getTotalOrderSq() { return orderSumSq[2]; }
+
+#if BIAS == 1
+#ifdef CONTROLLED_DYNAMICS
+double Rotors::getBiasIntegral() { return biasIntegral[1]; }
+#endif
+#endif
 
 void Rotors::copyState(std::vector<double>& newOrientations) {
   // Copy orientations.
@@ -1475,9 +1506,25 @@ void Rotors::saveNewState(std::vector<double>& newOrientations) {
 
   // ORDER PARAMETER
   double oldOrder = getOrderParameterNorm(orientations);
+  double oldOrderSq = pow(oldOrder, 2.0);
   double newOrder = getOrderParameterNorm(newOrientations);
+  double newOrderSq = pow(newOrder, 2.0);
   orderSum[0] += (oldOrder + newOrder)/2;
-  orderSumSq[0] += (pow(oldOrder, 2.0) + pow(newOrder, 2.0))/2;
+  orderSumSq[0] += (oldOrderSq + newOrderSq)/2;
+  // BIAS INTEGRAL
+  #if BIAS == 1
+  #ifdef CONTROLLED_DYNAMICS
+  double globalPhaseOld = getGlobalPhase(orientations);
+  double globalPhaseNew = getGlobalPhase(newOrientations);
+  for (int i=0; i < getNumberParticles(); i++) {
+    biasIntegral[0] += oldOrderSq
+      *pow(sin(orientations[i] - globalPhaseOld), 2.0)/2.0;
+    biasIntegral[0] += newOrderSq
+      *pow(sin(newOrientations[i] - globalPhaseNew), 2.0)/2.0;
+  }
+  #endif
+  #endif
+
   if ( dumpFrame % (framesOrder*dumpPeriod) == 0 ) {
     // compute normalised rates since last dump
     orderSum[1] = orderSum[0]/(framesOrder*dumpPeriod);
@@ -1491,6 +1538,13 @@ void Rotors::saveNewState(std::vector<double>& newOrientations) {
     // reset sums
     orderSum[0] = 0;
     orderSumSq[0] = 0;
+    // bias integral
+    #if BIAS == 1
+    #ifdef CONTROLLED_DYNAMICS
+    biasIntegral[1] = getTimeStep()*biasIntegral[0];
+    biasIntegral[0] = 0;
+    #endif
+    #endif
   }
 
   /////////////

@@ -638,6 +638,13 @@ class Rotors {
     // NOTE: All these quantities are updated every framesOrder*dumpPeriod iterations.
     //       All these quantities are extensive in time since last reset.
 
+    #if BIAS == 1
+    #ifdef CONTROLLED_DYNAMICS
+    double getBiasIntegral(); // returns computed bias integral over last dump period for controlled dynamics when biasing by squared polarisation
+    // NOTE: This quantity is updated every framesOrder*dumpPeriod iterations.
+    #endif
+    #endif
+
     void copyState(std::vector<double>& newOrientations);
       // Copy orientations.
     void copyState(Rotors* rotors);
@@ -680,6 +687,14 @@ class Rotors {
     // (2): time-extensive quantity over trajectory since last reset
     double orderSum[3]; // integrated order parameter norm (in units of the time step)
     double orderSumSq[3]; // integrated squared order parameter norm (in units of the time step)
+
+    #if BIAS == 1
+    #ifdef CONTROLLED_DYNAMICS
+    double biasIntegral[2]; // bias for controlled dynamics when biasing by squared polarisation
+    // (0): sum of quantity since last dump
+    // (1): time-extensive quantity over last dump period
+    #endif
+    #endif
 
 };
 

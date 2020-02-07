@@ -52,6 +52,17 @@ ifeq ($(CLONINGR),yes)
 	CPP=cloningR.cpp
 	LDFLAGS+=-fopenmp  # compile with openMP
 	MPIFLAGS+=-fopenmp # compile with openMP
+ifeq ($(BIAS), 1)
+	CFLAGS+=-DBIAS=1
+	EXEC:=$(EXEC)_B1
+ifeq ($(CONTROLLED_DYNAMICS), yes)
+	CFLAGS+=-DCONTROLLED_DYNAMICS
+	EXEC:=$(EXEC)_C
+endif
+else
+	CFLAGS+=-DBIAS=0
+	EXEC:=$(EXEC)_B0
+endif
 else
 
 # ROTORS
