@@ -80,6 +80,8 @@ int main() {
 	clones.init(&dummy, seed);
 	std::cout << "## master seed " << seed << std::endl;
 
+  double sFactor = N*tau*dt;
+
 	for (int run = 0; run<nRuns;run++) {
 
 		#if CONTROLLED_DYNAMICS == 2 || CONTROLLED_DYNAMICS == 3
@@ -95,28 +97,28 @@ int main() {
 			[](System* system, int Niter) { iterate_ABP_WCA(system, Niter); },
 
 			// GET WEIGHT FUNCTION
-			[](System* system) {
+			[&sValue, &sFactor](System* system) {
 
 			double sWeight;
 
 			#if CONTROLLED_DYNAMICS
-			sWeight = system->getBiasingParameter()*( // sw = s(
-				1.0 - system->getBiasingParameter()/    // 1 - s/
-				(3.0*system->getPersistenceLength())    // (3*lp)
-				+ system->getWorkForce());              // + w_f))
+			sWeight = sValue*(                       // sw = s(
+				1.0 - system->getBiasingParameter()/   // 1 - s/
+				(3.0*system->getPersistenceLength())   // (3*lp)
+				+ system->getWorkForce());             // + w_f))
 			#if CONTROLLED_DYNAMICS == 2 || CONTROLLED_DYNAMICS == 3
-			sWeight += system->getTorqueParameter()*  // sw += g
-				(1.0/system->getNumberParticles()       // (1/N
-				- system->getTorqueIntegral1()          // - I_1
-				- system->getTorqueParameter()*         // - g
-				system->getPersistenceLength()*         // lp
-				system->getTorqueIntegral2());          // I_2)
+			sWeight += system->getTorqueParameter()* // sw += g
+				(1.0/system->getNumberParticles()      // (1/N
+				- system->getTorqueIntegral1()         // - I_1
+				- system->getTorqueParameter()*        // - g
+				system->getPersistenceLength()*        // lp
+				system->getTorqueIntegral2());         // I_2)
 			#endif
 			#else
-			sWeight = system->getBiasingParameter()*system->getWork();
+			sWeight = sValue*system->getWork();
 			#endif
 
-			return sWeight;
+			return sFactor*sWeight;
 			},
 
 			// CONTROL FUNCTION

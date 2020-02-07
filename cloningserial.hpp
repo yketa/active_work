@@ -130,6 +130,10 @@ template<class SystemClass> template<typename F, typename G, typename H>
     double tmax, double sValue, int initSim,
     F iterate, G getSWeight, H control) {
   // this runs the cloning for total time tmax
+  // input functions:
+  // void iterate(SystemClass* system, int Niter): iterate system for Niter iterations
+  // double getSWeight(SystemClass* system): returns product of biasing parameter and trajectory weight over last cloning step
+  // void control(std::vector<SystemClass*> systems, int pullOffset, int pushOffset): modifications to controlled dynamics at the end of each cloning step
 
   // !! this is the main cloning algorithm
 
@@ -158,9 +162,6 @@ template<class SystemClass> template<typename F, typename G, typename H>
 
   double lnX = 0.0;  // this is used in our final estimate of psi
 
-  double actualTau = tau*systems[0]->getTimeStep();
-  double sFactor = systems[0]->getNumberParticles()*actualTau;
-
   std::vector<double> sWeight;
   sWeight.resize(nc);
 
@@ -183,7 +184,7 @@ template<class SystemClass> template<typename F, typename G, typename H>
         iterate(systems[pushOffset+i], tau); // run dynamics
 
         sWeight[i] = getSWeight(systems[pushOffset+i]);
-        upsilon[i] = exp(-sWeight[i] * sFactor);
+        upsilon[i] = exp(-sWeight[i]);
     }
 
     #ifdef DEBUG
@@ -191,9 +192,9 @@ template<class SystemClass> template<typename F, typename G, typename H>
       std::cout << "#logUps";
       for (int i=0;i<nc;i++) std::cout << " " << log( upsilon[i] );
       std::cout << std::endl;
-      std::cout << "#s w_mod";
-      for (int i=0; i<nc; i++) std::cout << " " << sWeight[i];
-      std::cout << std::endl;
+      // std::cout << "#s w_mod";
+      // for (int i=0; i<nc; i++) std::cout << " " << sWeight[i];
+      // std::cout << std::endl;
     #endif
 
     // construct key based on the upsilon params
