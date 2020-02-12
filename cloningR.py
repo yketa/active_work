@@ -68,9 +68,16 @@ class CloningOutput:
         self.tau = self._tau*self.dt        # dimensionless elementary time
         self.tinit = self.tau*self.initSim  # dimensionless initial simulation time
 
-    def meanSterr(self):
+    def meanSterr(self, remove=False):
         """
         Returns array of mean and standard error of measured data.
+
+        Parameters
+        ----------
+        remove : bool
+            Remove inf and -inf as well as nan. (default: False)
+            NOTE: A warning will be issued if remove == False and such objects are
+                  encountered.
 
         Returns
         -------
@@ -91,11 +98,14 @@ class CloningOutput:
         orderParameterSq = np.empty((self.sValues.size, 3))
         for i in range(self.sValues.size):
             SCGF[i] = [
-                self.sValues[i], *mean_sterr(self.SCGF[i])]
+                self.sValues[i],
+                *mean_sterr(self.SCGF[i], remove=remove)]
             orderParameter[i] = [
-                self.sValues[i], *mean_sterr(self.orderParameter[i])]
+                self.sValues[i],
+                *mean_sterr(self.orderParameter[i], remove=remove)]
             orderParameterSq[i] = [
-                self.sValues[i], *mean_sterr(self.orderParameterSq[i])]
+                self.sValues[i],
+                *mean_sterr(self.orderParameterSq[i], remove=remove)]
 
         return SCGF, orderParameter, orderParameterSq
 

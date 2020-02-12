@@ -114,9 +114,11 @@ def amplogwidth(arr, factor=2):
 
     return mean - factor*std, mean + factor*std
 
-def mean_sterr(values):
+def mean_sterr(values, remove=False):
     """
     Returns mean and standard error of values.
+
+    NOTE: Plase be aware this should really work only for 1D array-like.
 
     Parameters
     ----------
@@ -129,9 +131,17 @@ def mean_sterr(values):
         Mean of values.
     sterr : float
         Standard error of values.
+    remove : bool
+        Remove inf and -inf as well as nan. (default: False)
+        NOTE: A warning will be issued if remove == False and such objects are
+              encountered.
     """
 
     values = np.array(values)
+    if remove: values = (
+        (lambda _: _[True - np.isinf(_)])(      # remove inf
+        (lambda __: __[True - np.isnan(__)])(   # remove nana
+        values)))
     if values.size == 0: return None, None
 
     return np.mean(values), np.std(values)/np.sqrt(np.prod(values.shape))
