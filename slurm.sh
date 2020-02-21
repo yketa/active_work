@@ -38,6 +38,8 @@ OPTIONS
 
   -h    Display this help.
 
+  -w    Pause this script until completion of the job.
+
   -j    Job name on Slurm scheduler.
         DEFAULT: script name after last '/'
   -c    Execute after job with this ID has succesfully executed.
@@ -70,11 +72,14 @@ OPTIONS
 
 # OPTIONS
 
-while getopts "hj:c:d:o:f:p:g:n:r:t:m:" OPTION; do
+while getopts "hwj:c:d:o:f:p:g:n:r:t:m:" OPTION; do
   case $OPTION in
 
     h)  # help menu
       usage; exit;;
+
+    w) # wait
+      WAIT=true;;
 
     j)  # job name
       JOB_NAME=$OPTARG;;
@@ -129,8 +134,8 @@ MEMORY=${MEMORY-$_MEMORY}           # real memory required per node
 
 # SUBMIT JOB
 
-sbatch ${CHAIN:+-d afterok:$CHAIN} <<EOF
-#! /bin/bash
+sbatch ${WAIT:+-W} ${CHAIN:+-d afterok:$CHAIN} <<EOF
+#!/bin/bash
 #SBATCH --job-name='$JOB_NAME'
 #SBATCH --chdir=$SIM_DIR
 #SBATCH --error=${ERROR_DIR}/%j.out
@@ -165,3 +170,5 @@ export OMP_NUM_THREADS=$NTASKS
 
 $SCRIPT # launching script
 EOF
+
+${WAIT:+wait} # wait until completion of the job
