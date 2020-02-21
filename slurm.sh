@@ -58,6 +58,7 @@ OPTIONS
   -n    Required number of nodes.
         DEFAULT: _NODES
   -r    Number of MPI ranks running per node.
+        Number of threads for OpenMP parallelised jobs.
         DEFAULT: _NTASKS
   -t    Required time.
         DEFAULT: _TIME
@@ -140,6 +141,8 @@ sbatch ${CHAIN:+-d afterok:$CHAIN} <<EOF
 #SBATCH --ntasks-per-node=$NTASKS
 ${TIME:+#SBATCH --time=$TIME}
 ${MEMORY:+#SBATCH --mem=$MEMORY}
+
+export OMP_NUM_THREADS=$NTASKS
 
 # PRINT JOB PARAMETERS TO ERROR OUTPUT FILE
 (>&2 printf '%-21s: %s\n' 'SUBMIT DIRECTORY' '$(pwd)')
