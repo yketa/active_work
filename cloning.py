@@ -74,6 +74,14 @@ class CloningOutput:
         self.tau = self._tau*self.dt        # dimensionless elementary time
         self.tinit = self.tau*self.initSim  # dimensionless initial simulation time
 
+        self.I = np.empty((self.sValues.size, self.nRuns, 2))   # rate function
+        for i in range(self.sValues.size):
+            sValue = self.sValues[i]
+            for j, SCGF, activeWork in zip(
+                range(self.nRuns), self.SCGF[i], self.activeWork[i]):
+                self.I[i, j, 0] = activeWork
+                self.I[i, j, 1] = -sValue*activeWork - SCGF
+
     def meanSterr(self, remove=False):
         """
         Returns array of mean and standard error of measured data.
@@ -101,6 +109,14 @@ class CloningOutput:
         NOTE: (0) Biasing parameter.
               (1) Mean.
               (2) Standard error.
+
+        I : (self.sValues.size, 4) float Numpy array
+            Rate function.
+
+        NOTE: (0) Active work.
+              (1) Standard error on active work.
+              (2) Rate function.
+              (3) Standard error on rate function.
         """
 
         SCGF = np.empty((self.sValues.size, 3))
@@ -108,6 +124,7 @@ class CloningOutput:
         activeWorkForce = np.empty((self.sValues.size, 3))
         activeWorkOri = np.empty((self.sValues.size, 3))
         orderParameter = np.empty((self.sValues.size, 3))
+        I = np.empty((self.sValues.size, 4))
         for i in range(self.sValues.size):
             SCGF[i] = [
                 self.sValues[i],
@@ -124,8 +141,13 @@ class CloningOutput:
             orderParameter[i] = [
                 self.sValues[i],
                 *mean_sterr(self.orderParameter[i], remove=remove)]
+            I[i] = [
+                *mean_sterr(self.I[i, :, 0], remove=remove),
+                *mean_sterr(self.I[i, :, 1], remove=remove)]
 
-        return SCGF, activeWork, activeWorkForce, activeWorkOri, orderParameter
+        return (SCGF,
+            activeWork, activeWorkForce, activeWorkOri, orderParameter,
+            I)
 
 class _CloningOutput(_Read):
     """

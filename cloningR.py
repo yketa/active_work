@@ -64,9 +64,18 @@ class CloningOutput:
             self.walltime           # array of different running time per value of the biasing parameter
             ) = pickle.load(input)
 
-        self.SCGF = self.tSCGF/self.N       # scaled cumulant generating function
-        self.tau = self._tau*self.dt        # dimensionless elementary time
-        self.tinit = self.tau*self.initSim  # dimensionless initial simulation time
+        self.order = [self.orderParameter, self.orderParameterSq][self.bias]    # order parameter which bias the trajectories
+        self.SCGF = self.tSCGF/self.N                                           # scaled cumulant generating function
+        self.tau = self._tau*self.dt                                            # dimensionless elementary time
+        self.tinit = self.tau*self.initSim                                      # dimensionless initial simulation time
+
+        self.I = np.empty((self.sValues.size, self.nRuns, 2))   # rate function
+        for i in range(self.sValues.size):
+            sValue = self.sValues[i]
+            for j, SCGF, order in zip(
+                range(self.nRuns), self.SCGF[i], self.order[i]):
+                self.I[i, j, 0] = order
+                self.I[i, j, 1] = -sValue*order - SCGF
 
     def meanSterr(self, remove=False):
         """
@@ -91,11 +100,20 @@ class CloningOutput:
         NOTE: (0) Biasing parameter.
               (1) Mean.
               (2) Standard error.
+
+        I : (self.sValues.size, 4) float Numpy array
+            Rate function.
+
+        NOTE: (0) (Squared) order parameter.
+              (1) Standard error on (squared) order parameter.
+              (2) Rate function.
+              (3) Standard error on rate function.
         """
 
         SCGF = np.empty((self.sValues.size, 3))
         orderParameter = np.empty((self.sValues.size, 3))
         orderParameterSq = np.empty((self.sValues.size, 3))
+        I = np.empty((self.sValues.size, 4))
         for i in range(self.sValues.size):
             SCGF[i] = [
                 self.sValues[i],
@@ -106,8 +124,11 @@ class CloningOutput:
             orderParameterSq[i] = [
                 self.sValues[i],
                 *mean_sterr(self.orderParameterSq[i], remove=remove)]
+            I[i] = [
+                *mean_sterr(self.I[i, :, 0], remove=remove),
+                *mean_sterr(self.I[i, :, 1], remove=remove)]
 
-        return SCGF, orderParameter, orderParameterSq
+        return SCGF, orderParameter, orderParameterSq, I
 
 class _CloningOutput(_Read):
     """
