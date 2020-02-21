@@ -328,6 +328,8 @@ _N_cell = 100                                                               # nu
 _exec_dir = path.join(path.dirname(path.realpath(__file__)), 'build')       # default executable directory
 _exec_name = {0: 'cloning', **{i: 'cloning_C%i' % i for i in range(1, 4)}}  # default executable name
 
+_slurm_path = path.join(path.dirname(path.realpath(__file__)), 'slurm.sh')  # Slurm submitting script
+
 _out_dir = _exec_dir    # default simulation output directory
 
 # SCRIPT
@@ -355,6 +357,12 @@ if __name__ == '__main__':
 
     # OPENMP PARAMETERS
     threads = get_env('THREADS', default=_threads, vartype=int) # number of threads
+
+    # SLURM PARAMETERS
+    slurm = get_env('SLURM', default=False, vartype=bool)       # use Slurm job scheduler (see active_work/slurm.sh)
+    slurm_partition = get_env('SLURM_PARTITION', vartype=str)   # partition for the ressource allocation
+    slurm_ntasks = get_env('SLURM_NTASKS', vartype=int)         # number of MPI ranks running per node
+    slurm_time = get_env('SLURM_TIME', vartype=str)             # required time
 
     # PHYSICAL PARAMETERS
     N = get_env('N', default=_N, vartype=int)           # number of particles in the system
@@ -389,21 +397,42 @@ if __name__ == '__main__':
 
     # LAUNCH
 
+    env = lambda i: {   # environment variables for cloning executables as function of sValues index
+        'TMAX': str(tmax), 'NC': str(nc), 'SVALUE': str(sValues[i]),
+            'SEED': str(seeds[i]), 'NRUNS': str(nRuns),
+            'INITSIM': str(initSim),
+        'THREADS': str(threads),
+        'N': str(N), 'LP': str(lp), 'PHI': str(phi),
+        'TAU': str(tau), 'DT': str(dt),
+        'FILE': path.join(tmp_dir,
+            tmp_template % i),
+        'TORQUE_DUMP_FILE': path.join(tmp_dir,
+            torque_tmp_template % i)}
+
     with open(devnull, 'wb') as DevNull:
-        procs = [
-            Popen([exec_path],
-                stdout=DevNull, stderr=DevNull, env={
-                    'TMAX': str(tmax), 'NC': str(nc), 'SVALUE': str(sValues[i]),
-                        'SEED': str(seeds[i]), 'NRUNS': str(nRuns),
-                        'INITSIM': str(initSim),
-                    'THREADS': str(threads),
-                    'N': str(N), 'LP': str(lp), 'PHI': str(phi),
-                    'TAU': str(tau), 'DT': str(dt),
-                    'FILE': path.join(tmp_dir,
-                        tmp_template % i),
-                    'TORQUE_DUMP_FILE': path.join(tmp_dir,
-                        torque_tmp_template % i)})
-            for i in range(sNum)]       # launch computations
+
+        if slurm:   # using Slurm job scheduler
+
+            slurm_launch = ['bash', _slurm_path, '-w']  # commands to submit Slurm job
+            if slurm_partition != None: slurm_launch += ['-p', slurm_partition]
+            if slurm_ntasks != None: slurm_launch += ['-r', str(slurm_ntasks)]
+            if slurm_time != None: slurm_launch += ['-t', slurm_time]
+
+            procs = [
+                Popen(
+                    slurm_launch                                            # Slurm submitting script
+                        + ['%s=%s' % (key, env(i)[key]) for key in env(i)]  # environment variables
+                        + [exec_path],                                      # cloning executable
+                    stdout=DevNull, stderr=DevNull)
+                for i in range(sNum)]                                       # launch computations
+
+        else:   # not using Slurm job scheduler
+
+            procs = [
+                Popen([exec_path],
+                    stdout=DevNull, stderr=DevNull, env=env(i))
+                for i in range(sNum)]   # launch computations
+
         for proc in procs: proc.wait()  # wait for them to finish
 
     # CLONING OUTPUT FILE
@@ -476,4 +505,4 @@ if __name__ == '__main__':
         move(out_file, path.join(out_dir, sim_name + '.clo'))                   # move output file to output directory
         if torque_tmp_out:
             move(torque_file, path.join(out_dir, sim_name + '.torque.dump'))    # move output file to output directory
-        rmr(sim_dir)                                                            # delete simulation directory
+        rmr(sim_dir, ignore_errors=True)                                        # delete simulation directory
