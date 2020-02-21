@@ -124,12 +124,12 @@ void iterate_ABP_WCA(System* system, int Niter) {
 
       #if CONTROLLED_DYNAMICS == 2 || CONTROLLED_DYNAMICS == 3
       // ORIENTATIONS
-      orientations[i] = (sytem->getParticle(i))->orientation()[0]; // save initial orientation
-      (sytem->getParticle(i))->orientation()[0] =
+      orientations[i] = (system->getParticle(i))->orientation()[0]; // save initial orientation
+      (system->getParticle(i))->orientation()[0] =
         newParticles[i].orientation()[0]; // integrate position as if using Euler's scheme
       // TORQUES
-      torques[i] = (system->getParticle(i))->torque()[dim]; // save computed force at initial position
-      (sytem->getParticle(i))->torque()[0] = 0.0; // re-initialise torque
+      torques[i] = (system->getParticle(i))->torque()[0]; // save computed force at initial position
+      (system->getParticle(i))->torque()[0] = 0.0; // re-initialise torque
       #endif
     }
 
@@ -181,7 +181,7 @@ void iterate_ABP_WCA(System* system, int Niter) {
       // CORRECTION TO TORQUE
       #if CONTROLLED_DYNAMICS == 2 || CONTROLLED_DYNAMICS == 3
       newParticles[i].orientation()[0] +=
-        (system->getParticle(i))->torque()[0] - torques[i])
+        ((system->getParticle(i))->torque()[0] - torques[i])
         *parameters->getTimeStep()/2; // orientation
       (system->getParticle(i))->torque()[0] =
         ((system->getParticle(i))->torque()[0] + torques[i])/2; // torque
@@ -192,7 +192,7 @@ void iterate_ABP_WCA(System* system, int Niter) {
         (system->getParticle(i))->position()[dim] = positions[2*i + dim]; // position
       }
       #if CONTROLLED_DYNAMICS == 2 || CONTROLLED_DYNAMICS == 3
-      system->getParticle(i))->orientation()[0] = orientations[i]; // orientation
+      (system->getParticle(i))->orientation()[0] = orientations[i]; // orientation
       #endif
     }
     #endif
@@ -382,7 +382,7 @@ void iterate_rotors(Rotors* rotors, int Niter) {
     #if HEUN
     for (int i=0; i < rotors->getNumberParticles(); i++) {
       // ORIENTATIONS
-      orientations = rotors->getOrientation(i)[0]; // save initial orientation
+      orientations[i] = rotors->getOrientation(i)[0]; // save initial orientation
       rotors->getOrientation(i)[0] = newOrientations[i]; // integration orientation as if using Euler's scheme
       // TORQUES
       torques[i] = rotors->getTorque(i)[0]; // save computed torque at initial orientation
