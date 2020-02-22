@@ -139,8 +139,8 @@ def mean_sterr(values, remove=False):
 
     values = np.array(values)
     if remove: values = (
-        (lambda _: _[True - np.isinf(_)])(      # remove inf
-        (lambda __: __[True - np.isnan(__)])(   # remove nana
+        (lambda _: _[~np.isinf(_)])(    # remove inf
+        (lambda __: __[~np.isnan(__)])( # remove nan
         values)))
     if values.size == 0: return None, None
 
