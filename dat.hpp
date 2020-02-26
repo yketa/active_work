@@ -38,6 +38,7 @@ class Dat {
     double getPersistenceLength() const; // returns persistence length
     double getPackingFraction() const; // returns packing fraction
     double getSystemSize() const; // returns system size
+    double getTorqueParameter() const; // returns torque parameter
     int getRandomSeed() const; // returns random seed
     double getTimeStep() const; // returns time step
     int getFramesWork() const; // returns number of frames on which to sum the active work before dumping
@@ -49,6 +50,8 @@ class Dat {
     std::vector<double> getActiveWorkForce(); // returns vector of computed active work (force) sums
     std::vector<double> getActiveWorkOri(); // returns vector of computed active work (orientation) sums
     std::vector<double> getOrderParameter(); // returns vector of computed order parameter sums
+    std::vector<double> getTorqueIntegral1(); // returns vector of computed first torque integrals
+    std::vector<double> getTorqueIntegral2(); // returns vector of computed second torque integrals
 
     double getPosition(
       int const& frame, int const& particle, int const& dimension);
@@ -67,6 +70,7 @@ class Dat {
     double const persistenceLength; // persistence length
     double const packingFraction; // packing fraction
     double const systemSize; // size of the system
+    double const torqueParameter; // torque parameter
     int const randomSeed; // random seed
     double const timeStep; // time step
     int const framesWork; // number of frames on which to sum the active work before dumping
@@ -87,6 +91,8 @@ class Dat {
     std::vector<double> activeWorkForce; // computed active work (force) sums
     std::vector<double> activeWorkOri; // computed active work (orientation) sums
     std::vector<double> orderParameter; // computer order parameter sums
+    std::vector<double> torqueIntegral1; // computed first torque integrals
+    std::vector<double> torqueIntegral2; // computed second torque integrals
 
 };
 

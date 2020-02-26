@@ -39,8 +39,9 @@ int main() {
     int N = getEnvInt("N", 1); // number of particles in the system
     double lp = getEnvDouble("LP", 2); // dimensionless persistence length
     double phi = getEnvDouble("PHI", 0.02); // packing fraction
+    double g = getEnvDouble("TORQUE_PARAMETER", 0); // torque parameter
 
-    Parameters parameters(N, lp, phi, dt); // class of simulation parameters
+    Parameters parameters(N, lp, phi, dt, g); // class of simulation parameters
 
     // system
     System system(

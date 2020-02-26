@@ -13,7 +13,8 @@
 
 Dat::Dat(std::string filename, bool loadWork) :
   numberParticles(), persistenceLength(), packingFraction(), systemSize(),
-    randomSeed(), timeStep(), framesWork(), dumpParticles(), dumpPeriod(),
+    torqueParameter(), randomSeed(), timeStep(), framesWork(), dumpParticles(),
+    dumpPeriod(),
   input(filename) {
 
   // HEADER INFORMATION
@@ -21,6 +22,7 @@ Dat::Dat(std::string filename, bool loadWork) :
   input.read<const double>(&persistenceLength);
   input.read<const double>(&packingFraction);
   input.read<const double>(&systemSize);
+  input.read<const double>(&torqueParameter);
   input.read<const int>(&randomSeed);
   input.read<const double>(&timeStep);
   input.read<const int>(&framesWork);
@@ -31,7 +33,7 @@ Dat::Dat(std::string filename, bool loadWork) :
   headerLength = input.tellg();
   particleLength = 5*sizeof(double)*dumpParticles;
   frameLength = numberParticles*particleLength;
-  workLength = 4*sizeof(double);
+  workLength = 6*sizeof(double);
 
   // ESTIMATION OF NUMBER OF COMPUTED WORK AND ORDER PARAMETER SUMS AND FRAMES
   numberWork = (input.getFileSize() - headerLength - frameLength)/(
@@ -62,6 +64,10 @@ Dat::Dat(std::string filename, bool loadWork) :
       activeWorkOri.push_back(work);
       input.read<double>(&work);
       orderParameter.push_back(work);
+      input.read<double>(&work);
+      torqueIntegral1.push_back(work);
+      input.read<double>(&work);
+      torqueIntegral2.push_back(work);
     }
   }
 }
@@ -76,6 +82,7 @@ int Dat::getNumberParticles() const { return numberParticles; }
 double Dat::getPersistenceLength() const { return persistenceLength; }
 double Dat::getPackingFraction() const { return packingFraction; }
 double Dat::getSystemSize() const { return systemSize; }
+double Dat::getTorqueParameter() const { return torqueParameter; }
 int Dat::getRandomSeed() const { return randomSeed; }
 double Dat::getTimeStep() const { return timeStep; }
 int Dat::getFramesWork() const { return framesWork; }
@@ -87,6 +94,8 @@ std::vector<double> Dat::getActiveWork() { return activeWork; }
 std::vector<double> Dat::getActiveWorkForce() { return activeWorkForce; }
 std::vector<double> Dat::getActiveWorkOri() { return activeWorkOri; }
 std::vector<double> Dat::getOrderParameter() { return orderParameter; }
+std::vector<double> Dat::getTorqueIntegral1() { return torqueIntegral1; }
+std::vector<double> Dat::getTorqueIntegral2() { return torqueIntegral2; }
 
 double Dat::getPosition(
   int const& frame, int const& particle, int const& dimension) {

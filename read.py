@@ -80,7 +80,7 @@ class _Dat(_Read):
         filename : string
             Path to data file.
         loadWork : bool
-            Load active work and order parameter arrays.
+            Load active work and order parameter arrays. (default: True)
         """
 
         # SIMULATION TYPE
@@ -94,6 +94,7 @@ class _Dat(_Read):
         self.lp = self._read('d')               # persistence length
         self.phi = self._read('d')              # packing fraction
         self.L = self._read('d')                # system size
+        self.g = self._read('d')                # torque parameter
         self.seed = self._read('i')             # random seed
         self.dt = self._read('d')               # time step
         self.framesWork = self._read('i')       # number of frames on which to sum the active work before dumping
@@ -104,7 +105,7 @@ class _Dat(_Read):
         self.headerLength = self.file.tell()                        # length of header in bytes
         self.particleLength = 5*self._bpe('d')*self.dumpParticles   # length the data of a single particle takes in a frame
         self.frameLength = self.N*self.particleLength               # length the data of a single frame takes in a file
-        self.workLength = 4*self._bpe('d')                          # length the data of a single work and order parameter dump takes in a file
+        self.workLength = 6*self._bpe('d')                          # length the data of a single work and order parameter dump takes in a file
 
         # ESTIMATION OF NUMBER OF COMPUTED WORK AND ORDER SUMS AND FRAMES
         self.numberWork = (self.fileSize
@@ -594,13 +595,15 @@ class _Dat(_Read):
 
     def _loadWork(self):
         """
-        Load active work and order parameter dumps from
+        Load active work, order parameter, and torque integrals dumps from
             * self.filename + '.work.pickle': normalised rate of active work,
             * self.filename + '.work.force.pickle': force part of the normalised
             rate of active work,
             * self.filename + '.work.ori.pickle': orientation part of the
             normalised rate of active work,
             * self.filename + '.order.pickle': order parameter,
+            * self.filename + '.torque.int1.pickle': first torque integral,
+            * self.filename + '.torque.int2.pickle': second torque integral,
         if they exist or extract them from data file and then pickle them to
         files.
         """
@@ -707,6 +710,60 @@ class _Dat(_Read):
             # DUMP
             with open(self.filename + '.order.pickle', 'wb') as workFile:
                 pickle.dump(self.orderParameter, workFile)
+
+        if not(self._isDat0):
+
+            # FIRST TORQUE INTEGRAL
+
+            try:    # try loading
+
+                with open(self.filename + '.torque.int1.pickle', 'rb') as iFile:
+                    self.torqueIntegral1 = pickle.load(iFile)
+                    if self.torqueIntegral1.size != self.numberWork:
+                        raise ValueError("Invalid 1st torque int. array size.")
+
+            except (FileNotFoundError, EOFError):   # first torque integral file does not exist or file is empty
+
+                # COMPUTE
+                self.torqueIntegral1 = np.empty(self.numberWork)
+                for i in range(self.numberWork):
+                    self.file.seek(
+                        self.headerLength                           # header
+                        + self.frameLength                          # frame with index 0
+                        + (1 + i)*self.framesWork*self.frameLength  # all following packs of self.framesWork frames
+                        + i*self.workLength                         # previous values of the active work
+                        + 4*self._bpe('d'))                         # values of the different parts of active work and the order parameter
+                    self.torqueIntegral1[i] = self._read('d')
+
+                # DUMP
+                with open(self.filename + '.torque.int1.pickle', 'wb') as iFile:
+                    pickle.dump(self.torqueIntegral1, iFile)
+
+            # SECOND TORQUE INTEGRAL
+
+            try:    # try loading
+
+                with open(self.filename + '.torque.int2.pickle', 'rb') as iFile:
+                    self.torqueIntegral2 = pickle.load(iFile)
+                    if self.torqueIntegral2.size != self.numberWork:
+                        raise ValueError("Invalid 2nd torque int. array size.")
+
+            except (FileNotFoundError, EOFError):   # second torque integral file does not exist or file is empty
+
+                # COMPUTE
+                self.torqueIntegral2 = np.empty(self.numberWork)
+                for i in range(self.numberWork):
+                    self.file.seek(
+                        self.headerLength                           # header
+                        + self.frameLength                          # frame with index 0
+                        + (1 + i)*self.framesWork*self.frameLength  # all following packs of self.framesWork frames
+                        + i*self.workLength                         # previous values of the active work
+                        + 5*self._bpe('d'))                         # values of the different parts of active work, the order parameter, and the first torque integral
+                    self.torqueIntegral2[i] = self._read('d')
+
+                # DUMP
+                with open(self.filename + '.torque.int2.pickle', 'wb') as iFile:
+                    pickle.dump(self.torqueIntegral2, iFile)
 
     def _position(self, time, particle):
         """
@@ -848,7 +905,7 @@ class _Dat0(_Dat):
         filename : string
             Path to data file.
         loadWork : bool
-            Load active work and order parameter arrays.
+            Load active work and order parameter arrays. (default: True)
         """
 
         # SIMULATION TYPE
@@ -924,7 +981,7 @@ class Dat(_Dat):
         filename : string
             Path to data file.
         loadWork : bool
-            Load active work and order parameter arrays.
+            Load active work and order parameter arrays. (default: True)
         """
 
         if get_env('FORCE_DAT', default=False, vartype=bool):       # enforce choice of data structure with custom relations between parameters
@@ -953,7 +1010,7 @@ class DatR(_Read):
         filename : string
             Path to data file.
         loadOrder : bool
-            Load order parameter array.
+            Load order parameter array. (default: True)
         """
 
         # FILE

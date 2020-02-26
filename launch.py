@@ -13,7 +13,7 @@ from subprocess import run
 
 # FUNCTIONS AND CLASSES
 
-def filename(N, phi, lp, launch):
+def filename(N, phi, lp, g, launch):
     """
     Name of simulation output files.
 
@@ -25,6 +25,8 @@ def filename(N, phi, lp, launch):
         Packing fraction.
     lp : float
         Dimensionless persistence length.
+    g : float
+        Torque parameter.
     launch : int
         Launch identifier.
 
@@ -34,8 +36,8 @@ def filename(N, phi, lp, launch):
         File name.
     """
 
-    return 'N%s_D%s_L%s_E%s.dat' % tuple(map(float_to_letters,
-        (N, phi, lp, launch)))
+    return 'N%s_D%s_L%s_G%s_E%s.dat' % tuple(map(float_to_letters,
+        (N, phi, lp, g, launch)))
 
 # DEFAULT VARIABLES
 
@@ -72,9 +74,10 @@ if __name__ == '__main__':
     if inputFilename == '':
 
         # SYSTEM PARAMETERS
-        N = get_env('N', default=_N, vartype=int)           # number of particles in the system
-        lp = get_env('LP', default=_lp, vartype=float)      # dimensionless persistence length
-        phi = get_env('PHI', default=_phi, vartype=float)   # packing fraction
+        N = get_env('N', default=_N, vartype=int)                   # number of particles in the system
+        lp = get_env('LP', default=_lp, vartype=float)              # dimensionless persistence length
+        phi = get_env('PHI', default=_phi, vartype=float)           # packing fraction
+        g = get_env('TORQUE_PARAMETER', default=0, vartype=float)   # torque parameter
 
     else:
 
@@ -83,6 +86,7 @@ if __name__ == '__main__':
             N = dat.N                                   # number of particles in the system
             lp = dat.lp                                 # dimensionless persistence length
             phi = dat.phi                               # packing fraction
+            g = dat.g                                   # torque parameter
 
     # SIMULATION PARAMETERS
     seed = get_env('SEED', default=_seed, vartype=int)      # random seed
@@ -104,12 +108,12 @@ if __name__ == '__main__':
 
     # OUTPUT FILE PARAMETERS
     out_dir = get_env('OUT_DIR', default=_out_dir, vartype=str) # simulation output directory
-    out_file = filename(N, phi, lp, launch)                     # simulation output file name
+    out_file = filename(N, phi, lp, g, launch)                  # simulation output file name
 
     # LAUNCH
 
     run(['setsid', path.join(exec_dir, exec_name)], env={
-        'N': str(N), 'LP': str(lp), 'PHI': str(phi),
+        'N': str(N), 'LP': str(lp), 'PHI': str(phi), 'TORQUE_PARAMETER': str(g),
         'INPUT_FILENAME': str(inputFilename), 'INPUT_FRAME': str(inputFrame),
         'SEED': str(seed),
         'FILE': path.join(out_dir, out_file),

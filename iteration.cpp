@@ -17,6 +17,8 @@ void iterate_ABP_WCA(System* system, int Niter) {
 
   Parameters* parameters = system->getParameters();
 
+  bool const considerTorque = ( system->getTorqueParameter() != 0 );
+
   std::vector<Particle> newParticles(parameters->getNumberParticles());
 
   double selfPropulsion; // self-propulsion force
@@ -28,10 +30,12 @@ void iterate_ABP_WCA(System* system, int Niter) {
 
   std::vector<double> positions (2*parameters->getNumberParticles(), 0.0); // positions backup
   std::vector<double> forces (2*parameters->getNumberParticles(), 0.0); // forces backup
-  #if CONTROLLED_DYNAMICS == 2 || CONTROLLED_DYNAMICS == 3
-  std::vector<double> orientations (parameters->getNumberParticles(), 0.0); // orientations backup
-  std::vector<double> torques (parameters->getNumberParticles(), 0.0); // torques backup
-  #endif
+  std::vector<double> orientations; // orientations backup
+  std::vector<double> torques; // torques backup
+  if ( considerTorque ) { // only need to use this memory when torque parameter is not 0
+    orientations.assign(parameters->getNumberParticles(), 0.0);
+    torques.assign(parameters->getNumberParticles(), 0.0);
+  }
   #endif
 
   for (int iter=0; iter < Niter; iter++) {
@@ -77,21 +81,21 @@ void iterate_ABP_WCA(System* system, int Niter) {
       newParticles[i].orientation()[0] +=
         sqrt(parameters->getTimeStep()*2.0/parameters->getPersistenceLength())
           *(system->getRandomGenerator())->gauss_cutoff();
-      #if CONTROLLED_DYNAMICS == 2 || CONTROLLED_DYNAMICS == 3
-      // initialise torque
-      (system->getParticle(i))->torque()[0] = 0.0;
-      #endif
+      if ( considerTorque ) {
+        // initialise torque
+        (system->getParticle(i))->torque()[0] = 0.0;
+      }
     }
 
     // FORCES AND ALIGNING TORQUES
     ABP_WCA<System>(system); // compute forces
-    #if CONTROLLED_DYNAMICS == 2 || CONTROLLED_DYNAMICS == 3
-    aligningTorque<System>(system,
-      [&system](int index) {
-        return (system->getParticle(index))->orientation(); },
-      [&system](int index) {
-        return (system->getParticle(index))->torque(); }); // compute torques
-    #endif
+    if ( considerTorque ) {
+      aligningTorque<System>(system,
+        [&system](int index) {
+          return (system->getParticle(index))->orientation(); },
+        [&system](int index) {
+          return (system->getParticle(index))->torque(); }); // compute torques
+    }
 
     for (int i=0; i < parameters->getNumberParticles(); i++) {
       for (int dim=0; dim < 2; dim++) {
@@ -102,10 +106,10 @@ void iterate_ABP_WCA(System* system, int Niter) {
           (system->getParticle(i))->force()[dim]
           *parameters->getTimeStep()/3.0/parameters->getPersistenceLength(); // add force displacement
       }
-      #if CONTROLLED_DYNAMICS == 2 || CONTROLLED_DYNAMICS == 3
-      newParticles[i].orientation()[0] +=
-        (system->getParticle(i))->torque()[0]*parameters->getTimeStep(); // add torque rotation
-      #endif
+      if ( considerTorque ) {
+        newParticles[i].orientation()[0] +=
+          (system->getParticle(i))->torque()[0]*parameters->getTimeStep(); // add torque rotation
+      }
     }
 
     // HEUN'S SCHEME
@@ -122,26 +126,26 @@ void iterate_ABP_WCA(System* system, int Niter) {
         (system->getParticle(i))->force()[dim] = 0.0; // re-initialise force
       }
 
-      #if CONTROLLED_DYNAMICS == 2 || CONTROLLED_DYNAMICS == 3
-      // ORIENTATIONS
-      orientations[i] = (system->getParticle(i))->orientation()[0]; // save initial orientation
-      (system->getParticle(i))->orientation()[0] =
-        newParticles[i].orientation()[0]; // integrate position as if using Euler's scheme
-      // TORQUES
-      torques[i] = (system->getParticle(i))->torque()[0]; // save computed force at initial position
-      (system->getParticle(i))->torque()[0] = 0.0; // re-initialise torque
-      #endif
+      if ( considerTorque ) {
+        // ORIENTATIONS
+        orientations[i] = (system->getParticle(i))->orientation()[0]; // save initial orientation
+        (system->getParticle(i))->orientation()[0] =
+          newParticles[i].orientation()[0]; // integrate position as if using Euler's scheme
+        // TORQUES
+        torques[i] = (system->getParticle(i))->torque()[0]; // save computed force at initial position
+        (system->getParticle(i))->torque()[0] = 0.0; // re-initialise torque
+      }
     }
 
     // FORCES AND ALIGNING TORQUES
     ABP_WCA<System>(system); // re-compute forces
-    #if CONTROLLED_DYNAMICS == 2 || CONTROLLED_DYNAMICS == 3
-    aligningTorque<System>(system,
-      [&system](int index) {
-        return (system->getParticle(index))->orientation(); },
-      [&system](int index) {
-        return (system->getParticle(index))->torque(); }); // re-compute torques
-    #endif
+    if ( considerTorque ) {
+      aligningTorque<System>(system,
+        [&system](int index) {
+          return (system->getParticle(index))->orientation(); },
+        [&system](int index) {
+          return (system->getParticle(index))->torque(); }); // re-compute torques
+    }
 
     for (int i=0; i < parameters->getNumberParticles(); i++) {
 
@@ -159,19 +163,23 @@ void iterate_ABP_WCA(System* system, int Niter) {
 
       // CORRECTION TO SELF-PROPULSION FORCE
       for (int dim=0; dim < 2; dim++) {
-        selfPropulsionCorrection =
-          #if CONTROLLED_DYNAMICS
+        selfPropulsionCorrection = 1.0;
+        #if CONTROLLED_DYNAMICS
+        selfPropulsionCorrection *=
           (1.0 - 2.0*system->getBiasingParameter()
-            /3.0/parameters->getPersistenceLength())*
-          #endif
-          #if CONTROLLED_DYNAMICS == 2 || CONTROLLED_DYNAMICS == 3
-          (cos(newParticles[i].orientation()[0] - dim*M_PI/2)
-          - cos(orientations[2*i + dim] - dim*M_PI/2))
-          #else
-          (cos(newParticles[i].orientation()[0] - dim*M_PI/2)
-          - cos((system->getParticle(i))->orientation()[0] - dim*M_PI/2))
-          #endif
-          /2;
+            /3.0/parameters->getPersistenceLength());
+        #endif
+        if ( considerTorque ) {
+          selfPropulsionCorrection *=
+            (cos(newParticles[i].orientation()[0] - dim*M_PI/2)
+              - cos(orientations[2*i + dim] - dim*M_PI/2));
+        }
+        else {
+          selfPropulsionCorrection *=
+            (cos(newParticles[i].orientation()[0] - dim*M_PI/2)
+              - cos((system->getParticle(i))->orientation()[0] - dim*M_PI/2));
+        }
+        selfPropulsionCorrection /= 2;
         (system->getParticle(i))->velocity()[dim] +=
           selfPropulsionCorrection; // velocity
         newParticles[i].position()[dim] +=
@@ -179,21 +187,21 @@ void iterate_ABP_WCA(System* system, int Niter) {
       }
 
       // CORRECTION TO TORQUE
-      #if CONTROLLED_DYNAMICS == 2 || CONTROLLED_DYNAMICS == 3
-      newParticles[i].orientation()[0] +=
-        ((system->getParticle(i))->torque()[0] - torques[i])
-        *parameters->getTimeStep()/2; // orientation
-      (system->getParticle(i))->torque()[0] =
-        ((system->getParticle(i))->torque()[0] + torques[i])/2; // torque
-      #endif
+      if ( considerTorque ) {
+        newParticles[i].orientation()[0] +=
+          ((system->getParticle(i))->torque()[0] - torques[i])
+          *parameters->getTimeStep()/2; // orientation
+        (system->getParticle(i))->torque()[0] =
+          ((system->getParticle(i))->torque()[0] + torques[i])/2; // torque
+      }
 
       // RESET INITIAL POSITIONS AND ORIENTATION
       for (int dim=0; dim < 2; dim++) {
         (system->getParticle(i))->position()[dim] = positions[2*i + dim]; // position
       }
-      #if CONTROLLED_DYNAMICS == 2 || CONTROLLED_DYNAMICS == 3
-      (system->getParticle(i))->orientation()[0] = orientations[i]; // orientation
-      #endif
+      if ( considerTorque ) {
+        (system->getParticle(i))->orientation()[0] = orientations[i]; // orientation
+      }
     }
     #endif
 
@@ -346,6 +354,8 @@ void iterate_rotors(Rotors* rotors, int Niter) {
   // Updates system to next step according to the dynamics of interacting
   // Brownian rotors.
 
+  bool const considerTorque = ( rotors->getTorqueParameter() != 0 );
+
   std::vector<double> newOrientations(rotors->getNumberParticles());
 
   #if HEUN // HEUN'S SCHEME
@@ -367,11 +377,13 @@ void iterate_rotors(Rotors* rotors, int Niter) {
         *(rotors->getRandomGenerator())->gauss_cutoff();
     }
     // compute aligning torques
-    aligningTorque<Rotors>(rotors,
-      [&rotors](int index) {
-        return rotors->getOrientation(index); },
-      [&rotors](int index) {
-        return rotors->getTorque(index); }); // compute torques
+    if ( considerTorque ) {
+      aligningTorque<Rotors>(rotors,
+        [&rotors](int index) {
+          return rotors->getOrientation(index); },
+        [&rotors](int index) {
+          return rotors->getTorque(index); }); // compute torques
+    }
     // add torque
     for (int i=0; i < rotors->getNumberParticles(); i++) {
       newOrientations[i] +=
@@ -389,11 +401,13 @@ void iterate_rotors(Rotors* rotors, int Niter) {
       rotors->getTorque(i)[0] = 0; // re-initialise torques
     }
     // re-compute aligning torques
-    aligningTorque<Rotors>(rotors,
-      [&rotors](int index) {
-        return rotors->getOrientation(index); },
-      [&rotors](int index) {
-        return rotors->getTorque(index); }); // compute torques
+    if ( considerTorque ) {
+      aligningTorque<Rotors>(rotors,
+        [&rotors](int index) {
+          return rotors->getOrientation(index); },
+        [&rotors](int index) {
+          return rotors->getTorque(index); }); // compute torques
+    }
     for (int i=0; i < rotors->getNumberParticles(); i++) {
       // correction to orientations
       newOrientations[i] +=

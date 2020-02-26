@@ -36,8 +36,6 @@ template<class SystemClass, typename F, typename G> void aligningTorque(
   // function returning a pointer to the orientation and an other to the applied
   // torque on a particle specified by its index.
 
-  if ( system->getTorqueParameter() == 0 ) return; // do not need to execute double loop if nothing will be done
-
   double torque;
   for (int i=0; i < system->getNumberParticles(); i++) {
     for (int j=i + 1; j < system->getNumberParticles(); j++) {

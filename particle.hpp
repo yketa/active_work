@@ -43,9 +43,7 @@ class Particle {
 
     double* force(); // returns pointer to force
 
-    #if CONTROLLED_DYNAMICS == 2 || CONTROLLED_DYNAMICS == 3
     double* torque(); // returns pointer to aligning torque
-    #endif
 
   private:
 
@@ -58,10 +56,7 @@ class Particle {
     double const sigma; // diameter
 
     double f[2]; // force exerted on particle (2D)
-
-    #if CONTROLLED_DYNAMICS == 2 || CONTROLLED_DYNAMICS == 3
     double gamma; // aligning torque
-    #endif
 
 };
 
@@ -164,7 +159,7 @@ class Parameters {
 
     Parameters();
     Parameters( // using custom dimensionless parameters relations
-      int N, double lp, double phi, double dt);
+      int N, double lp, double phi, double dt, double g = 0);
     Parameters( // defining all parameters independently
       int N, double epsilon, double v0, double D, double Dr, double phi,
       double L, double dt);
@@ -183,6 +178,7 @@ class Parameters {
     double getPersistenceLength() const; // returns persistence length
     double getPackingFraction() const; // returns packing fraction
     double getSystemSize() const; // returns system size
+    double getTorqueParameter() const; // returns torque parameter
     double getTimeStep() const; // returns time step
 
   private:
@@ -197,6 +193,7 @@ class Parameters {
     double const persistenceLength; // persistence length
     double const packingFraction; // packing fraction
     double const systemSize; // system size
+    double const torqueParameter; // torque parameter
     double const timeStep; // time step
 
 };
@@ -219,7 +216,7 @@ class System {
    *  Parameters are stored in a binary file with the following structure:
    *
    *  [HEADER (see System::System)]
-   *  | (int) N | (double) lp | (double) phi | (double) L | (int) seed | (double) dt | (int) framesWork | (bool) dump | (int) period |
+   *  | (int) N | (double) lp | (double) phi | (double) L | (double) g | (int) seed | (double) dt | (int) framesWork | (bool) dump | (int) period |
    *
    *  [INITIAL FRAME (see System::saveInitialState)] (all double)
    *  ||                    FRAME 0                     ||
@@ -233,10 +230,10 @@ class System {
    *  ||   R   | ORIENTATION |       V       | ... |     ...    || ... ||                  ...                  |~
    *  || X | Y |    theta    |  V_X  |  V_Y  | ... |     ...    || ... ||                  ...                  |~
    *
-   *  ~|                                                                                 || ...
-   *  ~|                                                                                 || ...
-   *  ~| ACTIVE WORK | ACTIVE WORK (FORCE) | ACTIVE WORK (ORIENTATION) | ORDER PARAMETER || ...
-   *  ~|      W      |          Wp         |             Wo            |        nu       || ...
+   *  ~|                                                                                                                             || ...
+   *  ~|                                                                                                                             || ...
+   *  ~| ACTIVE WORK | ACTIVE WORK (FORCE) | ACTIVE WORK (ORIENTATION) | ORDER PARAMETER | 1st TORQUE INTEGRAL | 2nd TORQUE INTEGRAL || ...
+   *  ~|      W      |          Wp         |             Wo            |        nu       |          I1         |          I2         || ...
    */
 
   public:
@@ -283,6 +280,12 @@ class System {
 
     std::string getOutputFile() const; // returns output file name
 
+    void setTorqueParameter(double& g); // set new torque parameter
+    double getTorqueParameter(); // returns torque parameter
+    // NOTE: These functions modify and access the torque parameter which is
+    //       effectively used in the computation and is an attribute of this
+    //       class and not of `param'.
+
     double getBiasingParameter(); // returns biasing parameter [cloning algorithm]
     void setBiasingParameter(double s); // set biasing parameter [cloning algorithm]
 
@@ -298,28 +301,18 @@ class System {
     double getWorkForce(); // returns last computed force part of the normalised rate of active work
     double getWorkOrientation(); // returns last computed orientation part of the normalised rate of active work
     double getOrder(); // returns last computed averaged integrated order parameter
+    double getTorqueIntegral1(); // returns last computed averaged first torque integral
+    double getTorqueIntegral2(); // returns last computed averaged second torque integral
     // NOTE: All these quantities are computed every framesWork*dumpPeriod iterations.
 
     double getTotalWork(); // returns computed active work since last reset
     double getTotalWorkForce(); // returns computed force part of the active work since last rest
     double getTotalWorkOrientation(); // returns computed orientation part of the active work since last reset
     double getTotalOrder(); // returns computed integrated order parameter since last reset
+    double getTotalTorqueIntegral1(); // returns computed first torque integral since last reset
+    double getTotalTorqueIntegral2(); // returns computed second torque integral since last reset
     // NOTE: All these quantities are updated every framesWork*dumpPeriod iterations.
     //       All these quantities are extensive in time since last reset.
-
-    #if CONTROLLED_DYNAMICS == 2 || CONTROLLED_DYNAMICS == 3
-    void setTorqueParameter(double& g); // set new torque parameter
-    double getTorqueParameter(); // returns torque parameter
-
-    double getTorqueIntegral1(); // returns last computed normalised first integral in the expression of the modified active work
-    double getTorqueIntegral2(); // returns last computed normalised second integral in the expression of the modified active work
-    // NOTE: All these quantities are computed every framesWork*dumpPeriod iterations.
-
-    double getTotalTorqueIntegral1(); // returns computed normalised first integral in the expression of the modified active work since last reset
-    double getTotalTorqueIntegral2(); // returns computed normalised second integral in the expression of the modified active work since last reset
-    // NOTE: All these quantities are computed every framesWork*dumpPeriod iterations.
-    //       All these quantities are extensive in time steps since last reset.
-    #endif
 
     double diffPeriodic(double const& x1, double const& x2);
       // Returns distance between two pointson a line taking into account periodic
@@ -361,6 +354,8 @@ class System {
     bool const dumpParticles; // dump positions and orientations to output file
     int const dumpPeriod; // period of dumping of positions and orientations in number of frames
 
+    double torqueParameter; // aligning torque parameter
+
     double biasingParameter; // biasing parameter [cloning algorithm]
 
     int dumpFrame; // number of frames dumped since last reset
@@ -372,17 +367,8 @@ class System {
     double workForceSum[3]; //force part of the active work
     double workOrientationSum[3]; // orientation part of the active work
     double orderSum[3]; // integrated order parameter norm (in units of the time step)
-
-    #if CONTROLLED_DYNAMICS == 2 || CONTROLLED_DYNAMICS == 3
-    double torqueParameter; // aligning torque parameter [cloning algorithm]
-
-    // Quantities
-    // (0): integral since last dump (in units of the time step)
-    // (1): normalised integral over last dump period
-    // (2): integral over trajectory since last reset (in units of the time step)
-    double torqueIntegral1[3]; // first integral in the expression of the modified active work
-    double torqueIntegral2[3]; // second integral in the expression of the modified active work
-    #endif
+    double torqueIntegral1[3]; // first torque integral
+    double torqueIntegral2[3]; // second torque integral
 
 };
 
