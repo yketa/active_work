@@ -16,14 +16,14 @@ PIP=${PIP-pip}
 
 # INSTALL
 
-PACKAGES=(    # packages to install (order matters)
+PACKAGES=(      # packages to install (order matters)
   # ALL PURPOSES
-  matplotlib  # plotting
-  numpy       # mathematical functions and array manipulation
+  'matplotlib'  # plotting
+  'numpy>=1.16' # mathematical functions and array manipulation
   # SELF-CONSISTENT DENSITY ESTIMATION
-  scipy       # grid interpolation
-  cython      # has to be installed before fastkde
-  fastkde     # kernel density estimation
+  'scipy'       # grid interpolation
+  'cython'      # has to be installed before fastkde
+  'fastkde'     # kernel density estimation
 )
 for package in ${PACKAGES[@]}; do
   $PYTHON -m $PIP install $package;
