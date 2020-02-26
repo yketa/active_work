@@ -1,6 +1,6 @@
 """
-Module flow provides classes to compute and analyse displacements and velocities
-in order to characterise the flow of systems of ABPs.
+Module flow provides classes to compute and analyse displacements, velocities,
+and orientations in order to characterise the flow of systems of ABPs.
 
 (see https://yketa.github.io/DAMTP_2019_Wiki/#ABP%20flow%20characteristics)
 """
@@ -12,6 +12,7 @@ from operator import itemgetter
 from active_work.read import Dat
 from active_work.maths import Distribution, wave_vectors_2D, g2Dto1Dgrid,\
     mean_sterr, logspace
+from active_work.rotors import nu_pdf_th
 
 class Displacements(Dat):
     """
@@ -34,7 +35,7 @@ class Displacements(Dat):
             NOTE: This can be changed at any time by setting self.skip.
         """
 
-        super().__init__(filename)  # initialise with super class
+        super().__init__(filename, loadWork=False) # initialise with super class
 
         self.skip = skip    # skip the `skip' first frames in the analysis
 
@@ -145,6 +146,54 @@ class Displacements(Dat):
                 nBins, vmin=vmin, vmax=vmax, log=log,
                 rescaled_to_max=rescaled_to_max)
 
+    def dtDisplacements(self, dt, int_max=100, jump=1, norm=False):
+        """
+        Returns array of displacements with lag times `dt'.
+
+        Parameters
+        ----------
+        dt : int array-like
+            Displacement lag times.
+        int_max : int
+            Maximum number of intervals to consider. (default: 100)
+        jump : int
+            Period in number of frames at which to check if particles have
+            crossed any boundary. (default: 1)
+            NOTE: `jump' must be chosen so that particles do not move a distance
+                  greater than half the box size during this time.
+        norm : bool
+            Return norm of displacements rather than 2D displacement.
+            (default: False)
+
+        Returns
+        -------
+        displacements : [not(norm)] (*, dt.size, self.N, 2) float numpy array
+                        [norm] (*, dt.size, self.N) float numpy array
+            Array of computed displacements.
+        """
+
+        dt = np.array(dt)
+        time0 = np.linspace(self.skip, self.frames - dt.max() - 1, int_max, # array of initial times
+            endpoint=False, dtype=int)
+
+        displacements = np.empty((time0.size, dt.size, self.N, 2))
+        for j in range(dt.size):
+            if j > 0:
+                for i in range(time0.size):
+                    displacements[i][j] = (         # displacements between time0[i] and time0[i] + dt[j]
+                        displacements[i][j - 1]     # displacements between time0[i] and time0[i] + dt[j - 1]
+                        + self.getDisplacements(    # displacements between time0[i] + dt[j - 1] and time0[i] + dt[j]
+                            time0[i] + dt[j - 1], time0[i] + dt[j],
+                            jump=jump))
+            else:
+                for i in range(time0.size):
+                    displacements[i][0] = self.getDisplacements(    # displacements between time0[i] and time0[i] + dt[0]
+                        time0[i], time0[i] + dt[0],
+                        jump=jump)
+
+        if norm: return np.sqrt(np.sum(displacements**2, axis=-1))
+        return displacements
+
     def msd(self, n_max=100, int_max=100, min=None, max=None, jump=1):
         """
         Compute mean square displacement.
@@ -182,33 +231,18 @@ class Displacements(Dat):
         max = ((self.frames - self.skip - 1)//int_max if max == None
             else int(max))
 
-        dt = logspace(min, max, n_max)                                      # array of lag times
-        time0 = np.linspace(self.skip, self.frames - dt.max() - 1, int_max, # array of initial times
-            endpoint=False, dtype=int)
-
         # COMPUTE RELEVANT DISPLACEMENTS FROM DATA
-        displacements = np.empty((time0.size, dt.size, self.N, 2))
-        for j in range(dt.size):
-            if j > 0:
-                for i in range(time0.size):
-                    displacements[i][j] = (         # displacements between time0[i] and time0[i] + dt[j]
-                        displacements[i][j - 1]     # displacements between time0[i] and time0[i] + dt[j - 1]
-                        + self.getDisplacements(    # displacements between time0[i] + dt[j - 1] and time0[i] + dt[j]
-                            time0[i] + dt[j - 1], time0[i] + dt[j],
-                            jump=jump))
-            else:
-                for i in range(time0.size):
-                    displacements[i][0] = self.getDisplacements(    # displacements between time0[i] and time0[i] + dt[0]
-                        time0[i], time0[i] + dt[0],
-                        jump=jump)
+        dt = logspace(min, max, n_max)              # array of lag times
+        displacements = self.dtDisplacements(dt,    # array of displacements for different initial times and lag times
+            int_max=int_max, jump=jump, norm=False)
 
         # COMPUTE MEAN SQUARE DISPLACEMENTS
         msd_sterr = []
         for i in range(dt.size):
             disp = displacements[:, i]
             if self.N > 1:
-                disp -= disp.mean(axis=1).reshape(time0.size, 1, 2) # substract mean displacement of particles during each considered intervals
-            disp.reshape(time0.size*self.N, 2)
+                disp -= disp.mean(axis=1).reshape(displacements.shape[0], 1, 2) # substract mean displacement of particles during each considered intervals
+            disp.reshape(displacements.shape[0]*self.N, 2)
             msd_sterr += [[dt[i], *mean_sterr(np.sum(disp**2, axis=-1))]]
 
         return np.array(msd_sterr)
@@ -287,7 +321,7 @@ class Velocities(Dat):
             NOTE: This can be changed at any time by setting self.skip.
         """
 
-        super().__init__(filename)  # initialise with super class
+        super().__init__(filename, loadWork=False)  # initialise with super class
 
         self.skip = skip    # skip the `skip' first frames in the analysis
 
@@ -318,7 +352,7 @@ class Velocities(Dat):
 
     def velocitiesPDF(self, int_max=None):
         """
-        Returns probability density function velocity norm.
+        Returns probability density function of velocity norm.
 
         PARAMETERS
         ----------
@@ -340,8 +374,7 @@ class Velocities(Dat):
     def velocitiesHist(self, nBins, int_max=None, vmin=None, vmax=None,
         log=False, rescaled_to_max=False):
         """
-        Returns histogram with `nBins' bins of displacement norm over lag time
-        `dt'.
+        Returns histogram with `nBins' bins of velocity norm.
 
         Parameters
         ----------
@@ -419,6 +452,177 @@ class Velocities(Dat):
     def _time0(self, int_max=None):
         """
         Returns array of frames at which to compute velocities.
+
+        Parameters
+        ----------
+        int_max : int or None
+            Maximum number of frames to consider. (default: None)
+            NOTE: If int_max == None, then take the maximum number of frames.
+                  WARNING: This can be very big.
+
+        Returns
+        -------
+        time0 : (*,) float numpy array
+            Array of frames.
+        """
+
+        if int_max == None: return np.array(range(self.skip, self.frames - 1))
+        return np.linspace(
+            self.skip, self.frames - 1, int(int_max), endpoint=False, dtype=int)
+
+class Orientations(Dat):
+    """
+    Compute and analyse orientations from simulation data.
+
+    (see https://yketa.github.io/DAMTP_2019_Wiki/#Active%20Brownian%20particles)
+    """
+
+    def __init__(self, filename, skip=1):
+        """
+        Loads file.
+
+        Parameters
+        ----------
+        filename : string
+            Name of input data file.
+        skip : int
+            Skip the `skip' first computed frames in the following calculations.
+            (default: 1)
+            NOTE: This can be changed at any time by setting self.skip.
+        """
+
+        super().__init__(filename, loadWork=False)  # initialise with super class
+
+        self.skip = skip    # skip the `skip' first frames in the analysis
+
+    def nOrientations(self, int_max=None):
+        """
+        Returns array of orientations.
+
+        Parameters
+        ----------
+        int_max : int or None
+            Maximum number of frames to consider. (default: None)
+            NOTE: If int_max == None, then take the maximum number of frames.
+                  WARNING: This can be very big.
+
+        Returns
+        -------
+        velocities : (*, self.N) float numpy array
+            Array of computed orientations.
+        """
+
+        return np.array(list(map(
+            lambda time0: self.getOrientations(time0),
+            self._time0(int_max=int_max))))
+
+    def nOrder(self, int_max=None, norm=False):
+        """
+        Returns array of order parameter.
+
+        Parameters
+        ----------
+        int_max : int or None
+            Maximum number of frames to consider. (default: None)
+            NOTE: If int_max == None, then take the maximum number of frames.
+                  WARNING: This can be very big.
+        norm : bool
+            Return norm of order parameter rather than 2D order parameter.
+            (default: False)
+
+        Returns
+        -------
+        order : [not(norm)] (*, self.N, 2) float numpy array
+                     [norm] (*, self.N) float numpy array
+            Array of computed order parameters.
+        """
+
+        return np.array(list(map(
+            lambda time0: self.getOrderParameter(time0, norm=norm),
+            self._time0(int_max=int_max))))
+
+    def orderPDF(self, int_max=None):
+        """
+        Returns probability density function of order parameter norm.
+
+        PARAMETERS
+        ----------
+        int_max : int or None
+            Maximum number of frames to consider. (default: None)
+            NOTE: If int_max == None, then take the maximum number of frames.
+                  WARNING: This can be very big.
+
+        Returns
+        -------
+        axes : numpy array
+            Values at which the probability density function is evaluated.
+        pdf : float numpy array
+            Values of the probability density function.
+        """
+
+        return Distribution(self.nOrder(int_max=int_max, norm=True)).pdf()
+
+    def orderHist(self, nBins, int_max=None, vmin=None, vmax=None,
+        log=False, rescaled_to_max=False):
+        """
+        Returns histogram with `nBins' bins of order parameter norm.
+
+        Parameters
+        ----------
+        nBins : int
+            Number of bins of the histogram.
+        int_max : int or None
+            Maximum number of frames to consider. (default: None)
+            NOTE: If int_max == None, then take the maximum number of frames.
+                  WARNING: This can be very big.
+        vmin : float
+            Minimum value of the bins.
+            (default: minimum computed order parameter)
+        vmax : float
+            Maximum value of the bins.
+            (default: maximum computed order parameter)
+        log : bool
+            Consider the log of the occupancy of the bins. (default: False)
+        rescaled_to_max : bool
+            Rescale occupancy of the bins by its maximum over bins.
+            (default: False)
+
+        Returns
+        -------
+        bins : float numpy array
+            Values of the bins.
+        hist : float numpy array
+            Occupancy of the bins.
+        """
+
+        return Distribution(self.nOrder(int_max=int_max, norm=True)).hist(
+            nBins, vmin=vmin, vmax=vmax, log=log,
+            rescaled_to_max=rescaled_to_max)
+
+    def nu_pdf_th(self, *nu):
+        """
+        Returns value of theoretical probability density function of the order
+        parameter norm.
+
+        (see https://yketa.github.io/DAMTP_2019_Wiki/#N-interacting%20Brownian%20rotors)
+
+        Parameters
+        ----------
+        nu : float
+            Values of the order parameter norm at which to evaluate the
+            probability density function.
+
+        Returns
+        -------
+        pdf : (*,) float numpy array
+            Probability density function.
+        """
+
+        return nu_pdf_th(self.N, self.g, 1/self.lp, *nu)
+
+    def _time0(self, int_max=None):
+        """
+        Returns array of frames at which to compute orientations.
 
         Parameters
         ----------
