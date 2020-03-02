@@ -5,6 +5,7 @@ Module maths provides useful mathematic tools.
 """
 
 import numpy as np
+from numpy.polynomial.polynomial import polyadd, polypow
 import math
 from collections import OrderedDict
 
@@ -269,6 +270,270 @@ def angle(dx, dy):
     """
 
     return math.atan2(dy, dx)
+
+###################
+### POLYNOMIALS ###
+###################
+
+def evalPol(pol, *x):
+    """
+    Evaluate polynomial. (see numpy.polyeval)
+
+    NOTE: Returns None if x == None.
+
+    Parameters
+    ----------
+    pol : (*,) float array-like
+        Polynomial coefficients (highest first).
+    x : float
+        Values at which to evaluate the polynomial.
+
+    Returns
+    -------
+    y : (*,) float Numpy array
+        Evaluated polynomial.
+    """
+
+    return np.array(list(map(
+        lambda _x: None if _x == None else np.polyval(pol, _x),
+        x)))
+
+def addPol(*pol):
+    """
+    Wrapper around numpy.polynomial.polynomial.polyadd to sum several
+    polynomials at once.
+
+    Parameters
+    ----------
+    pol : (*,) float array-like
+        Polynomial coefficients (lowest first).
+
+    Returns
+    -------
+    sum : (*,) float array-like
+        Sum of polynomials.
+    """
+
+    sum = np.zeros((1,))
+    for p in pol:
+        sum = polyadd(sum, p)
+
+    return sum
+
+class Polynomial:
+    """
+    Store and evaluate polynomials with covariance matrix on their
+    coefficients.
+    """
+
+    def __init__(self, pol, cov):
+        """
+        Compute standard devation polynomial.
+
+        Considering we have polynomial
+
+            P(x) = \\sum_i a_i x^i,
+
+        and \\sigma_ij the covariance of the i-th and j-th coefficients, a_i and
+        a_j, we compute
+
+            \\sigma_f(x) = \\sqrt(\\sum_ij \\sigma_ij x^{i+j})
+
+        as the variance of the polynomial f evaluated at x.
+
+        (see https://en.wikipedia.org/wiki/Propagation_of_uncertainty)
+
+        Parameters
+        ----------
+        pol : (N,) float array-like
+            Polynomial coefficients (highest first).
+        cov : (N, N) float-array like
+            Covariance matrix.
+        """
+
+        pol, cov = np.array(pol), np.array(cov)
+
+        if cov.shape != (pol.size, pol.size): raise ValueError
+
+        self.pol = pol
+        self.deg = len(self.pol) - 1
+
+        self.cov = cov
+        self.covpol = np.zeros((2*self.deg + 1,))   # covariance polynomial for estimation of standard deviation
+        for i in range(self.deg + 1):
+            for j in range(self.deg + 1):
+                self.covpol[i + j] += self.cov[i, j]
+
+    def eval(self, *x, sigma=False):
+        """
+        Evaluate polynomial and standard deviation.
+
+        Parameters
+        ----------
+        x : float
+            x-values at which to evaluate the polynomial.
+        sigma : bool
+            Return associated standard deviation. (default: False)
+
+        Returns
+        -------
+        y : (*,) float Numpy array
+            Evaluated polynomial.
+        std : [if sigma] (*,) float Numpy array
+            Evaluated standard deviation.
+        """
+
+        y = evalPol(self.pol, *x)
+        if sigma: return y, np.sqrt(evalPol(self.covpol, *x))
+        return y
+
+class CompPol(Polynomial):
+    """
+    Create polynomial from composition of two others.
+    """
+
+    def __init__(self, pol1, pol2):
+        """
+        Composes two polynomials (i.e., `pol1'(`pol2')) with distinct covariance
+        matrices.
+
+        Considering we have polynomials
+
+            f(x) = \\sum_i a_i x^i,
+            g(x) = \\sum_j b_j x^j,
+
+        with variances \\sigma_f and \\sigma_g when evaluated (see
+        active_work.maths.Polynomial), we compute
+
+            \\sigma_fg(x) = \\sigma_f(g(x))
+                + \\sigma_g(x) \\times [ \\sum_i i a_i g(x)^{i-1} ]^2,
+
+        as the variance of the composed polynomial f(g) evaluated at x. We
+        stress that this considers no correlations between the coefficients of
+        the polynomials.
+
+        (see https://en.wikipedia.org/wiki/Propagation_of_uncertainty#Non-linear_combinations)
+
+        Parameters
+        ----------
+        pol1 : active_work.maths.Polynomial
+            First polynomial.
+        pol2 : active_work.maths.Polynomial
+            Second polynomial.
+
+        Returns
+        -------
+        pol : active_work.maths.Polynomial
+            Composed polynomial.
+        """
+
+        self._pol1, self._pol2 = pol1, pol2
+        self.deg = self._pol1.deg*self._pol2.deg    # degree of composed polynomial
+
+        # WARNING: numpy.polynomial.polynomial.polyadd and polypow considers
+        #          arrays as polynomials with lowest coefficient first,
+        #          contrarily to polyval and polyfit.
+        _pol1, _pol2 = self._pol1.pol[::-1], self._pol2.pol[::-1]
+
+        self.pol = np.zeros((1,))   # composed polynomial
+        for i in range(pol1.deg + 1):
+            self.pol = polyadd(self.pol, _pol1[i]*polypow(_pol2, i))
+
+        self.pol = self.pol[::-1]
+
+    def eval(self, *x, sigma=False):
+        """
+        Evaluate polynomial and standard deviation.
+
+        Parameters
+        ----------
+        x : float
+            x-values at which to evaluate the polynomial.
+        sigma : bool
+            Return associated standard deviation. (default: False)
+
+        Returns
+        -------
+        y : (*,) float Numpy array
+            Evaluated polynomial.
+        std : [if sigma] (*,) float Numpy array
+            Evaluated standard deviation.
+        """
+
+        y = self._pol1.eval(*self._pol2.eval(*x, sigma=False), sigma=False)
+
+        if sigma:
+            var = np.array(list(map(
+                lambda _x, _gx:
+                    evalPol(self._pol1.covpol, _gx)[0]
+                    + evalPol(self._pol2.covpol, _x)[0]*(np.sum(
+                        [k*self._pol1.pol[-1-k]*(_gx**(k - 1))
+                            for k in range(1, self._pol1.deg + 1)])**2),
+                *(x, self._pol2.eval(*x, sigma=False)))))
+            return y, np.sqrt(var)
+
+        return y
+
+class PolyFit(Polynomial):
+    """
+    Perform least squares polynomial fit and evaluate fit. (see numpy.polyfit)
+    """
+
+    def __init__(self, x, y, deg=1):
+        """
+        Perform fit.
+
+        Parameters
+        ----------
+        x : (*,) float array-like
+            x-coordinates of sample points.
+        y : (*,) float  array-like
+            y-coordinates of sample points.
+        deg : int
+            Degree of the fitting polynomial. (default: 1)
+        """
+
+        self.x = np.array(x)
+        self.xmin = self.x.min()
+        self.xmax = self.x.max()
+
+        self.y = np.array(y)
+        self.ymin = self.y.min()
+        self.ymax = self.y.max()
+
+        pol, cov = np.polyfit(self.x, self.y, deg, cov=True)
+        Polynomial.__init__(self, pol, cov)
+
+    def eval(self, *x, restrict=False, sigma=False):
+        """
+        Evaluate polynomial and standard deviation.
+        (see active_work.maths.Polynomial.eval)
+
+        Parameters
+        ----------
+        x : float
+            x-values at which to evaluate the polynomial.
+        restrict : bool
+            Discard x-values which are not in the range of the original data.
+            (default: False)
+        sigma : bool
+            Return associated standard deviation. (default: False)
+
+        Returns
+        -------
+        y : (*,) float Numpy array
+            Evaluated polynomial.
+        std : [if sigma] (*,) float Numpy array
+            Evaluated standard deviation.
+        """
+
+        if restrict:
+            x = np.array(x)
+            for i in range(len(x)):
+                if x[i] == None: continue
+                if x[i] < self.xmin or x[i] > self.xmax: x[i] = None
+
+        return super().eval(*x, sigma=sigma)
 
 #####################
 ### DISTRIBUTIONS ###
