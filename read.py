@@ -94,6 +94,7 @@ class _Dat(_Read):
         self.lp = self._read('d')               # persistence length
         self.phi = self._read('d')              # packing fraction
         self.L = self._read('d')                # system size
+        self.rho = self.N/(self.L**2)           # particle density
         self.g = self._read('d')                # torque parameter
         self.seed = self._read('i')             # random seed
         self.dt = self._read('d')               # time step
@@ -527,11 +528,12 @@ class _Dat(_Read):
 
         return torqueIntegral/(self.N*(time1-time0))
 
-    def toGrid(self, time, array, nBoxes=None, box_size=None, centre=None):
+    def toGrid(self, time, array, nBoxes=None, box_size=None, centre=None,
+        average=True):
         """
         Maps square sub-system of centre `centre' and length `box_size' to a
         square grid with `nBoxes' boxes in every direction, and associates to
-        each box of this grid the averaged value of the (self.N, *)-array
+        each box of this grid the sum or averaged value of the (self.N, *)-array
         `array' over the indexes corresponding to particles within this box at
         time `time'.
 
@@ -542,16 +544,17 @@ class _Dat(_Read):
         array : (self.N, *) float array-like
             Array of values to be put on the grid.
         nBoxes : int
-            Number of grid boxes in each direction.
+            Number of grid boxes in each direction. (default: None)
             NOTE: if nBoxes==None, then nBoxes = int(sqrt(self.N)).
-            DEFAULT: None
         box_size : float
             Length of the sub-system to consider.
-            NOTE: if box_size==None, then box_size = self.L.
-            DEFAULT: None
+            NOTE: if box_size==None, then box_size = self.L. (default: None)
         centre : array-like
-            Coordinates of the centre of the sub-system.
+            Coordinates of the centre of the sub-system. (default: None)
             NOTE: if centre==None, then centre = (0, 0).
+        average : bool
+            Return average of quantity per box, otherwise return sum.
+            (default: False)
 
         Returns
         -------
@@ -570,7 +573,9 @@ class _Dat(_Read):
 
         if box_size == None: box_size = self.L
 
-        if centre == None: centre = (0, 0)
+        try:
+            if centre == None: centre = (0, 0)
+        except ValueError: pass
         centre = np.array(centre)
 
         grid = np.zeros((nBoxes,)*2 + array.shape[1:])
@@ -591,7 +596,9 @@ class _Dat(_Read):
         sumN = np.reshape(sumN,
             (nBoxes,)*2 + (1,)*len(array.shape[1:]))
 
-        return np.divide(grid, sumN, out=np.zeros(grid.shape), where=sumN!=0)
+        if average: return np.divide(grid, sumN,
+            out=np.zeros(grid.shape), where=sumN!=0)
+        return grid
 
     def _loadWork(self):
         """
@@ -923,6 +930,7 @@ class _Dat0(_Dat):
         self.lp = self._read('d')               # persistence length
         self.phi = self._read('d')              # packing fraction
         self.L = self._read('d')                # system size
+        self.rho = self.N/(self.L**2)           # particle density
         self.seed = self._read('i')             # random seed
         self.dt = self._read('d')               # time step
         self.framesWork = self._read('i')       # number of frames on which to sum the active work before dumping
