@@ -8,7 +8,7 @@ the structure of systems of ABPs.
 import numpy as np
 
 from active_work.read import Dat
-from active_work.maths import g2Dto1D
+from active_work.maths import g2Dto1D, g2Dto1Dgrid, wave_vectors_2D
 
 class Positions(Dat):
     """
@@ -141,7 +141,10 @@ class Positions(Dat):
                     (np.fft.fft2(_rho)),
             particleDensity)))/self.N
 
-        return g2Dto1D(_S2D.mean(axis=0), 2*np.pi/self.L)
+        k2D = np.sqrt(
+            (wave_vectors_2D(nBoxes, nBoxes, self.L/nBoxes)**2).sum(axis=-1))
+
+        return g2Dto1Dgrid(_S2D.mean(axis=0), k2D)
 
     def densityCorrelation(self, int_max=None, nBoxes=None):
         """
