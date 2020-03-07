@@ -1,7 +1,7 @@
 """
 Module maths provides useful mathematic tools.
 
-(taken from https://github.com/yketa/active_particles/tree/master/maths.py)
+(see also https://github.com/yketa/active_particles/tree/master/maths.py)
 """
 
 import numpy as np

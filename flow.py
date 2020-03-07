@@ -508,7 +508,7 @@ class Orientations(Dat):
 
         Returns
         -------
-        velocities : (*, self.N) float numpy array
+        orientations : (*, self.N) float numpy array
             Array of computed orientations.
         """
 
