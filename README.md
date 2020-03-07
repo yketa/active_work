@@ -13,7 +13,7 @@ While C++ files can be quite cumbersome, Python wrappers are hopefully more read
 
 ## Requirements
 
-All code was developped and tested on 64-bit linux. C++ cloning scripts necessitate `OpenMP`. Python scripts are written for `python3.*`, import the `active_work` package which necessitates this directory to be added to the `$PYTHONPATH`, and rely on the following packages:
+All code was developped and tested on 64-bit linux. C++ cloning scripts necessitate `OpenMP`. Python scripts are written for `python3.*`, import the `active_work` package which necessitates the directory containing this repository to be added to the `$PYTHONPATH`, and rely on the following packages:
 
 - `matplotlib`: plotting,
 - `numpy`: mathematical functions and array manipulation,
