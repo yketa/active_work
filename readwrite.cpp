@@ -45,10 +45,13 @@ Write::Write(std::string filename) :
 
 // DESTRUCTORS
 
-Write::~Write() { outputStream.close(); }
+Write::~Write() { close(); }
 
 // METHODS
 
 std::string Write::getOutputFile() const { return outputFile; } // returns output file name
 
 long int Write::tellp() { return outputStream.tellp(); } // returns position in output stream
+
+void Write::flush() { outputStream.flush(); } // flush output file stream
+void Write::close() { outputStream.close(); } // close output file stream

@@ -96,6 +96,7 @@ class Write {
     // CONSTRUCTORS
 
     Write(std::string filename);
+    Write() : Write("") {}
 
     // DESTRUCTORS
 
@@ -128,6 +129,9 @@ class Write {
     std::string getOutputFile() const; // returns output file name
 
     long int tellp(); // returns position in output stream
+
+    void flush(); // flush output file stream
+    void close(); // close output file stream
 
   private:
 
