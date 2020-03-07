@@ -56,6 +56,9 @@ int main() {
 	output.write<int>(tau);
 	output.write<double>(dt);
 
+	// save trajectories
+	std::string clonesDirectory = getEnvString("CLONES_DIRECTORY", ""); // if different than "" then clones trajectories are saved to this directory
+
 	// parameters class
 	Parameters parameters(N, lp, phi, dt);
 	// dummy system
@@ -74,7 +77,7 @@ int main() {
 	// see cloning.py for more info
 
 	// cloning object (default cloning method is [eq])
-	CloningSerial<System> clones(nc, tau, cloneMethod);
+	CloningSerial<System> clones(nc, tau, cloneMethod, clonesDirectory);
 
 	// set up the clones etc, using dummySystem to get system sizes, hop rates, etc
 	clones.init(&dummy, seed);
@@ -201,7 +204,10 @@ int main() {
 				#endif
 
 				#endif
-			}
+			},
+
+			// RUN INDEX
+			run
 		);
 
 		clones.outputOP.assign(4, 0.0);

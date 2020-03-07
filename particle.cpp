@@ -359,6 +359,7 @@ std::vector<Particle> System::getParticles() { return particles; }
 
 CellList* System::getCellList() { return &cellList; }
 
+void System::flushOutputFile() { output.flush(); }
 std::string System::getOutputFile() const { return output.getOutputFile(); }
 
 void System::setTorqueParameter(double& g) { torqueParameter = g; }

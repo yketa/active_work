@@ -6,6 +6,7 @@
 #include <random>
 #include <vector>
 #include <chrono>
+#include <experimental/filesystem>
 
 // note this is called CloningSerial even if it also supports openMP
 // all loops over clones should be parallelised via openMP if supported
@@ -13,6 +14,7 @@
 #include <omp.h>
 #endif
 
+#include "dat.hpp"
 #include "particle.hpp"
 #include "iteration.hpp"
 
@@ -37,8 +39,10 @@ template<class SystemClass> class CloningSerial {
     // CONSTRUCTORS
 
     // lightweight constructor
-    CloningSerial(int nClones, int nWork, int method = 2) :
-      nc (nClones), cloneMethod (method), tau (nWork) { systems.resize(2*nc); }
+    CloningSerial(
+      int nClones, int nWork, int method = 2, std::string cDir = "") :
+      nc (nClones), cloneMethod (method), tau (nWork), clonesDirectory(cDir)
+      { systems.resize(2*nc); }
 
     // DESTRUCTORS
 
@@ -51,7 +55,9 @@ template<class SystemClass> class CloningSerial {
 
     template<typename F, typename G, typename H> void doCloning(
       double tmax, double sValue, int initSim,
-      F iterate, G getSWeight, H control); // this runs the cloning for total time tmax
+      F iterate, G getSWeight, H control,
+      int runIndex = 0); // this runs the cloning for total time tmax
+    void writeTrajFiles(int iter, Write& clonesLog, int runIndex);
 
     void selectClones(int newClones[], double key[], int pullOffset);
 
@@ -70,6 +76,8 @@ template<class SystemClass> class CloningSerial {
     int const cloneMethod; // this determines which clone selection method to use (default 2?)
 
     int const tau; // number of simulation steps between cloning steps
+
+    std::string const clonesDirectory; // if != "": directory where trajectories are saved
 
     double outputPsi; // this is the estimate of Psi
     std::vector<double> outputOP; // averages over the trajectories of the different clones of (0) active work (1) force part of the active work (2) orientation part of the active work (3) order parameter
@@ -103,7 +111,14 @@ template<class SystemClass> void CloningSerial<SystemClass>::init(
   #pragma omp parallel for
   #endif
   for (int i=0;i<2*nc;i++) {
-    systems[i] = new SystemClass(dummy, processSeeds[i], tau); // create new system from copy of dummy, with random seed from processSeeds, computing active work and order parameter for every tau iterations
+    systems[i] = new SystemClass(dummy, processSeeds[i], tau,
+      clonesDirectory == "" ? "" : std::experimental::filesystem::path(
+        std::experimental::filesystem::path(clonesDirectory) /
+        [](int index)
+          { return std::string(6 - std::to_string(index).length(), '0')
+            + std::to_string(index) + std::string(".tmp.dat"); }
+          (i)
+      ).u8string()); // create new system from copy of dummy, with random seed from processSeeds, computing active work and order parameter for every tau iterations
   }
 
   // just for extra safety we can opt to throw our random number generators out of sync here
@@ -123,12 +138,15 @@ template<class SystemClass> void CloningSerial<SystemClass>::init(
   }
   #endif
 
+  for (int i=0;i<2*nc;i++) systems[i]->saveInitialState(); // important if trajectories are actually saved
+
 }
 
 template<class SystemClass> template<typename F, typename G, typename H>
   void CloningSerial<SystemClass>::doCloning(
     double tmax, double sValue, int initSim,
-    F iterate, G getSWeight, H control) {
+    F iterate, G getSWeight, H control,
+    int runIndex) {
   // this runs the cloning for total time tmax
   // input functions:
   // void iterate(SystemClass* system, int Niter): iterate system for Niter iterations
@@ -138,6 +156,12 @@ template<class SystemClass> template<typename F, typename G, typename H>
   // !! this is the main cloning algorithm
 
   // std::cout << "#cloning: cloneMethod is " << cloneMethod << std::endl;
+
+  // clones log
+  Write clonesLog(clonesDirectory == "" ? "" :
+    std::experimental::filesystem::path
+      (std::experimental::filesystem::path(clonesDirectory) / "clones.log")
+    .u8string());
 
   // slightly fancy c++ clock
   std::chrono::system_clock::time_point startTime =
@@ -166,8 +190,8 @@ template<class SystemClass> template<typename F, typename G, typename H>
   sWeight.resize(nc);
 
   // this is the main loop
-  double iter;
-  for (iter = 0; iter < tmax / (tau*systems[0]->getTimeStep()); iter += 1.0) // for each iteration of the algorithm
+  int iter;
+  for (iter = 0; iter < tmax / (tau*systems[0]->getTimeStep()); iter++) // for each iteration of the algorithm
   {
     std::vector<double> upsilon(nc);  // these are the cloning factors
 
@@ -219,6 +243,7 @@ template<class SystemClass> template<typename F, typename G, typename H>
       for (int i=0;i<nc;i++) std::cout << " " << newClones[i] ;
       std::cout << std::endl;
     #endif
+    for (int i=0;i<nc;i++) clonesLog.write<int>(newClones[i]);
 
     // this is the actual cloning step
     #ifdef _OPENMP
@@ -246,6 +271,138 @@ template<class SystemClass> template<typename F, typename G, typename H>
   // this horrible syntax just computes elapsed time in seconds, at microsecond resolution
   outputWalltime = 1e-6*std::chrono::duration_cast<std::chrono::microseconds>
     (endTime - startTime).count();
+
+  // WRITE TRAJECTORY FILES
+  if ( clonesDirectory != "" ) writeTrajFiles(iter, clonesLog, runIndex);
+}
+
+template<class SystemClass> void CloningSerial<SystemClass>::writeTrajFiles(
+  int iter, Write& clonesLog, int runIndex) {}
+
+template<> void CloningSerial<Rotors>::writeTrajFiles(
+  int iter, Write& clonesLog, int runIndex) {}
+
+template<> void CloningSerial<System>::writeTrajFiles(
+  int iter, Write& clonesLog, int runIndex) {
+  // Write trajectory files for cloning loop.
+
+  int period = 1;
+
+  // BUILD TRAJECTORIES
+
+  clonesLog.flush();
+  Read log(clonesLog.getOutputFile());
+
+  std::vector<std::vector<int>> trajectories (nc);
+  std::vector<int> parents (nc);
+  for (int i=0; i < nc; i++) { parents[i] = i; }
+
+  for (int t=0; t < iter; t++) {
+    for (int i=0; i < nc; i++) {
+      int newParent = log.read<int>(
+        -((t + 1)*nc - parents[i])*sizeof(int),
+        std::ios_base::end);
+      trajectories[i].insert(trajectories[i].begin(), newParent);
+      parents[i] = newParent;
+    }
+  }
+
+  // WRITE .dat FILES
+
+  std::vector<Dat*> dat;
+  std::vector<std::vector<double>> activeWork;
+  std::vector<std::vector<double>> activeWorkForce;
+  std::vector<std::vector<double>> activeWorkOri;
+  std::vector<std::vector<double>> orderParameter;
+  std::vector<std::vector<double>> torqueIntegral1;
+  std::vector<std::vector<double>> torqueIntegral2;
+  for (int i=0; i < 2*nc; i++) {
+    systems[i]->flushOutputFile();
+    dat.push_back(new Dat(systems[i]->getOutputFile(), true));
+    activeWork.push_back(dat[i]->getActiveWork());
+    activeWorkForce.push_back(dat[i]->getActiveWorkForce());
+    activeWorkOri.push_back(dat[i]->getActiveWorkOri());
+    orderParameter.push_back(dat[i]->getOrderParameter());
+    torqueIntegral1.push_back(dat[i]->getTorqueIntegral1());
+    torqueIntegral2.push_back(dat[i]->getTorqueIntegral2());
+  }
+
+  for (int i=0; i < nc; i++) {
+
+    Write output(std::experimental::filesystem::path(
+      std::experimental::filesystem::path(clonesDirectory) /
+      [](int index, int rIndex)
+        { return
+          std::string(4 - std::to_string(rIndex).length(), '0')
+            + std::to_string(rIndex) + std::string(".")
+          + std::string(6 - std::to_string(index).length(), '0')
+            + std::to_string(index) + std::string(".dat"); }
+        (i, runIndex)
+      ).u8string());
+
+    // header
+    output.write<int>(systems[i]->getNumberParticles());
+    output.write<double>(systems[i]->getPersistenceLength());
+    output.write<double>(systems[i]->getPackingFraction());
+    output.write<double>(systems[i]->getSystemSize());
+    output.write<double>(systems[i]->getTorqueParameter());
+    output.write<int>(-1);
+    output.write<double>(systems[i]->getTimeStep());
+    output.write<int>(1);
+    output.write<bool>(true);
+    output.write<int>(tau);
+
+    // initial frame
+    int initFrame = (dat[i]->getFrames() - 1) - period*((int) (iter + 1)/2);
+    int initClone = trajectories[i][0];
+    for (int p=0; p < systems[i]->getNumberParticles(); p++) { // output all particles
+      // POSITIONS
+      for (int dim=0; dim < 2; dim++) { // output position in each dimension
+        output.write<double>(dat[initClone]->getPosition(initFrame, p, dim));
+      }
+      // ORIENTATIONS
+      output.write<double>(dat[initClone]->getOrientation(initFrame, p)); // output orientation
+      // VELOCITIES
+      for (int dim=0; dim < 2; dim++) { // output velocity in each dimension
+        output.write<double>(dat[initClone]->getVelocity(initFrame, p, dim)); // output velocity
+      }
+    }
+
+    // other frames
+    for (int frame=1; frame <= iter; frame++) {
+
+      int currClone = trajectories[i][frame - 1] + nc*(1 - (frame%2));
+      int currFrame = (dat[currClone]->getFrames() - 1)
+        - ((int) (iter - frame)/2)*period;
+
+      for (int p=0; p < systems[i]->getNumberParticles(); p++) { // output all particles
+        // POSITIONS
+        for (int dim=0; dim < 2; dim++) { // output position in each dimension
+          output.write<double>(
+            dat[currClone]->getPosition(currFrame, p, dim));
+        }
+        // ORIENTATIONS
+        output.write<double>(
+          dat[currClone]->getOrientation(currFrame, p)); // output orientation
+        // VELOCITIES
+        for (int dim=0; dim < 2; dim++) { // output velocity in each dimension
+          output.write<double>(
+            dat[currClone]->getVelocity(currFrame, p, dim)); // output velocity
+        }
+      }
+
+      // active work, polarisation, and torque integrals
+      output.write<double>(activeWork[currClone][currFrame/period - 1]);
+      output.write<double>(activeWorkForce[currClone][currFrame/period - 1]);
+      output.write<double>(activeWorkOri[currClone][currFrame/period - 1]);
+      output.write<double>(orderParameter[currClone][currFrame/period - 1]);
+      output.write<double>(torqueIntegral1[currClone][currFrame/period - 1]);
+      output.write<double>(torqueIntegral2[currClone][currFrame/period - 1]);
+    }
+
+    // close file
+    output.close();
+  }
 }
 
 template<class SystemClass> void CloningSerial<SystemClass>::selectClones(

@@ -90,8 +90,8 @@ class CloningOutput:
         ----------
         remove : bool
             Remove inf and -inf as well as nan. (default: False)
-            NOTE: A warning will be issued if remove == False and such objects are
-                  encountered.
+            NOTE: A warning will be issued if remove == False and such objects
+                  are encountered.
 
         Returns
         -------
@@ -103,7 +103,7 @@ class CloningOutput:
             Force part of the normalised rate of active work.
         activeWorkOri : (self.sValues.size, 3) float Numpy array
             Orientation part of the normalised rate of active work.
-        orderParameter : (self.sValues.size, 3) float Numpy array.
+        orderParameter : (self.sValues.size, 3) float Numpy array
             Order parameter.
 
         NOTE: (0) Biasing parameter.
@@ -383,17 +383,21 @@ if __name__ == '__main__':
     exec_path = path.join(exec_dir, exec_name)                          # executable path
 
     # OUTPUT FILES PARAMETERS
-    launch = get_env('LAUNCH', default=_launch, vartype=float)      # launch identifier
-    out_dir = get_env('OUT_DIR', default=_out_dir, vartype=str)     # output directory
-    sim_name = filename(N, phi, lp, nc, launch)                     # simulation output name
-    sim_dir = path.join(out_dir, sim_name)                          # simulation output directory name
+    launch = get_env('LAUNCH', default=_launch, vartype=float)              # launch identifier
+    out_dir = get_env('OUT_DIR', default=_out_dir, vartype=str)             # output directory
+    sim_name = filename(N, phi, lp, nc, launch)                             # simulation output name
+    sim_dir = path.join(out_dir, sim_name)                                  # simulation output directory name
     mkdir(sim_dir, replace=True)
-    tmp_dir = path.join(sim_dir, 'tmp')                             # temporary files directory
+    tmp_dir = path.join(sim_dir, 'tmp')                                     # temporary files directory
     mkdir(tmp_dir, replace=True)
-    tmp_template = '%010d.cloning.out'                              # template of temporary files
-    out_file = path.join(sim_dir, sim_name + '.clo')                # simulation output file name
-    torque_tmp_template = tmp_template.replace('cloning', 'torque') # template of temporary torque parameter dump files
-    torque_file = out_file.replace('.clo', '.torque.dump')          # torque parameter dump file name
+    tmp_template = '%04d.cloning.out'                                      # template of temporary files
+    out_file = path.join(sim_dir, sim_name + '.clo')                        # simulation output file name
+    torque_tmp_template = tmp_template.replace('cloning', 'torque')         # template of temporary torque parameter dump files
+    torque_file = out_file.replace('.clo', '.torque.dump')                  # torque parameter dump file name
+    save_traj = get_env('SAVE_TRAJECTORIES', default=False, vartype=bool)   # save individual clone trajectories
+    if save_traj:
+        for i in range(sNum):
+            mkdir(path.join(tmp_dir, '%04d.traj' % i))
 
     # LAUNCH
 
@@ -404,10 +408,10 @@ if __name__ == '__main__':
         'THREADS': str(threads),
         'N': str(N), 'LP': str(lp), 'PHI': str(phi),
         'TAU': str(tau), 'DT': str(dt),
-        'FILE': path.join(tmp_dir,
-            tmp_template % i),
-        'TORQUE_DUMP_FILE': path.join(tmp_dir,
-            torque_tmp_template % i)}
+        'FILE': path.join(tmp_dir, tmp_template % i),
+        'TORQUE_DUMP_FILE': path.join(tmp_dir, torque_tmp_template % i),
+        'CLONES_DIRECTORY': (path.join(tmp_dir, '%04d.traj' % i)
+            if save_traj else '')}
 
     with open(devnull, 'wb') as DevNull:
 
@@ -469,6 +473,17 @@ if __name__ == '__main__':
                 walltime],
             output)
 
+    # TRAJECTORY FILES
+
+    if save_traj:
+        for i in range(sNum):
+            for j in range(nRuns):
+                for k in range(nc):
+                    traj_file = '%04d.%06d.dat' % (j, k)
+                    move(path.join(tmp_dir, '%04d.traj' % i, traj_file),
+                        path.join(sim_dir, (sim_name + '_S%s.' + traj_file)
+                            % float_to_letters(sValues[i])))
+
     # TORQUE PARAMETER OUTPUT FILE
 
     # LOAD TEMPORARY FILES
@@ -505,4 +520,12 @@ if __name__ == '__main__':
         move(out_file, path.join(out_dir, sim_name + '.clo'))                   # move output file to output directory
         if torque_tmp_out:
             move(torque_file, path.join(out_dir, sim_name + '.torque.dump'))    # move output file to output directory
+        if save_traj:
+            for i in range(sNum):
+                for j in range(nRuns):
+                    for k in range(nc):
+                        traj_file = (sim_name + '_S%s.%04d.%06d.dat' %
+                            (float_to_letters(sValues[i]), j, k))
+                        move(path.join(sim_dir, traj_file),
+                            path.join(out_dir, traj_file))
         rmr(sim_dir, ignore_errors=True)                                        # delete simulation directory

@@ -253,8 +253,8 @@ class System {
       int nWork = 1, bool dump = true, int period = 1);
 
     // cloning constructor
-    System(System* dummy, int seed, int tau) :
-      System(dummy, seed, "", tau, false, 1) { resetDump(); }
+    System(System* dummy, int seed, int tau, std::string filename = "") :
+      System(dummy, seed, filename, 1, filename != "", tau) { resetDump(); }
 
     // DESTRUCTORS
 
@@ -278,6 +278,7 @@ class System {
 
     CellList* getCellList(); // returns pointer to CellList object
 
+    void flushOutputFile(); // flush output file
     std::string getOutputFile() const; // returns output file name
 
     void setTorqueParameter(double& g); // set new torque parameter
@@ -582,7 +583,7 @@ class Rotors {
       bool dump = true, int period = 1);
 
     // cloning constructor
-    Rotors(Rotors* dummy, int seed, int tau) :
+    Rotors(Rotors* dummy, int seed, int tau, std::string filename = "") :
       Rotors(dummy, seed, "", tau, false, 1) { resetDump(); }
 
     // DESTRUCTORS

@@ -27,8 +27,8 @@ else
 ifeq ($(CLONING),yes)
 	EXEC=$(BU)/cloning
 	CPP=cloning.cpp
-	LDFLAGS+=-fopenmp  # compile with openMP
-	MPIFLAGS+=-fopenmp # compile with openMP
+	LDFLAGS+=-fopenmp -lstdc++fs # compile with openMP and libstdc++fs library
+	MPIFLAGS+=-fopenmp           # compile with openMP
 ifeq ($(CONTROLLED_DYNAMICS),1)
 	EXEC:=$(EXEC)_C1
 	CFLAGS+=-DCONTROLLED_DYNAMICS=1
@@ -50,8 +50,8 @@ else
 ifeq ($(CLONINGR),yes)
 	EXEC=$(BU)/cloningR
 	CPP=cloningR.cpp
-	LDFLAGS+=-fopenmp  # compile with openMP
-	MPIFLAGS+=-fopenmp # compile with openMP
+	LDFLAGS+=-fopenmp -lstdc++fs # compile with openMP and libstdc++fs library
+	MPIFLAGS+=-fopenmp           # compile with openMP
 ifeq ($(BIAS), 1)
 	CFLAGS+=-DBIAS=1
 	EXEC:=$(EXEC)_B1
