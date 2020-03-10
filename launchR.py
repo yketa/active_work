@@ -8,7 +8,7 @@ from active_work.init import get_env
 from numpy.random import randint
 
 from os import path
-from subprocess import run
+from subprocess import Popen, DEVNULL
 
 # FUNCTIONS AND CLASSES
 
@@ -90,9 +90,12 @@ if __name__ == '__main__':
 
     # LAUNCH
 
-    run(['setsid', path.join(exec_dir, exec_name)], env={
-        'N': str(N), 'DR': str(Dr), 'G': str(g),
-        'SEED': str(seed),
-        'FILE': path.join(out_dir, out_file),
-        'DT': str(dt), 'NITER': str(Niter),
-        'NORDER': str(nOrder), 'DUMP': str(dump), 'PERIOD': str(period)})
+    proc = Popen(
+        ['{ %s; }' % str(' ').join(['setsid', path.join(exec_dir, exec_name)])],
+        stdout=DEVNULL, shell=True, env={
+            'N': str(N), 'DR': str(Dr), 'G': str(g),
+            'SEED': str(seed),
+            'FILE': path.join(out_dir, out_file),
+            'DT': str(dt), 'NITER': str(Niter),
+            'NORDER': str(nOrder), 'DUMP': str(dump), 'PERIOD': str(period)})
+    proc.wait()

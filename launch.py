@@ -9,7 +9,7 @@ from active_work.read import _Dat as Dat
 from numpy.random import randint
 
 from os import path
-from subprocess import run
+from subprocess import Popen, DEVNULL
 
 # FUNCTIONS AND CLASSES
 
@@ -112,11 +112,16 @@ if __name__ == '__main__':
 
     # LAUNCH
 
-    run(['setsid', path.join(exec_dir, exec_name)], env={
-        'N': str(N), 'LP': str(lp), 'PHI': str(phi), 'TORQUE_PARAMETER': str(g),
-        'INPUT_FILENAME': str(inputFilename), 'INPUT_FRAME': str(inputFrame),
-        'SEED': str(seed),
-        'FILE': path.join(out_dir, out_file),
-        'DT': str(dt), 'NITER': str(Niter),
-        'NWORK': str(nWork),
-        'DUMP': str(dump), 'PERIOD': str(period)})
+    proc = Popen(
+        ['{ %s; }' % str(' ').join(['setsid', path.join(exec_dir, exec_name)])],
+        stdout=DEVNULL, shell=True, env={
+            'N': str(N), 'LP': str(lp), 'PHI': str(phi),
+            'TORQUE_PARAMETER': str(g),
+            'INPUT_FILENAME': str(inputFilename),
+            'INPUT_FRAME': str(inputFrame),
+            'SEED': str(seed),
+            'FILE': path.join(out_dir, out_file),
+            'DT': str(dt), 'NITER': str(Niter),
+            'NWORK': str(nWork),
+            'DUMP': str(dump), 'PERIOD': str(period)})
+    proc.wait()

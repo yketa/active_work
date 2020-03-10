@@ -6,11 +6,11 @@ different values of the torque parameter.
 import numpy as np
 from numpy import random, gcd
 
-from os import path, devnull
+from os import path
 from shutil import rmtree as rmr
 from shutil import move
 
-from subprocess import Popen
+from subprocess import Popen, DEVNULL
 
 import pickle
 
@@ -261,30 +261,32 @@ if __name__ == '__main__':
         'NWORK': str(nWork),
         'DUMP': str(0), 'PERIOD': str(1)}
 
-    with open(devnull, 'wb') as DevNull:
+    if slurm:   # using Slurm job scheduler
 
-        if slurm:   # using Slurm job scheduler
+        slurm_launch = ['bash', _slurm_path, '-w']  # commands to submit Slurm job
+        if slurm_partition != None: slurm_launch += ['-p', slurm_partition]
+        if slurm_time != None: slurm_launch += ['-t', slurm_time]
 
-            slurm_launch = ['bash', _slurm_path, '-w']  # commands to submit Slurm job
-            if slurm_partition != None: slurm_launch += ['-p', slurm_partition]
-            if slurm_time != None: slurm_launch += ['-t', slurm_time]
+        # LAUNCH
+        procs = [
+            Popen(
+                ['%s \"{ %s %s; }\"' %
+                    (str(' ').join(slurm_launch),               # Slurm submitting script
+                    str(' ').join(['%s=%s' % (key, env(i)[key]) # environment variables
+                        for key in env(i)]),
+                    exec_path)],                                # cloning executable
+                stdout=DEVNULL, shell=True)
+            for i in range(gNum*nRuns)]
 
-            procs = [
-                Popen(
-                    slurm_launch                                            # Slurm submitting script
-                        + ['%s=%s' % (key, env(i)[key]) for key in env(i)]  # environment variables
-                        + [exec_path],                                      # cloning executable
-                    stdout=DevNull, stderr=DevNull)
-                for i in range(gNum*nRuns)]                                 # launch computations
+    else:   # not using Slurm job scheduler
 
-        else:   # not using Slurm job scheduler
+        # LAUNCH
+        procs = [
+            Popen(['{ %s; }' % exec_path],
+                stdout=DEVNULL, shell=True, env=env(i))
+            for i in range(gNum*nRuns)]
 
-            procs = [
-                Popen([exec_path],
-                    stdout=DevNull, stderr=DevNull, env=env(i))
-                for i in range(gNum*nRuns)] # launch computations
-
-        for proc in procs: proc.wait()  # wait for them to finish
+    for proc in procs: proc.wait()  # wait for them to finish
 
     # LOAD TEMPORARY FILES
 
