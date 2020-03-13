@@ -62,6 +62,9 @@ class Dat {
       int const& frame, int const& particle, int const& dimension);
       // Returns velocity of a given particle at a given frame.
 
+    void close() { input.close(); } // close file stream
+    void open() { input.open(); } // open file stream
+
   private:
 
     // ATTRIBUTES
