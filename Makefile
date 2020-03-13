@@ -106,8 +106,8 @@ ifneq ($(EXEC_NAME),)
 	EXEC=$(BU)/$(EXEC_NAME)
 endif
 
-MAIN=main.cpp main0.cpp mainR.cpp cloning.cpp cloningR.cpp test.cpp	# files with main()
-SRC=$(filter-out $(filter-out $(CPP), $(MAIN)), $(wildcard *.cpp))	# compile all files but the ones with wrong main()
+MAIN=main.cpp main0.cpp mainR.cpp cloning.cpp cloningR.cpp test.cpp					# files with main()
+SRC=$(filter-out $(filter-out $(CPP), $(MAIN)), $(filter-out $(wildcard old*), $(wildcard *.cpp)))	# compile all files but the ones with wrong main()
 
 OBJ=$(addprefix $(OB)/, $(SRC:.cpp=.o))
 
@@ -140,9 +140,6 @@ $(OB)/maths.o: maths.cpp maths.hpp
 
 $(OB)/particle.o: particle.cpp particle.hpp maths.hpp readwrite.hpp
 	$(CC) -o $(OB)/particle.o -c particle.cpp $(CFLAGS)
-
-$(OB)/readwrite.o: readwrite.cpp readwrite.hpp
-	$(CC) -o $(OB)/readwrite.o -c readwrite.cpp $(CFLAGS)
 
 ##
 
