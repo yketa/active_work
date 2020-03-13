@@ -44,7 +44,7 @@ Dat::Dat(std::string filename, bool loadWork) :
   // FILE CORRUPTION CHECK
   if ( input.getFileSize() !=
     headerLength + frames*frameLength + numberWork*workLength ) {
-    std::cout << "Invalid file size." << std::endl;
+    std::cerr << "Invalid file size." << std::endl;
     exit(0);
   }
 
@@ -184,7 +184,7 @@ Dat0::Dat0(std::string filename, bool loadWork) :
   // FILE CORRUPTION CHECK
   if ( input.getFileSize() !=
     headerLength + frames*frameLength + numberWork*workLength ) {
-    std::cout << "Invalid file size." << std::endl;
+    std::cerr << "Invalid file size." << std::endl;
     exit(0);
   }
 
@@ -309,7 +309,7 @@ DatR::DatR(std::string filename, bool loadOrder) :
   // FILE CORRUTION CHECK
   if ( input.getFileSize() !=
     headerLength + frames*frameLength + numberOrder*orderLength ) {
-    std::cout << "Invalid file size." << std::endl;
+    std::cerr << "Invalid file size." << std::endl;
     exit(0);
   }
 
