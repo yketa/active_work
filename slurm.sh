@@ -20,6 +20,8 @@ _PARTITION=skylake  # default partition for the ressource allocation
 _GRES=              # default generic consumable ressources
 _NODES=1            # default required number of nodes
 _NTASKS=1           # default number of MPI ranks running per node
+_ARRAY_SIZE=        # default job array size
+_ARRAY_TASKS=       # default maximum number of simultaneous tasks in the array
 _TIME=              # default required time
 _MEMORY=            # default real memory required per node
 
@@ -62,6 +64,14 @@ OPTIONS
   -r    Number of MPI ranks running per node.
         Number of threads for OpenMP parallelised jobs.
         DEFAULT: _NTASKS
+  -a    Job array size.
+        (see https://slurm.schedmd.com/job_array.html)
+        NOTE: SLURM_ARRAY_TASK_ID is set as task id (between 0 and size - 1).
+        DEFAULT: _ARRAY_SIZE
+  -s    Maximum number of simultaneously running tasks in the job array.
+        (see https://slurm.schedmd.com/job_array.html)
+        NOTE: An empty string will not set this maximum.
+        DEFAULT: _ARRAY_TASKS
   -t    Required time.
         DEFAULT: _TIME
   -m    Real memory required per node.
@@ -72,13 +82,13 @@ OPTIONS
 
 # OPTIONS
 
-while getopts "hwj:c:d:o:f:p:g:n:r:t:m:" OPTION; do
+while getopts "hwj:c:d:o:f:p:g:n:r:a:s:t:m:" OPTION; do
   case $OPTION in
 
     h)  # help menu
       usage; exit;;
 
-    w) # wait
+    w)  # wait
       WAIT=true;;
 
     j)  # job name
@@ -101,6 +111,10 @@ while getopts "hwj:c:d:o:f:p:g:n:r:t:m:" OPTION; do
       NODES=$OPTARG;;
     r)  # taks
       NTASKS=$OPTARG;;
+    a)  # array size
+      ARRAY_SIZE=$OPTARG;;
+    s)  # array tasks
+      ARRAY_TASKS=$OPTARG;;
     t)  # time
       TIME=$OPTARG;;
     m)  # real memory
@@ -112,6 +126,7 @@ shift $(expr $OPTIND - 1);
 
 if [[ -z "$@" ]]; then
   echo 'No script submitted.';
+  usage;
   exit 0;
 fi
 
@@ -125,12 +140,14 @@ SIM_DIR=${SIM_DIR-$_SIM_DIR}; mkdir -p "$SIM_DIR";          # simulation directo
 ERROR_DIR=${ERROR_DIR-$_ERROR_DIR}; mkdir -p "$ERROR_DIR";  # error output directory
 OUT_FILE=${OUT_FILE-$_OUT_FILE}                             # standard output file
 
-PARTITION=${PARTITION-$_PARTITION}  # partition for the resource allocation
-GRES=${GRES-$_GRES}                 # generic consumable resources
-NODES=${NODES-$_NODES}              # required number of nodes
-NTASKS=${NTASKS-$_NTASKS}           # maximum ntasks to be invoked on each core
-TIME=${TIME-$_TIME}                 # required time
-MEMORY=${MEMORY-$_MEMORY}           # real memory required per node
+PARTITION=${PARTITION-$_PARTITION}        # partition for the resource allocation
+GRES=${GRES-$_GRES}                       # generic consumable resources
+NODES=${NODES-$_NODES}                    # required number of nodes
+NTASKS=${NTASKS-$_NTASKS}                 # maximum ntasks to be invoked on each core
+ARRAY_SIZE=${ARRAY_SIZE-$_ARRAY_SIZE}     # job array size
+ARRAY_TASKS=${ARRAY_TASKS-$_ARRAY_TASKS}  # maximum number of simultaneous tasks in the array
+TIME=${TIME-$_TIME}                       # required time
+MEMORY=${MEMORY-$_MEMORY}                 # real memory required per node
 
 # SUBMIT JOB
 
@@ -144,6 +161,7 @@ sbatch ${WAIT:+-W} ${CHAIN:+-d afterok:$CHAIN} <<EOF
 #SBATCH --gres=$GRES
 #SBATCH --nodes=$NODES
 #SBATCH --ntasks-per-node=$NTASKS
+${ARRAY_SIZE:+#SBATCH --array=0-$(($ARRAY_SIZE-1))${ARRAY_TASKS+%$ARRAY_TASKS}}
 ${TIME:+#SBATCH --time=$TIME}
 ${MEMORY:+#SBATCH --mem=$MEMORY}
 
@@ -162,6 +180,8 @@ export OMP_NUM_THREADS=$NTASKS
 (>&2 printf '%-21s: %s\n' 'GRES' '$GRES')
 (>&2 printf '%-21s: %s\n' 'NODES REQUIRED' '$NODES')
 (>&2 printf '%-21s: %s\n' 'TASKS PER NODE' '$NTASKS')
+(>&2 printf '%-21s: %s\n' 'ARRAY SIZE' '$ARRAY_SIZE')
+(>&2 printf '%-21s: %s\n' 'TASKS IN ARRAY' '$ARRAY_TASKS')
 (>&2 printf '%-21s: %s\n' 'TIME REQUIRED' '$TIME')
 (>&2 printf '%-21s: %s\n' 'MEMORY REQUIRED' '$MEMORY')
 (>&2 echo)
