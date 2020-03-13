@@ -63,9 +63,7 @@ template<class SystemClass> class CloningSerial {
 
     int binsearch(double key[], double val, int keylength); // this is a binary search used in clone selection
 
-    void deleteClones() { // delete clones
-      if ( nc>0 ) { for (int i=0; i<2*nc; i++) delete systems[i]; }
-    }
+    void deleteClones() { for (int i=0; i<2*nc; i++) delete systems[i]; } // delete clones
 
     SystemClass* finalSystem(int index) { return systems[finalOffset + index]; }
 
@@ -306,6 +304,7 @@ template<> void CloningSerial<System>::writeTrajFiles(
       parents[i] = newParent;
     }
   }
+  log.close();
 
   // WRITE .dat FILES
 
@@ -319,6 +318,7 @@ template<> void CloningSerial<System>::writeTrajFiles(
   for (int i=0; i < 2*nc; i++) {
     systems[i]->flushOutputFile();
     dat.push_back(new Dat(systems[i]->getOutputFile(), true));
+    dat[i]->close();
     activeWork.push_back(dat[i]->getActiveWork());
     activeWorkForce.push_back(dat[i]->getActiveWorkForce());
     activeWorkOri.push_back(dat[i]->getActiveWorkOri());
@@ -355,6 +355,7 @@ template<> void CloningSerial<System>::writeTrajFiles(
     // initial frame
     int initFrame = (dat[i]->getFrames() - 1) - period*((int) (iter + 1)/2);
     int initClone = trajectories[i][0];
+    dat[initClone]->open();
     for (int p=0; p < systems[i]->getNumberParticles(); p++) { // output all particles
       // POSITIONS
       for (int dim=0; dim < 2; dim++) { // output position in each dimension
@@ -367,6 +368,7 @@ template<> void CloningSerial<System>::writeTrajFiles(
         output.write<double>(dat[initClone]->getVelocity(initFrame, p, dim)); // output velocity
       }
     }
+    dat[initClone]->close();
 
     // other frames
     for (int frame=1; frame <= iter; frame++) {
@@ -375,6 +377,7 @@ template<> void CloningSerial<System>::writeTrajFiles(
       int currFrame = (dat[currClone]->getFrames() - 1)
         - ((int) (iter - frame)/2)*period;
 
+      dat[currClone]->open();
       for (int p=0; p < systems[i]->getNumberParticles(); p++) { // output all particles
         // POSITIONS
         for (int dim=0; dim < 2; dim++) { // output position in each dimension
@@ -390,6 +393,7 @@ template<> void CloningSerial<System>::writeTrajFiles(
             dat[currClone]->getVelocity(currFrame, p, dim)); // output velocity
         }
       }
+      dat[currClone]->close();
 
       // active work, polarisation, and torque integrals
       output.write<double>(activeWork[currClone][currFrame/period - 1]);
@@ -403,6 +407,9 @@ template<> void CloningSerial<System>::writeTrajFiles(
     // close file
     output.close();
   }
+
+  // delete pointers to input files
+  for (int i=0; i < 2*nc; i++) delete dat[i];
 }
 
 template<class SystemClass> void CloningSerial<SystemClass>::selectClones(

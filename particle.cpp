@@ -201,6 +201,7 @@ System::System(
   output.write<int>(framesWork);
   output.write<bool>(dumpParticles);
   output.write<int>(dumpPeriod);
+  output.close();
 
   // put particles on a grid with random orientation
   int gridSize = ceil(sqrt(getNumberParticles())); // size of the grid on which to put the particles
@@ -252,6 +253,7 @@ System::System(
   output.write<int>(framesWork);
   output.write<bool>(dumpParticles);
   output.write<int>(dumpPeriod);
+  output.close();
 
   // initialise cell list
   cellList.initialise<System>(this, pow(2., 1./6.));
@@ -327,6 +329,7 @@ System::System(
   output.write<int>(framesWork);
   output.write<bool>(dumpParticles);
   output.write<int>(dumpPeriod);
+  output.close();
 
   // initialise cell list
   cellList.initialise<System>(this, pow(2., 1./6.));
@@ -489,6 +492,7 @@ void System::saveInitialState() {
 
   // output
   if ( dumpParticles ) {
+    output.open();
 
     for (int i=0; i < getNumberParticles(); i++) { // output all particles
       // POSITIONS
@@ -503,6 +507,8 @@ void System::saveInitialState() {
         output.write<double>(0.0); // zero by default for initial frame
       }
     }
+
+    output.close();
   }
 
   // reset dump
@@ -518,6 +524,12 @@ void System::saveNewState(std::vector<Particle>& newParticles) {
   ////////////
   // SAVING //
   ////////////
+
+  // OPEN FILE
+  if ( ( dumpParticles && dumpFrame % dumpPeriod == 0 ) ||
+    ( dumpParticles && (dumpFrame - 1) % dumpPeriod == 0 ) ) {
+      output.open();
+  }
 
   for (int i=0; i < getNumberParticles(); i++) { // output all particles
 
@@ -648,6 +660,9 @@ void System::saveNewState(std::vector<Particle>& newParticles) {
     torqueIntegral1[0] = 0;
     torqueIntegral2[0] = 0;
   }
+
+  // CLOSE FILE
+  if ( output.is_open() ) { output.close(); }
 
   /////////////
   // COPYING //

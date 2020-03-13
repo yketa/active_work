@@ -55,6 +55,7 @@ int main() {
 	output.write<double>(phi);
 	output.write<int>(tau);
 	output.write<double>(dt);
+	output.close();
 
 	// save trajectories
 	std::string clonesDirectory = getEnvString("CLONES_DIRECTORY", ""); // if different than "" then clones trajectories are saved to this directory
@@ -90,6 +91,7 @@ int main() {
 		#if CONTROLLED_DYNAMICS == 2 || CONTROLLED_DYNAMICS == 3
 		#ifdef TORQUE_DUMP
 		Write torqueDump(getEnvString("TORQUE_DUMP_FILE", "torque.dump"));
+		torqueDump.close();
 		#endif
 		#endif
 
@@ -161,7 +163,9 @@ int main() {
 
 				// output
 				#ifdef TORQUE_DUMP
+				torqueDump.open();
 				torqueDump.write<double>(systems[pullOffset]->getTorqueParameter());
+				torqueDump.close();
 				#endif
 
 				#endif
@@ -200,7 +204,9 @@ int main() {
 
 				// output
 				#ifdef TORQUE_DUMP
+				torqueDump.open();
 				torqueDump.write<double>(systems[pullOffset]->getTorqueParameter());
+				torqueDump.close();
 				#endif
 
 				#endif
@@ -237,12 +243,14 @@ int main() {
 		          << "##time " << clones.outputWalltime << std::endl;
 
 		// output to file
+		output.open();
 		output.write<double>(clones.outputPsi);
 		output.write<double>(clones.outputOP[0]);
 		output.write<double>(clones.outputOP[1]);
 		output.write<double>(clones.outputOP[2]);
 		output.write<double>(clones.outputOP[3]);
 		output.write<double>(clones.outputWalltime);
+		output.close();
 	}
 
 }
