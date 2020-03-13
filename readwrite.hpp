@@ -50,9 +50,9 @@ class Read {
       if ( inputStream ) {
         if ( ! inputStream.read((char*) in, sizeof(InClass)) ) {
           std::cerr
-            << "READ FAILURE "
-              << tellg() << " "
-              << inputFile
+            << "[READ FAILURE]"
+              << " CURSOR: " << tellg()
+              << " | FILE: " << inputFile
             << std::endl;
         }
       }
@@ -140,10 +140,10 @@ class Write {
       if ( outputStream ) {
         if ( ! outputStream.write((char*) &out, sizeof(OutClass)) ) {
           std::cerr
-            << "WRITE FAILURE "
-              << out << " "
-              << tellp() << " "
-              << outputFile
+            << "[WRITE FAILURE]"
+              << " OUTPUT: " << out
+              << " | CURSOR: " << tellp()
+              << " | FILE: " << outputFile
             << std::endl;
         };
       }
