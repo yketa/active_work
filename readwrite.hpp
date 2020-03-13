@@ -3,6 +3,7 @@
 
 #include <fstream>
 #include <string>
+#include <iostream>
 
 /////////////
 // CLASSES //
@@ -23,11 +24,22 @@ class Read {
 
     // CONSTRUCTORS
 
-    Read(std::string filename);
+    Read(std::string filename) :
+      inputFile(filename),
+      inputStream(inputFile.c_str(), std::ios::in | std::ios::binary),
+      fileSize (0) {
+
+      // get file size
+      if ( inputStream ) {
+        inputStream.seekg(0, std::ios_base::end);
+        fileSize = tellg();
+        inputStream.seekg(0, std::ios_base::beg);
+      }
+    }
 
     // DESTRUCTORS
 
-    ~Read();
+    ~Read() { close(); }
 
     // METHODS
 
@@ -36,7 +48,13 @@ class Read {
       // Read from input file.
 
       if ( inputStream ) {
-        inputStream.read((char*) in, sizeof(InClass));
+        if ( ! inputStream.read((char*) in, sizeof(InClass)) ) {
+          std::cerr
+            << "READ FAILURE "
+              << tellg() << " "
+              << inputFile
+            << std::endl;
+        }
       }
     }
     template<class InClass> InClass read() {
@@ -68,10 +86,19 @@ class Read {
       return in;
     }
 
-    std::string getInputFile() const; // returns input file name
+    std::string getInputFile() const { return inputFile; } // returns input file name
 
-    long int getFileSize(); // returns size of file
-    long int tellg(); // returns position in input stream
+    long int getFileSize() { return fileSize; } // returns size of file
+    long int tellg() { return inputStream.tellg(); } // returns position in input stream
+
+    bool is_open() { return inputStream.is_open(); } // file stream opened
+    void close() { inputStream.close(); } // close file stream
+    void open() { // (re-)open file stream
+      if ( ! is_open() ) {
+        inputStream.open(inputFile.c_str(),
+          std::ios::in | std::ios::binary);
+      }
+    }
 
   private:
 
@@ -95,25 +122,34 @@ class Write {
 
     // CONSTRUCTORS
 
-    Write(std::string filename);
+    Write(std::string filename) :
+      outputFile(filename),
+      outputStream(outputFile.c_str(), std::ios::out | std::ios::binary) {}
     Write() : Write("") {}
 
     // DESTRUCTORS
 
-    ~Write();
+    ~Write() { close(); }
 
     // METHODS
 
-    // READ WITH OFFSET
+    // WRITE WITHOUT OFFSET
     template<class OutClass> void write(OutClass out) {
       // Write to output file.
 
       if ( outputStream ) {
-        outputStream.write((char*) &out, sizeof(OutClass));
+        if ( ! outputStream.write((char*) &out, sizeof(OutClass)) ) {
+          std::cerr
+            << "WRITE FAILURE "
+              << out << " "
+              << tellp() << " "
+              << outputFile
+            << std::endl;
+        };
       }
     }
 
-    // READ WITHOUT OFFSET
+    // WRITE WITH OFFSET
     template<class OutClass> void write(OutClass out,
       long int offset, std::ios_base::seekdir way = std::ios_base::beg) {
       // Write to output file at a given position given by offset relative to
@@ -126,12 +162,19 @@ class Write {
       }
     }
 
-    std::string getOutputFile() const; // returns output file name
+    std::string getOutputFile() const { return outputFile; } // returns output file name
 
-    long int tellp(); // returns position in output stream
+    long int tellp() { return outputStream.tellp(); } // returns position in output stream
 
-    void flush(); // flush output file stream
-    void close(); // close output file stream
+    bool is_open() { return outputStream.is_open(); } // file stream opened
+    void flush() { outputStream.flush(); } // flush file stream
+    void close() { outputStream.close(); } // close file stream
+    void open() { // (re-)open file stream
+      if ( ! is_open() ) {
+        outputStream.open(outputFile.c_str(),
+          std::ios::in | std::ios::out | std::ios::ate | std::ios::binary);
+      }
+    }
 
   private:
 
