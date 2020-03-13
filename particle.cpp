@@ -527,7 +527,8 @@ void System::saveNewState(std::vector<Particle>& newParticles) {
 
   // OPEN FILE
   if ( ( dumpParticles && dumpFrame % dumpPeriod == 0 ) ||
-    ( dumpParticles && (dumpFrame - 1) % dumpPeriod == 0 ) ) {
+    ( dumpParticles && (dumpFrame - 1) % dumpPeriod == 0 ) ||
+    ( dumpFrame % (framesWork*dumpPeriod) == 0 ) ) {
       output.open();
   }
 
