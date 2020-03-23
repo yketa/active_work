@@ -6,6 +6,8 @@ orientational dynamics and statistics of interacting Brownian rotors.
 """
 
 import numpy as np
+from scipy.special import mathieu_a
+import scipy.optimize as optimize
 
 from active_work.read import DatR
 from active_work.maths import Distribution
@@ -138,6 +140,66 @@ class Rotors(DatR):
         if int_max == None: return np.array(range(self.skip, self.frames - 1))
         return np.linspace(
             self.skip, self.frames - 1, int(int_max), endpoint=False, dtype=int)
+
+class Mathieu:
+    """
+    Provides estimates of the SCGF and the rate function of a single rotor from
+    Mathieu functions.
+
+    (see https://yketa.github.io/DAMTP_2019_Wiki/#Brownian%20rotors%20LDP)
+    """
+
+    def __init__(self, Dr):
+        """
+        Defines parameters.
+
+        Parameters
+        ----------
+        Dr : float
+            Rotational diffusivity.
+        """
+
+        self.Dr = Dr
+
+    def SCGF(self, *s):
+        """
+        Returns estimate of the SCGF.
+
+        Parameters
+        ----------
+        s : float
+            Biasing parameter.
+
+        Returns
+        -------
+        psi : float Numpy array
+            Scaled cumulant generating function.
+        """
+
+        return np.array(list(map(
+            lambda _s: -(self.Dr/4)*mathieu_a(0, (2./self.Dr)*_s),
+            s)))
+
+    def rate(self, *p):
+        """
+        Returns estimate of the rate function.
+
+        Parameters
+        ----------
+        p : float
+            Polarisation norm.
+
+        Returns
+        -------
+        I : float Numpy array
+            Rate function.
+        """
+
+        return np.array(list(map(
+            lambda _p: -optimize.minimize(
+                lambda s: s*_p + self.SCGF(s)[0],
+                0)['fun'],
+            p)))
 
 def nu_pdf_th(N, g, Dr, *nu):
     """
