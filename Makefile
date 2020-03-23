@@ -25,10 +25,18 @@ else
 
 # ABP CLONING ALGORITHM
 ifeq ($(CLONING),yes)
-	EXEC=$(BU)/cloning
 	CPP=cloning.cpp
 	LDFLAGS+=-fopenmp -lstdc++fs # compile with openMP and libstdc++fs library
 	MPIFLAGS+=-fopenmp           # compile with openMP
+ifeq ($(BIAS_POLARISATION),yes)
+	EXEC=$(BU)/cloningP
+	CFLAGS+=-DBIAS_POLARISATION
+ifeq ($(CONTROLLED_DYNAMICS),yes)
+	EXEC:=$(EXEC)_C
+	CFLAGS+=-DCONTROLLED_DYNAMICS
+endif
+else
+	EXEC=$(BU)/cloning
 ifeq ($(CONTROLLED_DYNAMICS),1)
 	EXEC:=$(EXEC)_C1
 	CFLAGS+=-DCONTROLLED_DYNAMICS=1
@@ -40,6 +48,7 @@ endif
 ifeq ($(CONTROLLED_DYNAMICS),3)
 	EXEC:=$(EXEC)_C3
 	CFLAGS+=-DCONTROLLED_DYNAMICS=3
+endif
 endif
 ifeq ($(TORQUE_DUMP),yes)
 	CFLAGS+=-DTORQUE_DUMP

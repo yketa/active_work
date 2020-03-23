@@ -1,15 +1,22 @@
 """
-Module cloning launches cloning simulations of ABPs and provides classes to read
-output data files from these simulations.
+Module cloning launches cloning simulations of ABPs biased with respect to
+either the polarisation or the active work and provides classes to read output
+data files from these simulations.
 
 Controlled dynamics is chosen with environment variable `CONTROLLED_DYNAMICS':
+    [POLARISATION]
+    (0) Unmodified dynamics,
+    (1) Modified rotational EOM, choosing free parameter as function of the
+        order parameter norm.
+    [ACTIVE WORK]
     (0) Unmodified dynamics,
     (1) Modified translational EOM,
     (2) Modified translational and rotational EOM, choosing free parameter as
         function of the order parameter norm,
     (3) Modified translational and rotational EOM, choosing free parameter as
         to minimise the SCGF.
-(see https://yketa.github.io/DAMTP_2019_Wiki/#ABP%20cloning%20algorithm)
+(see https://yketa.github.io/DAMTP_2019_Wiki/#ABP%20cloning%20algorithm%20%E2%80%94%20polarisation
+and https://yketa.github.io/DAMTP_2019_Wiki/#ABP%20cloning%20algorithm)
 """
 
 import numpy as np
@@ -36,7 +43,7 @@ class CloningOutput:
     active_work.cloning.
     """
 
-    def __init__(self, filename):
+    def __init__(self, filename, bias_polarisation=False):
         """
         Get data.
 
@@ -44,9 +51,13 @@ class CloningOutput:
         ----------
         filename : string
             Path to data file.
+        bias_polarisation : bool
+            Cloning data corresponds to simulation biased with respect to the
+            polarisation. (default: False)
         """
 
         self.filename = filename
+        self.bias_polarisation = bias_polarisation
 
         with open(self.filename, 'rb') as input:
             (self.exec_path,        # executable path (can help discriminate controlled dynamics method)
@@ -74,13 +85,15 @@ class CloningOutput:
         self.tau = self._tau*self.dt        # dimensionless elementary time
         self.tinit = self.tau*self.initSim  # dimensionless initial simulation time
 
+        self.order = [self.activeWork, self.orderParameter][
+            self.bias_polarisation]
         self.I = np.empty((self.sValues.size, self.nRuns, 2))   # rate function
         for i in range(self.sValues.size):
             sValue = self.sValues[i]
-            for j, SCGF, activeWork in zip(
-                range(self.nRuns), self.SCGF[i], self.activeWork[i]):
-                self.I[i, j, 0] = activeWork
-                self.I[i, j, 1] = -sValue*activeWork - SCGF
+            for j, SCGF, order in zip(
+                range(self.nRuns), self.SCGF[i], self.order[i]):
+                self.I[i, j, 0] = order
+                self.I[i, j, 1] = -sValue*order - SCGF
 
     def meanSterr(self, remove=False):
         """
@@ -326,7 +339,9 @@ _launch = 0 # default launch identifier
 
 _N_cell = 100                                                               # number of particles above which simulations should be launched with a cell list
 _exec_dir = path.join(path.dirname(path.realpath(__file__)), 'build')       # default executable directory
-_exec_name = {0: 'cloning', **{i: 'cloning_C%i' % i for i in range(1, 4)}}  # default executable name
+_exec_name = {                                                              # default executable name
+    False: {0: 'cloning', **{i: 'cloning_C%i' % i for i in range(1, 4)}},   # biasing with respect to active work
+    True: {0: 'cloningP', 1: 'cloningP_C'}}                                 # biasing with respect to polarisation
 
 _slurm_path = path.join(path.dirname(path.realpath(__file__)), 'slurm.sh')  # Slurm submitting script
 
@@ -377,6 +392,7 @@ if __name__ == '__main__':
     exec_dir = get_env('EXEC_DIR', default=_exec_dir, vartype=str)      # executable directory
     exec_name = get_env('EXEC_NAME',                                    # executable name
         default=_exec_name[
+            get_env('BIAS_POLARISATION', default=False, vartype=bool)][
             get_env('CONTROLLED_DYNAMICS', default=0, vartype=int)]
             + ('_cell_list' if N >= _N_cell else ''),
         vartype=str)

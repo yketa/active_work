@@ -13,7 +13,11 @@ While C++ files can be quite cumbersome, Python wrappers are hopefully more read
 
 ## Requirements
 
-All code was developped and tested on 64-bit linux. C++ cloning scripts necessitate `OpenMP`. Python scripts are written for `python3.*`, import the `active_work` package which necessitates the directory containing this repository to be added to the `$PYTHONPATH`, and rely on the following packages:
+All code was developed and tested on 64-bit linux. C++ cloning scripts necessitate `OpenMP`. Python scripts are written for `python3.*`, import the `active_work` package which necessitates the directory containing this repository to be added to the `$PYTHONPATH`, e.g. by executing
+```
+echo "export PYTHONPATH=\$PYTHONPATH:${PWD}/.." >> ~/.bashrc
+```
+from this directory, and rely on the following packages:
 
 - `matplotlib`: plotting,
 - `numpy`: mathematical functions and array manipulation,
@@ -24,7 +28,7 @@ which can be installed by running [`pip.sh`](https://github.com/yketa/active_wor
 
 ## Execution
 
-Compilation of all relevant executables, using `g++`, is possible by running [`compile.sh`](https://github.com/yketa/active_work/blob/master/compile.sh).
+Compilation of all relevant executables, using `g++`, is possible by running [`compile.sh`](https://github.com/yketa/active_work/blob/master/compile.sh) — which essentially performs all relevant `make` commands (see [`Makefile`](https://github.com/yketa/active_work/blob/master/Makefile)).
 
 Given these have been compiled, they can be executed with the Python scripts listed below.
 
@@ -33,6 +37,7 @@ Given these have been compiled, they can be executed with the Python scripts lis
 ABP model and simulation procedure is detailed in [this tiddler](https://yketa.github.io/DAMTP_2019_Wiki/#Active%20Brownian%20particles).
 
 - Simulations with custom relations between parameters are launched using [`launch.py`](https://github.com/yketa/active_work/blob/master/launch.py).
+- Simulations with custom relations between parameters and for different values of the torque parameter are launched using [`launchG.py`](https://github.com/yketa/active_work/blob/master/launchG.py).
 - Simulations of general ABPs are launched using [`launch0.py`](https://github.com/yketa/active_work/blob/master/launch0.py).
 
 ### Simulations of interacting Brownian rotors
@@ -45,7 +50,7 @@ Interacting Brownian rotors model is detailed in [this tiddler](https://yketa.gi
 
 Principle and computation scheme of the scaled cumulant generating function (SCGF) of the active work and corresponding averages in the biased ensemble are detailed in [this tiddler](https://yketa.github.io/DAMTP_2019_Wiki/#ABP%20cloning%20algorithm).
 
-- Cloning of trajectories of ABPs systems with custom relations between parameters are launched using [`cloning.py`](https://github.com/yketa/active_work/blob/master/cloning.py).
+- Cloning of trajectories of ABPs systems with custom relations between parameters, and biased with respect to either the polarisation or the active work, are launched using [`cloning.py`](https://github.com/yketa/active_work/blob/master/cloning.py).
 
 ### Cloning of non-interacting Brownian rotors
 

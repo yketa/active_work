@@ -66,6 +66,13 @@ int main() {
 	System dummy(&parameters);
 
 	printf("## CloningSerial Code: tmax %.3e numClones %d runs %d s %.3e tau %d Delta.t %.3e\n",tmax,nc,nRuns,sValue,tau,dt);
+	#if BIAS_POLARISATION
+	std::cout << "## Biasing with respect to polarisation." << std::endl;
+	#if CONTROLLED_DYNAMICS
+	std::cout << "## Modified rotational EOM." << std::endl;
+	#endif
+	#else
+	std::cout << "## Biasing with respect to the active work.";
 	#if CONTROLLED_DYNAMICS == 1
 	std::cout << "## Modified translational EOM." << std::endl;
 	#endif
@@ -74,6 +81,7 @@ int main() {
 	#endif
 	#if CONTROLLED_DYNAMICS == 3
 	std::cout << "## Modified translational and rotational EOM with 2nd method." << std::endl;
+	#endif
 	#endif
 	// see cloning.py for more info
 
@@ -88,7 +96,9 @@ int main() {
 
 	for (int run = 0; run<nRuns;run++) {
 
-		#if CONTROLLED_DYNAMICS == 2 || CONTROLLED_DYNAMICS == 3
+		#if (BIAS_POLARISATION && CONTROLLED_DYNAMICS)\
+			|| (! BIAS_POLARISATION &&\
+				(CONTROLLED_DYNAMICS == 2 || CONTROLLED_DYNAMICS == 3))
 		#ifdef TORQUE_DUMP
 		Write torqueDump(getEnvString("TORQUE_DUMP_FILE", "torque.dump"));
 		torqueDump.close();
@@ -105,6 +115,21 @@ int main() {
 			[&sValue, &sFactor](System* system) {
 
 			double sWeight;
+
+			#if BIAS_POLARISATION
+
+			sWeight = sValue*system->getOrder(); // s nu = s nu
+
+			#ifdef CONTROLLED_DYNAMICS
+			sWeight += system->getTorqueParameter()* // s nu += g
+				(1.0/system->getNumberParticles()      // (1/N
+				- system->getTorqueIntegral1()         // - I_1
+				- system->getTorqueParameter()*        // - g
+				system->getPersistenceLength()*        // lp
+				system->getTorqueIntegral2());         // I_2)
+			#endif
+
+			#else
 
 			#if CONTROLLED_DYNAMICS
 			sWeight = sValue*(                       // sw = s(
@@ -123,12 +148,16 @@ int main() {
 			sWeight = sValue*system->getWork();
 			#endif
 
+			#endif
+
 			return sFactor*sWeight;
 			},
 
 			// CONTROL FUNCTION
 			[&nc
-			#if CONTROLLED_DYNAMICS == 2 || CONTROLLED_DYNAMICS == 3
+			#if (BIAS_POLARISATION && CONTROLLED_DYNAMICS)\
+				|| (! BIAS_POLARISATION &&\
+					(CONTROLLED_DYNAMICS == 2 || CONTROLLED_DYNAMICS == 3))
 			#ifdef TORQUE_DUMP
 			, &torqueDump
 			#endif
@@ -138,7 +167,8 @@ int main() {
 				// TORQUE PARAMETER VALUE
 
 				// ORDER PARAMETER METHOD
-				#if CONTROLLED_DYNAMICS == 2
+				#if (BIAS_POLARISATION && CONTROLLED_DYNAMICS)\
+					|| (! BIAS_POLARISATION && CONTROLLED_DYNAMICS == 2)
 
 				// order parameter squared
 				double nusq = 0;
@@ -171,7 +201,7 @@ int main() {
 				#endif
 
 				// POLYNOMIAL METHOD
-				#if CONTROLLED_DYNAMICS == 3
+				#if ! BIAS_POLARISATION && CONTROLLED_DYNAMICS == 3
 
 				// polynomial coefficients
 				double torqueIntegral1 (0.0), torqueIntegral2 (0.0); // torque integrals
