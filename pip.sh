@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -e
 
 # We use this bash script to install the Python packages used in the
 # `active_work` packages with the `pip` installer.
