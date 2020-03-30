@@ -50,6 +50,8 @@ class Dat {
     std::vector<double> getActiveWorkForce(); // returns vector of computed active work (force) sums
     std::vector<double> getActiveWorkOri(); // returns vector of computed active work (orientation) sums
     std::vector<double> getOrderParameter(); // returns vector of computed order parameter sums
+    std::vector<double> getOrderParameter0(); // returns vector of computed order parameter along x-axis sums
+    std::vector<double> getOrderParameter1(); // returns vector of computed order parameter along y-axis sums
     std::vector<double> getTorqueIntegral1(); // returns vector of computed first torque integrals
     std::vector<double> getTorqueIntegral2(); // returns vector of computed second torque integrals
 
@@ -94,6 +96,8 @@ class Dat {
     std::vector<double> activeWorkForce; // computed active work (force) sums
     std::vector<double> activeWorkOri; // computed active work (orientation) sums
     std::vector<double> orderParameter; // computer order parameter sums
+    std::vector<double> orderParameter0; // computer order parameter along x-axis sums
+    std::vector<double> orderParameter1; // computer order parameter along y-axis sums
     std::vector<double> torqueIntegral1; // computed first torque integrals
     std::vector<double> torqueIntegral2; // computed second torque integrals
 

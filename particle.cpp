@@ -166,7 +166,8 @@ System::System() :
   biasingParameter(0),
   dumpFrame(-1),
   workSum {0, 0, 0}, workForceSum {0, 0, 0}, workOrientationSum {0, 0, 0},
-    orderSum {0, 0, 0}, torqueIntegral1 {0, 0, 0}, torqueIntegral2 {0, 0, 0}
+    orderSum {0, 0, 0}, order0Sum {0, 0, 0}, order1Sum {0, 0, 0},
+    torqueIntegral1 {0, 0, 0}, torqueIntegral2 {0, 0, 0}
   {}
 
 System::System(
@@ -184,7 +185,8 @@ System::System(
   biasingParameter(0),
   dumpFrame(-1),
   workSum {0, 0, 0}, workForceSum {0, 0, 0}, workOrientationSum {0, 0, 0},
-    orderSum {0, 0, 0}, torqueIntegral1 {0, 0, 0}, torqueIntegral2 {0, 0, 0}
+    orderSum {0, 0, 0}, order0Sum {0, 0, 0}, order1Sum {0, 0, 0},
+    torqueIntegral1 {0, 0, 0}, torqueIntegral2 {0, 0, 0}
   {
 
   // set seed of random generator
@@ -233,10 +235,8 @@ System::System(
   biasingParameter(0),
   dumpFrame(-1),
   workSum {0, 0, 0}, workForceSum {0, 0, 0}, workOrientationSum {0, 0, 0},
-    orderSum {0, 0, 0}
-  #if CONTROLLED_DYNAMICS == 2 || CONTROLLED_DYNAMICS == 3
-  , torqueIntegral1 {0, 0, 0}, torqueIntegral2 {0, 0, 0}
-  #endif
+    orderSum {0, 0, 0}, order0Sum {0, 0, 0}, order1Sum {0, 0, 0},
+    torqueIntegral1 {0, 0, 0}, torqueIntegral2 {0, 0, 0}
   {
 
   // set seed of random generator
@@ -289,7 +289,8 @@ System::System(
   biasingParameter(0),
   dumpFrame(-1),
   workSum {0, 0, 0}, workForceSum {0, 0, 0}, workOrientationSum {0, 0, 0},
-    orderSum {0, 0, 0}, torqueIntegral1 {0, 0, 0}, torqueIntegral2 {0, 0, 0}
+    orderSum {0, 0, 0}, order0Sum {0, 0, 0}, order1Sum {0, 0, 0},
+    torqueIntegral1 {0, 0, 0}, torqueIntegral2 {0, 0, 0}
   {
 
   // load data
@@ -382,6 +383,8 @@ void System::resetDump() {
   workForceSum[0] = 0;
   workOrientationSum[0] = 0;
   orderSum[0] = 0;
+  order0Sum[0] = 0;
+  order1Sum[0] = 0;
   torqueIntegral1[0] = 0;
   torqueIntegral2[0] = 0;
 
@@ -389,6 +392,8 @@ void System::resetDump() {
   workForceSum[2] = 0;
   workOrientationSum[2] = 0;
   orderSum[2] = 0;
+  order0Sum[2] = 0;
+  order1Sum[2] = 0;
   torqueIntegral1[2] = 0;
   torqueIntegral2[2] = 0;
 }
@@ -404,6 +409,8 @@ void System::copyDump(System* system) {
   workForceSum[2] = system->getTotalWorkForce();
   workOrientationSum[2] = system->getTotalWorkOrientation();
   orderSum[2] = system->getTotalOrder();
+  order0Sum[2] = system->getTotalOrder0();
+  order1Sum[2] = system->getTotalOrder1();
   torqueIntegral1[2] = system->getTotalTorqueIntegral1();
   torqueIntegral2[2] = system->getTotalTorqueIntegral2();
 }
@@ -412,6 +419,8 @@ double System::getWork() { return workSum[1]; }
 double System::getWorkForce() { return workForceSum[1]; }
 double System::getWorkOrientation() { return workOrientationSum[1]; }
 double System::getOrder() { return orderSum[1]; }
+double System::getOrder0() { return order0Sum[1]; }
+double System::getOrder1() { return order1Sum[1]; }
 double System::getTorqueIntegral1() { return torqueIntegral1[1]; }
 double System::getTorqueIntegral2() { return torqueIntegral2[1]; }
 
@@ -419,6 +428,8 @@ double System::getTotalWork() { return workSum[2]; }
 double System::getTotalWorkForce() { return workForceSum[2]; }
 double System::getTotalWorkOrientation() { return workOrientationSum[2]; }
 double System::getTotalOrder() { return orderSum[2]; }
+double System::getTotalOrder0() { return order0Sum[2]; }
+double System::getTotalOrder1() { return order1Sum[2]; }
 double System::getTotalTorqueIntegral1() { return torqueIntegral1[2]; }
 double System::getTotalTorqueIntegral2() { return torqueIntegral2[2]; }
 
@@ -598,6 +609,8 @@ void System::saveNewState(std::vector<Particle>& newParticles) {
   std::vector<double> orderNew = getOrderParameter(newParticles);
   double orderNormSqNew = pow(orderNew[0], 2) + pow(orderNew[1], 2);
   orderSum[0] += (sqrt(orderNormSqOld) + sqrt(orderNormSqNew))/2;
+  order0Sum[0] += (orderOld[0] + orderNew[0])/2;
+  order1Sum[0] += (orderOld[1] + orderNew[1])/2;
   // GLOBAL PHASE
   double globalPhaseOld = getGlobalPhase(particles);
   double globalPhaseNew = getGlobalPhase(newParticles);
@@ -635,6 +648,10 @@ void System::saveNewState(std::vector<Particle>& newParticles) {
       getNumberParticles()*getTimeStep()*framesWork*dumpPeriod);
     orderSum[1] = orderSum[0]/(
       framesWork*dumpPeriod);
+    order0Sum[1] = order0Sum[0]/(
+      framesWork*dumpPeriod);
+    order1Sum[1] = order1Sum[0]/(
+      framesWork*dumpPeriod);
     torqueIntegral1[1] = torqueIntegral1[0]/(
       framesWork*dumpPeriod);
     torqueIntegral2[1] = torqueIntegral2[0]/(
@@ -644,6 +661,8 @@ void System::saveNewState(std::vector<Particle>& newParticles) {
     output.write<double>(workForceSum[1]);
     output.write<double>(workOrientationSum[1]);
     output.write<double>(orderSum[1]);
+    output.write<double>(order0Sum[1]);
+    output.write<double>(order1Sum[1]);
     output.write<double>(torqueIntegral1[1]);
     output.write<double>(torqueIntegral2[1]);
     // update time extensive quantities over trajectory since last reset
@@ -651,6 +670,8 @@ void System::saveNewState(std::vector<Particle>& newParticles) {
     workForceSum[2] += workForceSum[0]/getNumberParticles();
     workOrientationSum[2] += workOrientationSum[0]/getNumberParticles();
     orderSum[2] += orderSum[0];
+    order0Sum[2] += order0Sum[0];
+    order1Sum[2] += order1Sum[0];
     torqueIntegral1[2] += torqueIntegral1[0];
     torqueIntegral2[2] += torqueIntegral2[0]/getNumberParticles();
     // reset sums
@@ -658,6 +679,8 @@ void System::saveNewState(std::vector<Particle>& newParticles) {
     workForceSum[0] = 0;
     workOrientationSum[0] = 0;
     orderSum[0] = 0;
+    order0Sum[0] = 0;
+    order1Sum[0] = 0;
     torqueIntegral1[0] = 0;
     torqueIntegral2[0] = 0;
   }

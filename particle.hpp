@@ -230,10 +230,10 @@ class System {
    *  ||   R   | ORIENTATION |       V       | ... |     ...    || ... ||                  ...                  |~
    *  || X | Y |    theta    |  V_X  |  V_Y  | ... |     ...    || ... ||                  ...                  |~
    *
-   *  ~|                                                                                                                             || ...
-   *  ~|                                                                                                                             || ...
-   *  ~| ACTIVE WORK | ACTIVE WORK (FORCE) | ACTIVE WORK (ORIENTATION) | ORDER PARAMETER | 1st TORQUE INTEGRAL | 2nd TORQUE INTEGRAL || ...
-   *  ~|      W      |          Wp         |             Wo            |        nu       |          I1         |          I2         || ...
+   *  ~|                                                                                                                                 || ...
+   *  ~|                                                                                                                                 || ...
+   *  ~| ACTIVE WORK | ACTIVE WORK (FORCE) | ACTIVE WORK (ORIENTATION) |   ORDER PARAMETER   | 1st TORQUE INTEGRAL | 2nd TORQUE INTEGRAL || ...
+   *  ~|      W      |          Wp         |             Wo            | norm nu | nuX | nuY |          I1         |          I2         || ...
    */
 
   public:
@@ -302,6 +302,8 @@ class System {
     double getWorkForce(); // returns last computed force part of the normalised rate of active work
     double getWorkOrientation(); // returns last computed orientation part of the normalised rate of active work
     double getOrder(); // returns last computed averaged integrated order parameter
+    double getOrder0(); // returns last computed averaged integrated order parameter along x-axis
+    double getOrder1(); // returns last computed averaged integrated order parameter along y-axis
     double getTorqueIntegral1(); // returns last computed averaged first torque integral
     double getTorqueIntegral2(); // returns last computed averaged second torque integral
     // NOTE: All these quantities are computed every framesWork*dumpPeriod iterations.
@@ -310,6 +312,8 @@ class System {
     double getTotalWorkForce(); // returns computed force part of the active work since last rest
     double getTotalWorkOrientation(); // returns computed orientation part of the active work since last reset
     double getTotalOrder(); // returns computed integrated order parameter since last reset
+    double getTotalOrder0(); // returns computed integrated order parameter along x-axis since last reset
+    double getTotalOrder1(); // returns computed integrated order parameter along y-axis since last reset
     double getTotalTorqueIntegral1(); // returns computed first torque integral since last reset
     double getTotalTorqueIntegral2(); // returns computed second torque integral since last reset
     // NOTE: All these quantities are updated every framesWork*dumpPeriod iterations.
@@ -368,6 +372,8 @@ class System {
     double workForceSum[3]; //force part of the active work
     double workOrientationSum[3]; // orientation part of the active work
     double orderSum[3]; // integrated order parameter norm (in units of the time step)
+    double order0Sum[3]; // integrated order parameter along x-axis (in units of the time step)
+    double order1Sum[3]; // integrated order parameter along y-axis (in units of the time step)
     double torqueIntegral1[3]; // first torque integral
     double torqueIntegral2[3]; // second torque integral
 

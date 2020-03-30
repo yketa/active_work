@@ -33,7 +33,7 @@ Dat::Dat(std::string filename, bool loadWork) :
   headerLength = input.tellg();
   particleLength = 5*sizeof(double)*dumpParticles;
   frameLength = numberParticles*particleLength;
-  workLength = 6*sizeof(double);
+  workLength = 8*sizeof(double);
 
   // ESTIMATION OF NUMBER OF COMPUTED WORK AND ORDER PARAMETER SUMS AND FRAMES
   numberWork = (input.getFileSize() - headerLength - frameLength)/(
@@ -65,6 +65,10 @@ Dat::Dat(std::string filename, bool loadWork) :
       input.read<double>(&work);
       orderParameter.push_back(work);
       input.read<double>(&work);
+      orderParameter0.push_back(work);
+      input.read<double>(&work);
+      orderParameter1.push_back(work);
+      input.read<double>(&work);
       torqueIntegral1.push_back(work);
       input.read<double>(&work);
       torqueIntegral2.push_back(work);
@@ -94,6 +98,8 @@ std::vector<double> Dat::getActiveWork() { return activeWork; }
 std::vector<double> Dat::getActiveWorkForce() { return activeWorkForce; }
 std::vector<double> Dat::getActiveWorkOri() { return activeWorkOri; }
 std::vector<double> Dat::getOrderParameter() { return orderParameter; }
+std::vector<double> Dat::getOrderParameter0() { return orderParameter0; }
+std::vector<double> Dat::getOrderParameter1() { return orderParameter1; }
 std::vector<double> Dat::getTorqueIntegral1() { return torqueIntegral1; }
 std::vector<double> Dat::getTorqueIntegral2() { return torqueIntegral2; }
 

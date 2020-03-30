@@ -106,7 +106,7 @@ class _Dat(_Read):
         self.headerLength = self.file.tell()                        # length of header in bytes
         self.particleLength = 5*self._bpe('d')*self.dumpParticles   # length the data of a single particle takes in a frame
         self.frameLength = self.N*self.particleLength               # length the data of a single frame takes in a file
-        self.workLength = 6*self._bpe('d')                          # length the data of a single work and order parameter dump takes in a file
+        self.workLength = 8*self._bpe('d')                          # length the data of a single work and order parameter dump takes in a file
 
         # ESTIMATION OF NUMBER OF COMPUTED WORK AND ORDER SUMS AND FRAMES
         self.numberWork = (self.fileSize
@@ -608,6 +608,7 @@ class _Dat(_Read):
             rate of active work,
             * self.filename + '.work.ori.pickle': orientation part of the
             normalised rate of active work,
+            * self.filename + '.order.vec.pickle': vectorial order parameter,
             * self.filename + '.order.pickle': order parameter,
             * self.filename + '.torque.int1.pickle': first torque integral,
             * self.filename + '.torque.int2.pickle': second torque integral,
@@ -720,6 +721,33 @@ class _Dat(_Read):
 
         if not(self._isDat0):
 
+            # VECTORIAL ORDER PARAMETER
+
+            try:    # try loading
+
+                with open(self.filename + '.order.vec.pickle', 'rb') as workFile:
+                    self.orderParameterVec = pickle.load(workFile)
+                    if self.orderParameterVec.size != 2*self.numberWork:
+                        raise ValueError("Invalid order parameter array size.")
+
+            except (FileNotFoundError, EOFError):   # order parameter file does not exist or file is empty
+
+                # COMPUTE
+                self.orderParameterVec = np.empty((self.numberWork, 2))
+                for i in range(self.numberWork):
+                    self.file.seek(
+                        self.headerLength                           # header
+                        + self.frameLength                          # frame with index 0
+                        + (1 + i)*self.framesWork*self.frameLength  # all following packs of self.framesWork frames
+                        + i*self.workLength                         # previous values of the active work
+                        + 4*self._bpe('d'))                         # values of the different parts of active work
+                    self.orderParameterVec[i] = np.array(
+                        [self._read('d'), self._read('d')])
+
+                # DUMP
+                with open(self.filename + '.order.vec.pickle', 'wb') as workFile:
+                    pickle.dump(self.orderParameterVec, workFile)
+
             # FIRST TORQUE INTEGRAL
 
             try:    # try loading
@@ -739,7 +767,7 @@ class _Dat(_Read):
                         + self.frameLength                          # frame with index 0
                         + (1 + i)*self.framesWork*self.frameLength  # all following packs of self.framesWork frames
                         + i*self.workLength                         # previous values of the active work
-                        + 4*self._bpe('d'))                         # values of the different parts of active work and the order parameter
+                        + 6*self._bpe('d'))                         # values of the different parts of active work and the order parameter
                     self.torqueIntegral1[i] = self._read('d')
 
                 # DUMP
@@ -765,7 +793,7 @@ class _Dat(_Read):
                         + self.frameLength                          # frame with index 0
                         + (1 + i)*self.framesWork*self.frameLength  # all following packs of self.framesWork frames
                         + i*self.workLength                         # previous values of the active work
-                        + 5*self._bpe('d'))                         # values of the different parts of active work, the order parameter, and the first torque integral
+                        + 7*self._bpe('d'))                         # values of the different parts of active work, the order parameter, and the first torque integral
                     self.torqueIntegral2[i] = self._read('d')
 
                 # DUMP
