@@ -115,7 +115,7 @@ ifneq ($(EXEC_NAME),)
 	EXEC=$(BU)/$(EXEC_NAME)
 endif
 
-MAIN=main.cpp main0.cpp mainR.cpp cloning.cpp cloningR.cpp test.cpp					# files with main()
+MAIN=main.cpp main0.cpp mainR.cpp cloning.cpp cloningR.cpp test.cpp																	# files with main()
 SRC=$(filter-out $(filter-out $(CPP), $(MAIN)), $(filter-out $(wildcard old*), $(wildcard *.cpp)))	# compile all files but the ones with wrong main()
 
 OBJ=$(addprefix $(OB)/, $(SRC:.cpp=.o))
