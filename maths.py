@@ -147,6 +147,30 @@ def mean_sterr(values, remove=False):
 
     return np.mean(values), np.std(values)/np.sqrt(np.prod(values.shape))
 
+def cov(array1, array2):
+    """
+    Return covariance of variables `array1' and `array2'.
+
+        Cov(`array1', `array2') = <`array1'*`array2'> - <`array1'><`array2'>
+
+    NOTE: `array1' and `array2' have to be the same size.
+
+    Parameters
+    ----------
+    array1 : float array-like
+        First set of measurements.
+    array2 : float array-like
+        Second set of measurements.
+
+    Returns
+    -------
+    covariance : float
+        Cov(`array1', `array2') = <`array1'*`array2'> - <`array1'><`array2'>.
+    """
+
+    return (lambda a, b: (a*b).mean() - a.mean()*b.mean())(
+        *(np.array(array1), np.array(array2)))
+
 def divide_arrays(array1, array2):
     """
     Divide array1 by array2, and outputs 0 values where array2 is equal to 0.
