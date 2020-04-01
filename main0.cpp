@@ -57,8 +57,7 @@ int main() {
       }
     }
     // randomisation of diameters order
-    rnd randomGenerator;
-    randomGenerator.setSeed(seed);
+    Random randomGenerator(seed);
     std::random_shuffle(diameters.begin(), diameters.end(),
       [&randomGenerator](int max) { return randomGenerator.randomInt(max); });
     // system size

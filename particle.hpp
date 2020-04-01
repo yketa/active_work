@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <string>
+#include <random>
 
 #include "maths.hpp"
 #include "readwrite.hpp"
@@ -252,9 +253,22 @@ class System {
       int seed = 0, std::string filename = "",
       int nWork = 1, bool dump = true, int period = 1);
 
-    // cloning constructor
+    System(
+      int N, double lp, double phi, double g, double dt,
+      int seed = 0, std::string filename = "",
+      int nWork = 1, bool dump = true, int period = 1) :
+      System(
+        [&N, &lp, &phi, &g, &dt]{ return new Parameters(N, lp, phi, dt, g); }(),
+        seed, filename, nWork, dump, period) {;}
+
+    // cloning constructors
     System(System* dummy, int seed, int tau, std::string filename = "") :
-      System(dummy, seed, filename, 1, filename != "", tau) { resetDump(); }
+      System(dummy, seed, filename, 1, filename != "", tau)
+      { resetDump(); }
+    System(int N, double lp, double phi, double g, double dt,
+      int seed, int tau, std::string filename = "") :
+      System(N, lp, phi, g, dt, seed, filename, 1, filename != "", tau)
+      { resetDump(); }
 
     // DESTRUCTORS
 
@@ -271,7 +285,8 @@ class System {
     double getTimeStep() const; // returns time step
 
     int getRandomSeed() const; // returns random seed
-    rnd* getRandomGenerator(); // returns pointer to random generator
+    Random* getRandomGenerator(); // returns pointer to random generator
+    void setGenerator(std::default_random_engine rndeng); // return random generator
 
     Particle* getParticle(int const& index); // returns pointer to given particle
     std::vector<Particle> getParticles(); // returns vector of particles
@@ -290,7 +305,7 @@ class System {
     double getBiasingParameter(); // returns biasing parameter [cloning algorithm]
     void setBiasingParameter(double s); // set biasing parameter [cloning algorithm]
 
-    int getDump(); // returns number of frames dumped since last reset
+    int* getDump(); // returns number of frames dumped since last reset
     void resetDump();
       // Reset time-extensive quantities over trajectory.
     void copyDump(System* system);
@@ -308,14 +323,14 @@ class System {
     double getTorqueIntegral2(); // returns last computed averaged second torque integral
     // NOTE: All these quantities are computed every framesWork*dumpPeriod iterations.
 
-    double getTotalWork(); // returns computed active work since last reset
-    double getTotalWorkForce(); // returns computed force part of the active work since last rest
-    double getTotalWorkOrientation(); // returns computed orientation part of the active work since last reset
-    double getTotalOrder(); // returns computed integrated order parameter since last reset
-    double getTotalOrder0(); // returns computed integrated order parameter along x-axis since last reset
-    double getTotalOrder1(); // returns computed integrated order parameter along y-axis since last reset
-    double getTotalTorqueIntegral1(); // returns computed first torque integral since last reset
-    double getTotalTorqueIntegral2(); // returns computed second torque integral since last reset
+    double* getTotalWork(); // returns computed active work since last reset
+    double* getTotalWorkForce(); // returns computed force part of the active work since last rest
+    double* getTotalWorkOrientation(); // returns computed orientation part of the active work since last reset
+    double* getTotalOrder(); // returns computed integrated order parameter since last reset
+    double* getTotalOrder0(); // returns computed integrated order parameter along x-axis since last reset
+    double* getTotalOrder1(); // returns computed integrated order parameter along y-axis since last reset
+    double* getTotalTorqueIntegral1(); // returns computed first torque integral since last reset
+    double* getTotalTorqueIntegral2(); // returns computed second torque integral since last reset
     // NOTE: All these quantities are updated every framesWork*dumpPeriod iterations.
     //       All these quantities are extensive in time since last reset.
 
@@ -346,7 +361,7 @@ class System {
     Parameters param; // class of simulation parameters
 
     int const randomSeed; // random seed
-    rnd randomGenerator; // random number generator
+    Random randomGenerator; // random number generator
 
     std::vector<Particle> particles; // vector of particles
 
@@ -461,7 +476,7 @@ class System0 {
     double getTimeStep() const; // returns time step
 
     int getRandomSeed() const; // returns random seed
-    rnd* getRandomGenerator(); // returns pointer to random generator
+    Random* getRandomGenerator(); // returns pointer to random generator
 
     Particle* getParticle(int const& index); // returns pointer to given particle
     std::vector<Particle> getParticles(); // returns vector of particles
@@ -470,7 +485,7 @@ class System0 {
 
     std::string getOutputFile() const; // returns output file name
 
-    int getDump(); // returns number of frames dumped since last reset
+    int* getDump(); // returns number of frames dumped since last reset
     void resetDump();
       // Reset time-extensive quantities over trajectory.
     void copyDump(System0* system);
@@ -484,10 +499,10 @@ class System0 {
     double getOrder(); // returns last computed averaged integrated order parameter
     // NOTE: All these quantities are computed every framesWork*dumpPeriod iterations.
 
-    double getTotalWork(); // returns computed active work since last reset
-    double getTotalWorkForce(); // returns computed force part of the active work since last rest
-    double getTotalWorkOrientation(); // returns computed orientation part of the active work since last reset
-    double getTotalOrder(); // returns computed integrated order parameter since last reset
+    double* getTotalWork(); // returns computed active work since last reset
+    double* getTotalWorkForce(); // returns computed force part of the active work since last rest
+    double* getTotalWorkOrientation(); // returns computed orientation part of the active work since last reset
+    double* getTotalOrder(); // returns computed integrated order parameter since last reset
     // NOTE: All these quantities are updated every framesWork*dumpPeriod iterations.
     //       All these quantities are extensive in time since last reset.
 
@@ -518,7 +533,7 @@ class System0 {
     Parameters param; // class of simulation parameters
 
     int const randomSeed; // random seed
-    rnd randomGenerator; // random number generator
+    Random randomGenerator; // random number generator
 
     std::vector<Particle> particles; // vector of particles
 
@@ -609,12 +624,12 @@ class Rotors {
     double* getOrientation(int const& index); // returns pointer to orientation of given rotor
     double* getTorque(int const& index); // returns pointer to torque applied on a given rotor
 
-    rnd* getRandomGenerator(); // returns pointer to random generator
+    Random* getRandomGenerator(); // returns pointer to random generator
 
     double getBiasingParameter(); // returns biasing parameter [cloning algorithm]
     void setBiasingParameter(double s); // set biasing parameter [cloning algorithm]
 
-    int getDump(); // returns number of frames dumped since last reset
+    int* getDump(); // returns number of frames dumped since last reset
     void resetDump();
       // Reset time-extensive quantities over trajectory.
     void copyDump(Rotors* rotors);
@@ -626,8 +641,8 @@ class Rotors {
     double getOrderSq(); // returns last computed averaged integrated squared order parameter
     // NOTE: All these quantities are computed every framesOrder*dumpPeriod iterations.
 
-    double getTotalOrder(); // returns computed integrated order parameter since last reset
-    double getTotalOrderSq(); // returns computed integrated squared order parameter since last reset
+    double* getTotalOrder(); // returns computed integrated order parameter since last reset
+    double* getTotalOrderSq(); // returns computed integrated squared order parameter since last reset
     // NOTE: All these quantities are updated every framesOrder*dumpPeriod iterations.
     //       All these quantities are extensive in time since last reset.
 
@@ -664,7 +679,7 @@ class Rotors {
     int const dumpPeriod; // period of dumping of orientations in number of frames
 
     int const randomSeed; // random seed
-    rnd randomGenerator; // random number generator
+    Random randomGenerator; // random number generator
 
     std::vector<double> orientations; // vector of orientations
     std::vector<double> torques; // vector of torques

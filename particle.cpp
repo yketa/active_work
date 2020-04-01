@@ -174,7 +174,7 @@ System::System(
   Parameters* parameters, int seed, std::string filename,
   int nWork, bool dump, int period) :
   param(parameters),
-  randomSeed(seed), randomGenerator(),
+  randomSeed(seed), randomGenerator(randomSeed),
   particles(parameters->getNumberParticles()),
   cellList(),
   output(filename), velocitiesDumps(parameters->getNumberParticles()),
@@ -188,9 +188,6 @@ System::System(
     orderSum {0, 0, 0}, order0Sum {0, 0, 0}, order1Sum {0, 0, 0},
     torqueIntegral1 {0, 0, 0}, torqueIntegral2 {0, 0, 0}
   {
-
-  // set seed of random generator
-  randomGenerator.setSeed(randomSeed);
 
   // write header with system parameters to output file
   output.write<int>(getNumberParticles());
@@ -224,7 +221,7 @@ System::System(
   System* system, int seed, std::string filename,
   int nWork, bool dump, int period) :
   param(system->getParameters()),
-  randomSeed(seed), randomGenerator(),
+  randomSeed(seed), randomGenerator(randomSeed),
   particles(system->getNumberParticles()),
   cellList(),
   output(filename), velocitiesDumps(system->getNumberParticles()),
@@ -238,9 +235,6 @@ System::System(
     orderSum {0, 0, 0}, order0Sum {0, 0, 0}, order1Sum {0, 0, 0},
     torqueIntegral1 {0, 0, 0}, torqueIntegral2 {0, 0, 0}
   {
-
-  // set seed of random generator
-  randomGenerator.setSeed(randomSeed);
 
   // write header with system parameters to output file
   output.write<int>(getNumberParticles());
@@ -278,7 +272,7 @@ System::System(
         inputDat.getTorqueParameter());
       return param;
     }()),
-  randomSeed(seed), randomGenerator(),
+  randomSeed(seed), randomGenerator(randomSeed),
   particles(0),
   cellList(),
   output(filename), velocitiesDumps(0),
@@ -315,9 +309,6 @@ System::System(
     // orientations
     particles[i].orientation()[0] = inputDat.getOrientation(inputFrame, i);
   }
-
-  // set seed of random generator
-  randomGenerator.setSeed(randomSeed);
 
   // write header with system parameters to output file
   output.write<int>(getNumberParticles());
@@ -356,7 +347,10 @@ double System::getTimeStep() const {
   return param.getTimeStep(); }
 
 int System::getRandomSeed() const { return randomSeed; }
-rnd* System::getRandomGenerator() { return &randomGenerator; }
+Random* System::getRandomGenerator() { return &randomGenerator; }
+void System::setGenerator(std::default_random_engine rndeng) {
+  randomGenerator.setGenerator(rndeng);
+}
 
 Particle* System::getParticle(int const& index) { return &(particles[index]); }
 std::vector<Particle> System::getParticles() { return particles; }
@@ -372,7 +366,7 @@ double System::getTorqueParameter() { return torqueParameter; }
 double System::getBiasingParameter() { return biasingParameter; }
 void System::setBiasingParameter(double s) { biasingParameter = s; }
 
-int System::getDump() { return dumpFrame; }
+int* System::getDump() { return &dumpFrame; }
 
 void System::resetDump() {
   // Reset time-extensive quantities over trajectory.
@@ -403,16 +397,16 @@ void System::copyDump(System* system) {
   // WARNING: This also copies the index of last frame dumped. Consistency
   //          has to be checked.
 
-  dumpFrame = system->getDump();
+  dumpFrame = system->getDump()[0];
 
-  workSum[2] = system->getTotalWork();
-  workForceSum[2] = system->getTotalWorkForce();
-  workOrientationSum[2] = system->getTotalWorkOrientation();
-  orderSum[2] = system->getTotalOrder();
-  order0Sum[2] = system->getTotalOrder0();
-  order1Sum[2] = system->getTotalOrder1();
-  torqueIntegral1[2] = system->getTotalTorqueIntegral1();
-  torqueIntegral2[2] = system->getTotalTorqueIntegral2();
+  workSum[2] = system->getTotalWork()[0];
+  workForceSum[2] = system->getTotalWorkForce()[0];
+  workOrientationSum[2] = system->getTotalWorkOrientation()[0];
+  orderSum[2] = system->getTotalOrder()[0];
+  order0Sum[2] = system->getTotalOrder0()[0];
+  order1Sum[2] = system->getTotalOrder1()[0];
+  torqueIntegral1[2] = system->getTotalTorqueIntegral1()[0];
+  torqueIntegral2[2] = system->getTotalTorqueIntegral2()[0];
 }
 
 double System::getWork() { return workSum[1]; }
@@ -424,14 +418,14 @@ double System::getOrder1() { return order1Sum[1]; }
 double System::getTorqueIntegral1() { return torqueIntegral1[1]; }
 double System::getTorqueIntegral2() { return torqueIntegral2[1]; }
 
-double System::getTotalWork() { return workSum[2]; }
-double System::getTotalWorkForce() { return workForceSum[2]; }
-double System::getTotalWorkOrientation() { return workOrientationSum[2]; }
-double System::getTotalOrder() { return orderSum[2]; }
-double System::getTotalOrder0() { return order0Sum[2]; }
-double System::getTotalOrder1() { return order1Sum[2]; }
-double System::getTotalTorqueIntegral1() { return torqueIntegral1[2]; }
-double System::getTotalTorqueIntegral2() { return torqueIntegral2[2]; }
+double* System::getTotalWork() { return &(workSum[2]); }
+double* System::getTotalWorkForce() { return &(workForceSum[2]); }
+double* System::getTotalWorkOrientation() { return &(workOrientationSum[2]); }
+double* System::getTotalOrder() { return &(orderSum[2]); }
+double* System::getTotalOrder0() { return &(order0Sum[2]); }
+double* System::getTotalOrder1() { return &(order1Sum[2]); }
+double* System::getTotalTorqueIntegral1() { return &(torqueIntegral1[2]); }
+double* System::getTotalTorqueIntegral2() { return &(torqueIntegral2[2]); }
 
 double System::diffPeriodic(double const& x1, double const& x2) {
   // Returns algebraic distance from `x1' to `x2' on a line taking into account
@@ -717,7 +711,7 @@ System0::System0(
   Parameters* parameters, int seed, std::string filename,
   int nWork, bool dump, int period) :
   param(parameters),
-  randomSeed(seed), randomGenerator(),
+  randomSeed(seed), randomGenerator(randomSeed),
   particles(0),
   cellList(),
   output(filename), velocitiesDumps(parameters->getNumberParticles()),
@@ -727,9 +721,6 @@ System0::System0(
   dumpFrame(-1),
   workSum {0, 0, 0}, workForceSum {0, 0, 0}, workOrientationSum {0, 0, 0},
     orderSum {0, 0, 0} {
-
-  // set seed of random generator
-  randomGenerator.setSeed(randomSeed);
 
   // set diameters
   // CAUTION: consistence between packing fraction and system size has to be checked before
@@ -777,7 +768,7 @@ System0::System0(
   Parameters* parameters, std::vector<double>& diameters, int seed,
   std::string filename, int nWork, bool dump, int period) :
   param(parameters),
-  randomSeed(seed), randomGenerator(),
+  randomSeed(seed), randomGenerator(randomSeed),
   particles(0),
   cellList(),
   output(filename), velocitiesDumps(parameters->getNumberParticles()),
@@ -787,9 +778,6 @@ System0::System0(
   dumpFrame(-1),
   workSum {0, 0, 0}, workForceSum {0, 0, 0}, workOrientationSum {0, 0, 0},
     orderSum {0, 0, 0} {
-
-  // set seed of random generator
-  randomGenerator.setSeed(randomSeed);
 
   // set diameters
   // CAUTION: consistence between packing fraction and system size has to be checked before
@@ -837,7 +825,7 @@ System0::System0(
   System0* system, int seed, std::string filename,
   int nWork, bool dump, int period) :
   param(system->getParameters()),
-  randomSeed(seed), randomGenerator(),
+  randomSeed(seed), randomGenerator(randomSeed),
   particles(0),
   cellList(),
   output(filename), velocitiesDumps(system->getNumberParticles()),
@@ -847,9 +835,6 @@ System0::System0(
   dumpFrame(-1),
   workSum {0, 0, 0}, workForceSum {0, 0, 0}, workOrientationSum {0, 0, 0},
     orderSum {0, 0, 0} {
-
-  // set seed of random generator
-  randomGenerator.setSeed(randomSeed);
 
   // set diameters
   // CAUTION: consistence between packing fraction and system size has to be checked before
@@ -892,7 +877,7 @@ System0::System0(
   System0* system, std::vector<double>& diameters, int seed,
   std::string filename, int nWork, bool dump, int period) :
   param(system->getParameters()),
-  randomSeed(seed), randomGenerator(),
+  randomSeed(seed), randomGenerator(randomSeed),
   particles(0),
   cellList(),
   output(filename), velocitiesDumps(system->getNumberParticles()),
@@ -902,9 +887,6 @@ System0::System0(
   dumpFrame(-1),
   workSum {0, 0, 0}, workForceSum {0, 0, 0}, workOrientationSum {0, 0, 0},
     orderSum {0, 0, 0} {
-
-  // set seed of random generator
-  randomGenerator.setSeed(randomSeed);
 
   // set diameters
   // CAUTION: consistence between packing fraction and system size has to be checked before
@@ -959,7 +941,7 @@ System0::System0(
         dt > 0 ? dt : inputDat.getTimeStep());
       return param;
     }()),
-  randomSeed(seed), randomGenerator(),
+  randomSeed(seed), randomGenerator(randomSeed),
   particles(0),
   cellList(),
   output(filename), velocitiesDumps(0),
@@ -992,9 +974,6 @@ System0::System0(
     // orientations
     particles[i].orientation()[0] = inputDat.getOrientation(inputFrame, i);
   }
-
-  // set seed of random generator
-  randomGenerator.setSeed(randomSeed);
 
   // write header with system parameters to output file
   output.write<int>(getNumberParticles());
@@ -1049,7 +1028,7 @@ double System0::getTimeStep() const {
   return param.getTimeStep(); }
 
 int System0::getRandomSeed() const { return randomSeed; }
-rnd* System0::getRandomGenerator() { return &randomGenerator; }
+Random* System0::getRandomGenerator() { return &randomGenerator; }
 
 Particle* System0::getParticle(int const& index) { return &(particles[index]); }
 std::vector<Particle> System0::getParticles() { return particles; }
@@ -1058,7 +1037,7 @@ CellList* System0::getCellList() { return &cellList; }
 
 std::string System0::getOutputFile() const { return output.getOutputFile(); }
 
-int System0::getDump() { return dumpFrame; }
+int* System0::getDump() { return &dumpFrame; }
 
 void System0::resetDump() {
   // Reset time-extensive quantities over trajectory.
@@ -1081,12 +1060,12 @@ void System0::copyDump(System0* system) {
   // WARNING: This also copies the index of last frame dumped. Consistency
   //          has to be checked.
 
-  dumpFrame = system->getDump();
+  dumpFrame = system->getDump()[0];
 
-  workSum[2] = system->getTotalWork();
-  workForceSum[2] = system->getTotalWorkForce();
-  workOrientationSum[2] = system->getTotalWorkOrientation();
-  orderSum[2] = system->getTotalOrder();
+  workSum[2] = system->getTotalWork()[0];
+  workForceSum[2] = system->getTotalWorkForce()[0];
+  workOrientationSum[2] = system->getTotalWorkOrientation()[0];
+  orderSum[2] = system->getTotalOrder()[0];
 }
 
 double System0::getWork() { return workSum[1]; }
@@ -1094,10 +1073,10 @@ double System0::getWorkForce() { return workForceSum[1]; }
 double System0::getWorkOrientation() { return workOrientationSum[1]; }
 double System0::getOrder() { return orderSum[1]; }
 
-double System0::getTotalWork() { return workSum[2]; }
-double System0::getTotalWorkForce() { return workForceSum[2]; }
-double System0::getTotalWorkOrientation() { return workOrientationSum[2]; }
-double System0::getTotalOrder() { return orderSum[2]; }
+double* System0::getTotalWork() { return &(workSum[2]); }
+double* System0::getTotalWorkForce() { return &(workForceSum[2]); }
+double* System0::getTotalWorkOrientation() { return &(workOrientationSum[2]); }
+double* System0::getTotalOrder() { return &(orderSum[2]); }
 
 double System0::diffPeriodic(double const& x1, double const& x2) {
   // Returns algebraic distance from `x1' to `x2' on a line taking into account
@@ -1328,7 +1307,7 @@ Rotors::Rotors(
   timeStep(dt), framesOrder(nOrder > 0 ? nOrder : (int)
     1/(getRotDiffusivity()*getTimeStep()*period)), dumpRotors(dump),
     dumpPeriod(period),
-  randomSeed(seed), randomGenerator(),
+  randomSeed(seed), randomGenerator(randomSeed),
   orientations(N), torques(N, 0.0),
   output(filename), biasingParameter(0), dumpFrame(-1),
   orderSum {0, 0, 0}, orderSumSq {0, 0, 0}
@@ -1338,9 +1317,6 @@ Rotors::Rotors(
   #endif
   #endif
   {
-
-  // set seed of random generator
-  randomGenerator.setSeed(randomSeed);
 
   // give random orientations to rotors
   for (int i=0; i < numberParticles; i++) { // loop over rotors
@@ -1367,7 +1343,7 @@ Rotors::Rotors(
   timeStep(rotors->getTimeStep()), framesOrder(nOrder > 0 ? nOrder : (int)
     1/(getRotDiffusivity()*getTimeStep()*period)), dumpRotors(dump),
     dumpPeriod(period),
-  randomSeed(seed), randomGenerator(),
+  randomSeed(seed), randomGenerator(randomSeed),
   orientations(getNumberParticles()), torques(getNumberParticles(), 0.0),
   output(filename), biasingParameter(0), dumpFrame(-1),
   orderSum {0, 0, 0}, orderSumSq {0, 0, 0}
@@ -1377,9 +1353,6 @@ Rotors::Rotors(
   #endif
   #endif
   {
-
-  // set seed of random generator
-  randomGenerator.setSeed(randomSeed);
 
   // give random orientations to rotors
   for (int i=0; i < numberParticles; i++) { // loop over rotors
@@ -1415,7 +1388,7 @@ double* Rotors::getOrientation(int const& index)
   { return &(orientations[index]); }
 double* Rotors::getTorque(int const& index) { return &(torques[index]); }
 
-rnd* Rotors::getRandomGenerator() { return &randomGenerator; }
+Random* Rotors::getRandomGenerator() { return &randomGenerator; }
 
 double Rotors::getBiasingParameter() { return biasingParameter; }
 void Rotors::setBiasingParameter(double s) {
@@ -1427,7 +1400,7 @@ void Rotors::setBiasingParameter(double s) {
   #endif
 }
 
-int Rotors::getDump() { return dumpFrame; }
+int* Rotors::getDump() { return &dumpFrame; }
 
 void Rotors::resetDump() {
   // Reset time-extensive quantities over trajectory.
@@ -1446,17 +1419,17 @@ void Rotors::copyDump(Rotors* rotors) {
   // WARNING: This also copies the index of last frame dumped. Consistency
   //          has to be checked.
 
-  dumpFrame = rotors->getDump();
+  dumpFrame = rotors->getDump()[0];
 
-  orderSum[2] = rotors->getTotalOrder();
-  orderSumSq[2] = rotors->getTotalOrderSq();
+  orderSum[2] = rotors->getTotalOrder()[0];
+  orderSumSq[2] = rotors->getTotalOrderSq()[0];
 }
 
 double Rotors::getOrder() { return orderSum[1]; }
 double Rotors::getOrderSq() { return orderSumSq[1]; }
 
-double Rotors::getTotalOrder() { return orderSum[2]; }
-double Rotors::getTotalOrderSq() { return orderSumSq[2]; }
+double* Rotors::getTotalOrder() { return &(orderSum[2]); }
+double* Rotors::getTotalOrderSq() { return &(orderSumSq[2]); }
 
 #if BIAS == 1
 #ifdef CONTROLLED_DYNAMICS
