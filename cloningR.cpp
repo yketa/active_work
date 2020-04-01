@@ -61,7 +61,7 @@ int main() {
 	printf("## CloningSerial Code: tmax %.3e numClones %d runs %d s %.3e tau %d Delta.t %.3e\n",tmax,nc,nRuns,sValue,tau,dt);
 
 	// cloning object (default cloning method is [eq])
-	CloningSerial<Rotors> clones(nc, tau, cloneMethod);
+	CloningSerial<Rotors> clones(nc, tau, sValue, cloneMethod);
 
 	// set up the clones etc, using dummySystem to get system sizes, hop rates, etc
 	clones.init(&dummy, seed);
@@ -84,13 +84,13 @@ int main() {
 	for (int run = 0; run<nRuns;run++) {
 
 		// go! (this includes generating "random" [different] initial conditions for the clones)
-		clones.doCloning(tmax,sValue,initSim,
+		clones.doCloning(tmax, initSim,
 
 			// ITERATION FUNCTION
 			[](Rotors* rotors, int Niter) { iterate_rotors(rotors, Niter); },
 
 			// GET WEIGHT FUNCTION
-			[&sValue, &sFactor, &sOffset](Rotors* rotors) {
+			[&sFactor, &sOffset](Rotors* rotors) {
 
 				double sWeight = 0;
 
@@ -121,10 +121,10 @@ int main() {
 
 		clones.outputOP.assign(2, 0.0);
 		for (int i=0; i < nc; i++) {
-			clones.outputOP[0] += (clones.finalSystem(i))->getTotalOrder()
-				/(clones.finalSystem(i))->getDump(); // order parameter
-			clones.outputOP[1] += (clones.finalSystem(i))->getTotalOrderSq()
-				/(clones.finalSystem(i))->getDump(); // squared order parameter
+			clones.outputOP[0] += (clones.finalSystem(i))->getTotalOrder()[0]
+				/(clones.finalSystem(i))->getDump()[0]; // order parameter
+			clones.outputOP[1] += (clones.finalSystem(i))->getTotalOrderSq()[0]
+				/(clones.finalSystem(i))->getDump()[0]; // squared order parameter
 		}
 
 		for (unsigned int j=0;j<2;j++) { clones.outputOP[j] /= nc; }
