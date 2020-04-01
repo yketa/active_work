@@ -3,37 +3,36 @@
 
 #include <random>
 #include <cmath>
+#include <ostream>
 
 /////////////
 // CLASSES //
 /////////////
 
-class rnd {
+class Random {
   /*  This simple rnd class is a wrapper for the built-in c++ random number
    *  generator.
-   *  (from RLJ, modified for Gaussian with cut-off)
+   *  (adapted from RLJ)
    */
 
   public:
 
     // CONTRUCTORS
 
-    rnd(double g_co = 3) {
-      max = 0x7fffffff;
-      intmax = new std::uniform_int_distribution<int>(0, max);
-      real01 = new std::uniform_real_distribution<double>(0.0, 1.0);
-      normal = new std::normal_distribution<double>( 0.0 , 1.0 );
-      g_cutoff = g_co;
-    }
+    Random(int seed = 0, double g_co = 3) :
+      g_cutoff(g_co) { generator.seed(seed); }
+    Random(std::default_random_engine rndeng, double g_co = 3) :
+      generator(rndeng), g_cutoff(g_co) {;}
 
     // DESTRUCTORS
 
-    ~rnd() { delete intmax; delete real01; delete normal; }
+    ~Random() { delete intmax; delete real01; delete normal; }
 
     // METHODS
 
-    // set the random seed
-    void setSeed(int seed) { generator.seed(seed); }
+    // random number engine class (e.g. for saving purposes)
+    std::default_random_engine getGenerator() { return generator; }
+    void setGenerator(std::default_random_engine rndeng) { generator = rndeng; }
 
     // member functions for generating random double in [0,1] and random integer in [0,max-1]
     double random01() { return (*real01)(generator); }
@@ -47,17 +46,27 @@ class rnd {
       return g;
     }
 
+    // overload << operator
+    friend std::ostream& operator << (std::ostream& os, const Random& rnd) {
+      os << "**RANDOM GENERATOR**";
+      return os;
+    }
+
   private:
-    // Nuts and bolts.. should not need to touch this.
 
     // ATTRIBUTES
 
     std::default_random_engine generator;
-    int max;
-    std::uniform_int_distribution<int> *intmax;
-    std::uniform_real_distribution<double> *real01;
-    std::normal_distribution<double> *normal;
-    double g_cutoff; // cut-off for Gaussian white noise
+    int max = 0x7fffffff;
+
+    std::uniform_int_distribution<int>* intmax
+      = new std::uniform_int_distribution<int>(0, max);
+    std::uniform_real_distribution<double>* real01
+      = new std::uniform_real_distribution<double>(0.0, 1.0);
+    std::normal_distribution<double>* normal
+      = new std::normal_distribution<double>(0.0, 1.0);
+
+    const double g_cutoff; // cut-off for Gaussian white noise
 
 };
 
