@@ -31,7 +31,7 @@ from subprocess import Popen, DEVNULL
 import pickle
 
 from active_work.read import _Read
-from active_work.init import get_env, mkdir
+from active_work.init import get_env, get_env_list, mkdir
 from active_work.exponents import float_to_letters
 from active_work.maths import mean_sterr
 
@@ -378,6 +378,7 @@ if __name__ == '__main__':
     slurm_partition = get_env('SLURM_PARTITION', vartype=str)   # partition for the ressource allocation
     slurm_ntasks = get_env('SLURM_NTASKS', vartype=int)         # number of MPI ranks running per node
     slurm_time = get_env('SLURM_TIME', vartype=str)             # required time
+    slurm_chain = get_env_list('SLURM_CHAIN', vartype=int)      # execute after these jobs ID have completed (order has to be the same as sValues)
 
     # PHYSICAL PARAMETERS
     N = get_env('N', default=_N, vartype=int)           # number of particles in the system
@@ -387,6 +388,11 @@ if __name__ == '__main__':
     # SIMULATION PARAMETERS
     tau = get_env('TAU', default=_tau, vartype=int) # elementary number of steps
     dt = get_env('DT', default=_dt, vartype=float)  # time step
+
+    # SAVE/LOAD CONFIGURATIONS
+    # these files have to be given with a format specifier for the index in the list of biasing parameters
+    load_file = get_env('LOAD_FILE', default='', vartype=str)   # load cloning configurations from input file (overrides physical and simulation parameters)
+    save_file = get_env('SAVE_FILE', default='', vartype=str)   # save cloning configurations to output file
 
     # EXECUTABLE PARAMETERS
     exec_dir = get_env('EXEC_DIR', default=_exec_dir, vartype=str)      # executable directory
@@ -424,6 +430,7 @@ if __name__ == '__main__':
         'THREADS': str(threads),
         'N': str(N), 'LP': str(lp), 'PHI': str(phi),
         'TAU': str(tau), 'DT': str(dt),
+        'LOAD_FILE': load_file.format(i), 'SAVE_FILE': save_file.format(i),
         'FILE': path.join(tmp_dir, tmp_template % i),
         'TORQUE_DUMP_FILE': path.join(tmp_dir, torque_tmp_template % i),
         'CLONES_DIRECTORY': (path.join(tmp_dir, '%04d.traj' % i)
@@ -441,7 +448,9 @@ if __name__ == '__main__':
         procs = [
             Popen(
                 ['%s \"{ %s %s; }\"' %
-                    (str(' ').join(slurm_launch),               # Slurm submitting script
+                    (str(' ').join(slurm_launch                 # Slurm submitting script
+                        + ([] if slurm_chain == []
+                            else ['-c', str(slurm_chain[i])])),
                     str(' ').join(['%s=%s' % (key, env(i)[key]) # environment variables
                         for key in env(i)]),
                     exec_path)],                                # cloning executable

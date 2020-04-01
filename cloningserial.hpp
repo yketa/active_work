@@ -17,6 +17,7 @@
 #include "dat.hpp"
 #include "particle.hpp"
 #include "iteration.hpp"
+#include "readwrite.hpp"
 
 /////////////
 // CLASSES //
@@ -40,9 +41,19 @@ template<class SystemClass> class CloningSerial {
 
     // lightweight constructor
     CloningSerial(
-      int nClones, int nWork, int method = 2, std::string cDir = "") :
-      nc (nClones), cloneMethod (method), tau (nWork), clonesDirectory(cDir)
-      { systems.resize(2*nc); }
+      int nClones, int nWork, double s, int method = 2,
+      std::string cDir = "", std::string lFile = "", std::string sFile = "") :
+      nc (nClones), cloneMethod (method), tau (nWork), sValue(s),
+      clonesDirectory(cDir), loadInput(lFile), saveOutput(sFile) {
+
+      systems.resize(2*nc);
+
+      // save parameters to file
+      saveOutput.write<int>(nc);
+      saveOutput.write<int>(cloneMethod);
+      saveOutput.write<int>(tau);
+      saveOutput.write<double>(sValue);
+    }
 
     // DESTRUCTORS
 
@@ -51,13 +62,44 @@ template<class SystemClass> class CloningSerial {
 
     // METHODS
 
+    std::string cloneFilename(int i) {
+      return clonesDirectory == "" ? "" : std::experimental::filesystem::path(
+        std::experimental::filesystem::path(clonesDirectory) /
+        [](int index)
+          { return std::string(6 - std::to_string(index).length(), '0')
+            + std::to_string(index) + std::string(".tmp.dat"); }
+          (i)
+        ).u8string();
+    }
+
+    void loadState(); // load cloning configurations from input file
+    void saveState(); // save cloning configurations to output file
+
+    void outSyncRandomGenerator() {
+      // just for extra safety we can opt to throw our random number generators out of sync here
+      // (the risk is that in a very big population, several clones might have the same seed,
+      //  the effect here is to increase the effective range of seeds by safetyFactor
+      #if 1
+      for (int i=0;i<nc;i++) {
+        int dum = 0;
+        int safetyFactor = 1000;
+        //int k = i % nc;
+        if ( i==0 )
+          std::cout << "#seed safetyFactor " << safetyFactor << std::endl;
+        for (int r=0; r < i % safetyFactor; r++ ) {
+          dum += (systems[i]->getRandomGenerator())->random01();
+          dum += (systems[i+nc]->getRandomGenerator())->random01();
+        }
+      }
+      #endif
+    }
+
     void init(SystemClass* dummy, int masterSeed); // initialise list of clones
 
     template<typename F, typename G, typename H> void doCloning(
-      double tmax, double sValue, int initSim,
-      F iterate, G getSWeight, H control,
-      int runIndex = 0); // this runs the cloning for total time tmax
-    void writeTrajFiles(int iter, Write& clonesLog, int runIndex);
+      double tmax, int initSim,
+      F iterate, G getSWeight, H control); // this runs the cloning for total time tmax
+    void writeTrajFiles(Write& clonesLog);
 
     void selectClones(int newClones[], double key[], int pullOffset);
 
@@ -75,9 +117,20 @@ template<class SystemClass> class CloningSerial {
 
     int const tau; // number of simulation steps between cloning steps
 
+    double sValue; // biasing parameter
+
+    int iter = 0; // number of iterations performed
+    int runIndex = 0; // index of run
+
     std::string const clonesDirectory; // if != "": directory where trajectories are saved
 
+    Read loadInput; // if file != "": input class from where initial configurations are loaded
+    Write saveOutput; // if file != "": write class to where final configurations at each call of doCloning are saved
+
+    int arrswitch = 0; // set of clones of considered
+
     double outputPsi; // this is the estimate of Psi
+    double outputPsiOffset[2] {0, 0}; // used to consider values of psi from previous simulation via loadState
     std::vector<double> outputOP; // averages over the trajectories of the different clones of (0) active work (1) force part of the active work (2) orientation part of the active work (3) order parameter
     double outputWalltime; // time taken
     int finalOffset; // used to access the final population at the end of the run
@@ -86,8 +139,16 @@ template<class SystemClass> class CloningSerial {
 
 };
 
-template<class SystemClass> void CloningSerial<SystemClass>::init(
-  SystemClass* dummy, int masterSeed) {
+template<class SystemClass> void CloningSerial<SystemClass>::
+  loadState() {}
+  // specialisation to be written in individual cloning *.cpp files
+
+template<class SystemClass> void CloningSerial<SystemClass>::
+  saveState() {}
+  // specialisation to be written in individual cloning *.cpp files
+
+template<class SystemClass> void CloningSerial<SystemClass>::
+  init(SystemClass* dummy, int masterSeed) {
   // initialise systems array with 2.nc copies of the "dummy" input
   // and gives a new seed to the random number generator on each copy
   // (also makes sure to clean up any old systems that are already in the array)
@@ -109,42 +170,19 @@ template<class SystemClass> void CloningSerial<SystemClass>::init(
   #pragma omp parallel for
   #endif
   for (int i=0;i<2*nc;i++) {
-    systems[i] = new SystemClass(dummy, processSeeds[i], tau,
-      clonesDirectory == "" ? "" : std::experimental::filesystem::path(
-        std::experimental::filesystem::path(clonesDirectory) /
-        [](int index)
-          { return std::string(6 - std::to_string(index).length(), '0')
-            + std::to_string(index) + std::string(".tmp.dat"); }
-          (i)
-      ).u8string()); // create new system from copy of dummy, with random seed from processSeeds, computing active work and order parameter for every tau iterations
+    systems[i] = new SystemClass(dummy, processSeeds[i], tau, cloneFilename(i)); // create new system from copy of dummy, with random seed from processSeeds, computing active work and order parameter for every tau iterations
   }
 
-  // just for extra safety we can opt to throw our random number generators out of sync here
-  // (the risk is that in a very big population, several clones might have the same seed,
-  //  the effect here is to increase the effective range of seeds by safetyFactor
-  #if 1
-  for (int i=0;i<nc;i++) {
-    int dum = 0;
-    int safetyFactor = 1000;
-    //int k = i % nc;
-    if ( i==0 )
-      std::cout << "#seed safetyFactor " << safetyFactor << std::endl;
-    for (int r=0; r < i % safetyFactor; r++ ) {
-      dum += (systems[i]->getRandomGenerator())->random01();
-      dum += (systems[i+nc]->getRandomGenerator())->random01();
-    }
-  }
-  #endif
-
+  outSyncRandomGenerator();
   for (int i=0;i<2*nc;i++) systems[i]->saveInitialState(); // important if trajectories are actually saved
 
 }
 
 template<class SystemClass> template<typename F, typename G, typename H>
-  void CloningSerial<SystemClass>::doCloning(
-    double tmax, double sValue, int initSim,
-    F iterate, G getSWeight, H control,
-    int runIndex) {
+  void CloningSerial<SystemClass>::
+  doCloning(
+    double tmax, int initSim,
+    F iterate, G getSWeight, H control) {
   // this runs the cloning for total time tmax
   // input functions:
   // void iterate(SystemClass* system, int Niter): iterate system for Niter iterations
@@ -166,15 +204,19 @@ template<class SystemClass> template<typename F, typename G, typename H>
     std::chrono::system_clock::now();
 
   // random initial condition for the nc systems that form the current population
-  int arrswitch = 0;
-  #ifdef _OPENMP
-  #pragma omp parallel for
-  #endif
-  for (int i=0;i<nc;i++) {
-    systems[i]->setBiasingParameter(0); // setting 0 biasing parameter (unmodified dynamics to sample initial configurations)
-    iterate(systems[i], tau*initSim); // simulate an elementary number of steps
-    systems[i]->resetDump(); // reset dumps: important between different runs and to only count the relevant quantities within the cloning framework
+  if ( loadInput.getInputFile() == "" ) {
+    arrswitch = 0; // is otherwise set in loadState
+    #ifdef _OPENMP
+    #pragma omp parallel for
+    #endif
+    for (int i=0;i<nc;i++) {
+      systems[i]->setBiasingParameter(0); // setting 0 biasing parameter (unmodified dynamics to sample initial configurations)
+      iterate(systems[i], tau*initSim); // simulate an elementary number of steps
+      systems[i]->resetDump(); // reset dumps: important between different runs and to only count the relevant quantities within the cloning framework
+    }
   }
+  // load configurations from file
+  else { loadState(); }
 
   // biasing parameter
   #ifdef _OPENMP
@@ -188,7 +230,6 @@ template<class SystemClass> template<typename F, typename G, typename H>
   sWeight.resize(nc);
 
   // this is the main loop
-  int iter;
   for (iter = 0; iter < tmax / (tau*systems[0]->getTimeStep()); iter++) // for each iteration of the algorithm
   {
     std::vector<double> upsilon(nc);  // these are the cloning factors
@@ -260,7 +301,8 @@ template<class SystemClass> template<typename F, typename G, typename H>
 
   finalOffset = arrswitch * nc;
 
-  outputPsi = double(lnX) / (iter*tau*systems[0]->getTimeStep());
+  outputPsi = (double(lnX) + outputPsiOffset[0]*outputPsiOffset[1])
+    /(iter*tau*systems[0]->getTimeStep() + outputPsiOffset[0]);
 
   // C++ clocks again
   std::chrono::system_clock::time_point endTime =
@@ -271,149 +313,21 @@ template<class SystemClass> template<typename F, typename G, typename H>
     (endTime - startTime).count();
 
   // WRITE TRAJECTORY FILES
-  if ( clonesDirectory != "" ) writeTrajFiles(iter, clonesLog, runIndex);
+  if ( clonesDirectory != "" ) writeTrajFiles(clonesLog);
+
+  // SAVE FINAL CONFIGURATIONS
+  if ( saveOutput.getOutputFile() != "" ) saveState();
+
+  // RUN INDEX
+  runIndex++; // this line must be at the END of the function
 }
 
-template<class SystemClass> void CloningSerial<SystemClass>::writeTrajFiles(
-  int iter, Write& clonesLog, int runIndex) {}
+template<class SystemClass> void CloningSerial<SystemClass>::
+  writeTrajFiles(Write& clonesLog) {}
+  // specialisation to be written in individual cloning *.cpp files
 
-template<> void CloningSerial<Rotors>::writeTrajFiles(
-  int iter, Write& clonesLog, int runIndex) {}
-
-template<> void CloningSerial<System>::writeTrajFiles(
-  int iter, Write& clonesLog, int runIndex) {
-  // Write trajectory files for cloning loop.
-
-  int period = 1;
-
-  // BUILD TRAJECTORIES
-
-  clonesLog.flush();
-  Read log(clonesLog.getOutputFile());
-
-  std::vector<std::vector<int>> trajectories (nc);
-  std::vector<int> parents (nc);
-  for (int i=0; i < nc; i++) { parents[i] = i; }
-
-  for (int t=0; t < iter; t++) {
-    for (int i=0; i < nc; i++) {
-      int newParent = log.read<int>(
-        -((t + 1)*nc - parents[i])*sizeof(int),
-        std::ios_base::end);
-      trajectories[i].insert(trajectories[i].begin(), newParent);
-      parents[i] = newParent;
-    }
-  }
-  log.close();
-
-  // WRITE .dat FILES
-
-  std::vector<Dat*> dat;
-  std::vector<std::vector<double>> activeWork;
-  std::vector<std::vector<double>> activeWorkForce;
-  std::vector<std::vector<double>> activeWorkOri;
-  std::vector<std::vector<double>> orderParameter;
-  std::vector<std::vector<double>> torqueIntegral1;
-  std::vector<std::vector<double>> torqueIntegral2;
-  for (int i=0; i < 2*nc; i++) {
-    systems[i]->flushOutputFile();
-    dat.push_back(new Dat(systems[i]->getOutputFile(), true));
-    dat[i]->close();
-    activeWork.push_back(dat[i]->getActiveWork());
-    activeWorkForce.push_back(dat[i]->getActiveWorkForce());
-    activeWorkOri.push_back(dat[i]->getActiveWorkOri());
-    orderParameter.push_back(dat[i]->getOrderParameter());
-    torqueIntegral1.push_back(dat[i]->getTorqueIntegral1());
-    torqueIntegral2.push_back(dat[i]->getTorqueIntegral2());
-  }
-
-  for (int i=0; i < nc; i++) {
-
-    Write output(std::experimental::filesystem::path(
-      std::experimental::filesystem::path(clonesDirectory) /
-      [](int index, int rIndex)
-        { return
-          std::string(4 - std::to_string(rIndex).length(), '0')
-            + std::to_string(rIndex) + std::string(".")
-          + std::string(6 - std::to_string(index).length(), '0')
-            + std::to_string(index) + std::string(".dat"); }
-        (i, runIndex)
-      ).u8string());
-
-    // header
-    output.write<int>(systems[i]->getNumberParticles());
-    output.write<double>(systems[i]->getPersistenceLength());
-    output.write<double>(systems[i]->getPackingFraction());
-    output.write<double>(systems[i]->getSystemSize());
-    output.write<double>(systems[i]->getTorqueParameter());
-    output.write<int>(-1);
-    output.write<double>(systems[i]->getTimeStep());
-    output.write<int>(1);
-    output.write<bool>(true);
-    output.write<int>(tau);
-
-    // initial frame
-    int initFrame = (dat[i]->getFrames() - 1) - period*((int) (iter + 1)/2);
-    int initClone = trajectories[i][0];
-    dat[initClone]->open();
-    for (int p=0; p < systems[i]->getNumberParticles(); p++) { // output all particles
-      // POSITIONS
-      for (int dim=0; dim < 2; dim++) { // output position in each dimension
-        output.write<double>(dat[initClone]->getPosition(initFrame, p, dim));
-      }
-      // ORIENTATIONS
-      output.write<double>(dat[initClone]->getOrientation(initFrame, p)); // output orientation
-      // VELOCITIES
-      for (int dim=0; dim < 2; dim++) { // output velocity in each dimension
-        output.write<double>(dat[initClone]->getVelocity(initFrame, p, dim)); // output velocity
-      }
-    }
-    dat[initClone]->close();
-
-    // other frames
-    for (int frame=1; frame <= iter; frame++) {
-
-      int currClone = trajectories[i][frame - 1] + nc*(1 - (frame%2));
-      int currFrame = (dat[currClone]->getFrames() - 1)
-        - ((int) (iter - frame)/2)*period;
-
-      dat[currClone]->open();
-      for (int p=0; p < systems[i]->getNumberParticles(); p++) { // output all particles
-        // POSITIONS
-        for (int dim=0; dim < 2; dim++) { // output position in each dimension
-          output.write<double>(
-            dat[currClone]->getPosition(currFrame, p, dim));
-        }
-        // ORIENTATIONS
-        output.write<double>(
-          dat[currClone]->getOrientation(currFrame, p)); // output orientation
-        // VELOCITIES
-        for (int dim=0; dim < 2; dim++) { // output velocity in each dimension
-          output.write<double>(
-            dat[currClone]->getVelocity(currFrame, p, dim)); // output velocity
-        }
-      }
-      dat[currClone]->close();
-
-      // active work, polarisation, and torque integrals
-      output.write<double>(activeWork[currClone][currFrame/period - 1]);
-      output.write<double>(activeWorkForce[currClone][currFrame/period - 1]);
-      output.write<double>(activeWorkOri[currClone][currFrame/period - 1]);
-      output.write<double>(orderParameter[currClone][currFrame/period - 1]);
-      output.write<double>(torqueIntegral1[currClone][currFrame/period - 1]);
-      output.write<double>(torqueIntegral2[currClone][currFrame/period - 1]);
-    }
-
-    // close file
-    output.close();
-  }
-
-  // delete pointers to input files
-  for (int i=0; i < 2*nc; i++) delete dat[i];
-}
-
-template<class SystemClass> void CloningSerial<SystemClass>::selectClones(
-  int newClones[], double key[], int pullOffset) {
+template<class SystemClass> void CloningSerial<SystemClass>::
+  selectClones(int newClones[], double key[], int pullOffset) {
 
   std::uniform_real_distribution<double> randc(0,1.0);  // random double in [0,1]
 
@@ -450,8 +364,8 @@ template<class SystemClass> void CloningSerial<SystemClass>::selectClones(
   else { for(int i=0; i<nc; i++) newClones[i] = i; }
 }
 
-template<class SystemClass> int CloningSerial<SystemClass>::binsearch(
-  double *key, double val, int keylength) {
+template<class SystemClass> int CloningSerial<SystemClass>::
+  binsearch(double *key, double val, int keylength) {
   // this is a binary search used in clone selection
 
   int l = 0; /*Left hand limit*/
