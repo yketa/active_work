@@ -20,7 +20,7 @@ from subprocess import Popen, DEVNULL
 import pickle
 
 from active_work.read import _Read
-from active_work.init import get_env, mkdir
+from active_work.init import get_env, get_env_list, mkdir
 from active_work.exponents import float_to_letters
 from active_work.maths import mean_sterr
 
@@ -271,6 +271,7 @@ if __name__ == '__main__':
     slurm_partition = get_env('SLURM_PARTITION', vartype=str)   # partition for the ressource allocation
     slurm_ntasks = get_env('SLURM_NTASKS', vartype=int)         # number of MPI ranks running per node
     slurm_time = get_env('SLURM_TIME', vartype=str)             # required time
+    slurm_chain = get_env_list('SLURM_CHAIN', vartype=int)      # execute after these jobs ID have completed (order has to be the same as sValues)
 
     # PHYSICAL PARAMETERS
     N = get_env('N', default=_N, vartype=int)       # number of rotors in the system
@@ -322,7 +323,11 @@ if __name__ == '__main__':
         procs = [
             Popen(
                 ['%s \"{ %s %s; }\"' %
-                    (str(' ').join(slurm_launch),               # Slurm submitting script
+                    (str(' ').join(slurm_launch                 # Slurm submitting script
+                        + ['-j', '\'' +  exec_path.split('/')[-1]
+                            + ' %04i %s\'' % (i, env(i)['SVALUE'])]
+                        + ([] if slurm_chain == []
+                            else ['-c', str(slurm_chain[i])])),
                     str(' ').join(['%s=%s' % (key, env(i)[key]) # environment variables
                         for key in env(i)]),
                     exec_path)],                                # cloning executable
