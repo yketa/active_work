@@ -449,6 +449,8 @@ if __name__ == '__main__':
             Popen(
                 ['%s \"{ %s %s; }\"' %
                     (str(' ').join(slurm_launch                 # Slurm submitting script
+                        + ['-j', '\'' +  exec_path.split('/')[-1]
+                            + ' %04i %s\'' % (i, env(i)['SVALUE'])]
                         + ([] if slurm_chain == []
                             else ['-c', str(slurm_chain[i])])),
                     str(' ').join(['%s=%s' % (key, env(i)[key]) # environment variables
