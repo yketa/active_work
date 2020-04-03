@@ -119,8 +119,6 @@ def mean_sterr(values, remove=False):
     """
     Returns mean and standard error of values.
 
-    NOTE: Plase be aware this should really work only for 1D array-like.
-
     Parameters
     ----------
     values : float array
@@ -136,6 +134,8 @@ def mean_sterr(values, remove=False):
         Remove inf and -inf as well as nan. (default: False)
         NOTE: A warning will be issued if remove == False and such objects are
               encountered.
+        NOTE: This is not guaranteed to work non-1D arrays as the shape may
+              change.
     """
 
     values = np.array(values)
@@ -145,7 +145,7 @@ def mean_sterr(values, remove=False):
         values)))
     if values.size == 0: return None, None
 
-    return np.mean(values), np.std(values)/np.sqrt(np.prod(values.shape))
+    return values.mean(axis=0), values.std(axis=0)/np.sqrt(values.shape[0])
 
 def cov(array1, array2):
     """
