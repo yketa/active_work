@@ -151,6 +151,9 @@ class Positions(Dat):
         Returns particle spacial density averaged along directions of space
         (assuming isotropy).
 
+        NOTE: Correlations are computed with FFT.
+              (see https://yketa.github.io/DAMTP_2019_Wiki/#Fourier%20transform%20field%20correlation)
+
         Parameters
         ----------
         int_max : int or None
