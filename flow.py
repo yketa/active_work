@@ -10,8 +10,8 @@ from collections import OrderedDict
 from operator import itemgetter
 
 from active_work.read import Dat
-from active_work.maths import Distribution, wave_vectors_2D, g2Dto1Dgrid,\
-    mean_sterr, logspace
+from active_work.maths import Distribution, wave_vectors_2D, g2Dto1D,\
+    g2Dto1Dgrid, mean_sterr, logspace
 from active_work.rotors import nu_pdf_th
 
 class Displacements(Dat):
@@ -516,6 +516,27 @@ class Orientations(Dat):
             lambda time0: self.getOrientations(time0),
             self._time0(int_max=int_max))))
 
+    def nDirections(self, int_max=None):
+        """
+        Returns array of directions.
+
+        Parameters
+        ----------
+        int_max : int or None
+            Maximum number of frames to consider. (default: None)
+            NOTE: If int_max == None, then take the maximum number of frames.
+                  WARNING: This can be very big.
+
+        Returns
+        -------
+        directions : (*, self.N, 2) float numpy array
+            Array of computed directions.
+        """
+
+        return np.array(list(map(
+            lambda time0: self.getDirections(time0),
+            self._time0(int_max=int_max))))
+
     def nOrder(self, int_max=None, norm=False):
         """
         Returns array of order parameter.
@@ -532,8 +553,8 @@ class Orientations(Dat):
 
         Returns
         -------
-        order : [not(norm)] (*, self.N, 2) float numpy array
-                     [norm] (*, self.N) float numpy array
+        order : [not(norm)] (*, 2) float numpy array
+                     [norm] (*,) float numpy array
             Array of computed order parameters.
         """
 
@@ -598,6 +619,47 @@ class Orientations(Dat):
         return Distribution(self.nOrder(int_max=int_max, norm=True)).hist(
             nBins, vmin=vmin, vmax=vmax, log=log,
             rescaled_to_max=rescaled_to_max)
+
+    def orientationsCor(self, int_max=None, nBoxes=None):
+        """
+        Compute spatial correlations of particles' orientations.
+
+        NOTE: Correlations are computed with FFT.
+              (see https://yketa.github.io/DAMTP_2019_Wiki/#Fourier%20transform%20field%20correlation)
+
+        Parameters
+        ----------
+        int_max : int or None
+            Maximum number of frames to consider. (default: None)
+            NOTE: If int_max == None, then take the maximum number of frames.
+                  WARNING: This can be very big.
+        nBoxes : int
+            Number of grid boxes in each direction. (default: None)
+            NOTE: if nBoxes==None, then None is passed to self.toGrid.
+
+        Returns
+        -------
+        Cuu : (*, 3) float Numpy array
+            Array of (r, Cuu(r)) with Cuu(r) the cylindrically averaged spatial
+            correlations of particles' orientations.
+        """
+
+        orientationGrids = np.array(list(map(
+            lambda time, orientations:
+                self.toGrid(time, orientations, nBoxes=nBoxes,
+                    box_size=self.L, centre=None, average=True),
+            *(self._time0(int_max=int_max),
+                self.nDirections(int_max=int_max)))))
+
+        Cuu2D = np.sum(list(map(
+            lambda dim: np.mean(list(map(
+                lambda grid:
+                    (lambda FFT: np.real(np.fft.ifft2(np.conj(FFT)*FFT)))
+                        (np.fft.fft2(grid)),
+                orientationGrids[:, :, :, dim])), axis=0),
+            range(2))), axis=0)
+
+        return g2Dto1D(Cuu2D/Cuu2D[0, 0], self.L)
 
     def nu_pdf_th(self, *nu):
         """
