@@ -7,11 +7,15 @@
 # export functions to the current shell.
 
 function chainCloning() {
-	# Launches chained cloning simulations — saving and loading configuration
-	# files.
-	# ```
-	# chainCloning [cloning script] [directory] [# of launches] [env variables]
-	# ```
+	HELP='
+	Launches chained cloning simulations — saving and loading configuration files.
+	```
+	chainCloning [cloning script] [directory] [# of launches] [env variables]
+	```
+	'
+	if [[ "$1" == "help" || "$1" == "" ]];
+		then echo "$HELP"; return;
+	fi
 
 	unset CHAINCLONING;
 
