@@ -9,13 +9,14 @@ from numpy import random, gcd
 from os import path
 from shutil import rmtree as rmr
 from shutil import move
+import sys
 
-from subprocess import Popen, DEVNULL
+from subprocess import Popen, DEVNULL, PIPE
 
 import pickle
 
 from active_work.read import _Dat as Dat
-from active_work.init import get_env, mkdir
+from active_work.init import get_env, get_env_list, mkdir
 from active_work.exponents import float_to_letters
 from active_work.maths import mean_sterr
 
@@ -221,6 +222,7 @@ if __name__ == '__main__':
     slurm = get_env('SLURM', default=False, vartype=bool)       # use Slurm job scheduler (see active_work/slurm.sh)
     slurm_partition = get_env('SLURM_PARTITION', vartype=str)   # partition for the ressource allocation
     slurm_time = get_env('SLURM_TIME', vartype=str)             # required time
+    slurm_chain = get_env_list('SLURM_CHAIN', vartype=int)      # execute after these jobs ID have completed (order has to be the same as gValues x nRuns)
 
     # PHYSICAL PARAMETERS
     N = get_env('N', default=_N, vartype=int)           # number of particles in the system
@@ -268,15 +270,35 @@ if __name__ == '__main__':
         if slurm_time != None: slurm_launch += ['-t', slurm_time]
 
         # LAUNCH
-        procs = [
-            Popen(
-                ['%s \"{ %s %s; }\"' %
-                    (str(' ').join(slurm_launch),               # Slurm submitting script
-                    str(' ').join(['%s=%s' % (key, env(i)[key]) # environment variables
-                        for key in env(i)]),
-                    exec_path)],                                # cloning executable
-                stdout=DEVNULL, shell=True)
-            for i in range(gNum*nRuns)]
+        procs, jobsID = [], []
+        for i in range(gNum*nRuns):
+
+            procs += [
+                Popen(
+                    ['%s \"{ %s %s; }\"' %
+                        (str(' ').join(slurm_launch                 # Slurm submitting script
+                            + ['-j', '\'' +  exec_path.split('/')[-1]
+                                + ' %04i %s %04i\''
+                                    % (i, env(i)['TORQUE_PARAMETER'], i%nRuns)]
+                            + ([] if slurm_chain == []
+                                else ['-c', str(slurm_chain[i])])),
+                        str(' ').join(['%s=%s' % (key, env(i)[key]) # environment variables
+                            for key in env(i)]),
+                        exec_path)],                                # simulation executable
+                    stdout=PIPE, shell=True)]
+
+            getJobID = Popen(                               # get submitted job ID
+                ['head', '-n1'],
+                stdin=procs[-1].stdout, stdout=PIPE)
+            getJobID.wait()
+            jobID = getJobID.communicate()[0].decode().split()
+            if jobID[:-1] == ['Submitted', 'batch', 'job']: # job has been succesfully submitted to Slurm
+                jobsID += [jobID[-1]]
+            else:                                           # failed to submit job
+                raise ValueError("Job ID not returned.")
+
+        sys.stdout.write(':'.join(jobsID) + '\n')   # print jobs ID to stdout with syntax compatible with active_work.init.get_env_list
+        sys.stdout.flush()
 
     else:   # not using Slurm job scheduler
 

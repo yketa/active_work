@@ -25,8 +25,9 @@ from numpy import random
 from os import path
 from shutil import rmtree as rmr
 from shutil import move
+import sys
 
-from subprocess import Popen, DEVNULL
+from subprocess import Popen, DEVNULL, PIPE
 
 import pickle
 
@@ -445,19 +446,34 @@ if __name__ == '__main__':
         if slurm_time != None: slurm_launch += ['-t', slurm_time]
 
         # LAUNCH
-        procs = [
-            Popen(
-                ['%s \"{ %s %s; }\"' %
-                    (str(' ').join(slurm_launch                 # Slurm submitting script
-                        + ['-j', '\'' +  exec_path.split('/')[-1]
-                            + ' %04i %s\'' % (i, env(i)['SVALUE'])]
-                        + ([] if slurm_chain == []
-                            else ['-c', str(slurm_chain[i])])),
-                    str(' ').join(['%s=%s' % (key, env(i)[key]) # environment variables
-                        for key in env(i)]),
-                    exec_path)],                                # cloning executable
-                stdout=DEVNULL, shell=True)
-            for i in range(sNum)]
+        procs, jobsID = [], []
+        for i in range(sNum):
+
+            procs += [
+                Popen(
+                    ['%s \"{ %s %s; }\"' %
+                        (str(' ').join(slurm_launch                 # Slurm submitting script
+                            + ['-j', '\'' +  exec_path.split('/')[-1]
+                                + ' %04i %s\'' % (i, env(i)['SVALUE'])]
+                            + ([] if slurm_chain == []
+                                else ['-c', str(slurm_chain[i])])),
+                        str(' ').join(['%s=%s' % (key, env(i)[key]) # environment variables
+                            for key in env(i)]),
+                        exec_path)],                                # cloning executable
+                    stdout=PIPE, shell=True)]
+
+            getJobID = Popen(                               # get submitted job ID
+                ['head', '-n1'],
+                stdin=procs[-1].stdout, stdout=PIPE)
+            getJobID.wait()
+            jobID = getJobID.communicate()[0].decode().split()
+            if jobID[:-1] == ['Submitted', 'batch', 'job']: # job has been succesfully submitted to Slurm
+                jobsID += [jobID[-1]]
+            else:                                           # failed to submit job
+                raise ValueError("Job ID not returned.")
+
+        sys.stdout.write(':'.join(jobsID) + '\n')   # print jobs ID to stdout with syntax compatible with active_work.init.get_env_list
+        sys.stdout.flush()
 
     else:   # not using Slurm job scheduler
 
