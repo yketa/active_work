@@ -26,6 +26,8 @@ from this directory, and rely on the following packages:
 
 which can be installed by running [`pip.sh`](https://github.com/yketa/active_work/blob/master/pip.sh), provided that `pip` is installed.
 
+Production of movies, via [`frame.py`](https://github.com/yketa/active_work/blob/master/frame.py), necessitates [`ffmpeg`](https://ffmpeg.org/download.html) — though other functionalities of the former can be used without the latter.
+
 ## Execution
 
 Compilation of all relevant executables, using `g++`, is possible by running [`compile.sh`](https://github.com/yketa/active_work/blob/master/compile.sh) — which essentially performs all relevant `make` commands (see [`Makefile`](https://github.com/yketa/active_work/blob/master/Makefile)).
