@@ -45,7 +45,7 @@ Dat::Dat(std::string filename, bool loadWork) :
   if ( input.getFileSize() !=
     headerLength + frames*frameLength + numberWork*workLength ) {
     std::cerr << "Invalid file size." << std::endl;
-    exit(0);
+    exit(1);
   }
 
   // ACTIVE WORK AND ORDER PARAMETER
@@ -191,7 +191,7 @@ Dat0::Dat0(std::string filename, bool loadWork) :
   if ( input.getFileSize() !=
     headerLength + frames*frameLength + numberWork*workLength ) {
     std::cerr << "Invalid file size." << std::endl;
-    exit(0);
+    exit(1);
   }
 
   // ACTIVE WORK AND ORDER PARAMETER
@@ -316,7 +316,7 @@ DatR::DatR(std::string filename, bool loadOrder) :
   if ( input.getFileSize() !=
     headerLength + frames*frameLength + numberOrder*orderLength ) {
     std::cerr << "Invalid file size." << std::endl;
-    exit(0);
+    exit(1);
   }
 
   // ORDER PARAMETER

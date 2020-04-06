@@ -86,7 +86,7 @@ while getopts "hwj:c:d:o:f:p:g:n:r:a:s:t:m:" OPTION; do
   case $OPTION in
 
     h)  # help menu
-      usage; exit;;
+      usage; exit 0;;
 
     w)  # wait
       WAIT=true;;
@@ -127,7 +127,7 @@ shift $(expr $OPTIND - 1);
 if [[ -z "$@" ]]; then
   echo 'No script submitted.';
   usage;
-  exit 0;
+  exit 1;
 fi
 
 SCRIPT=$@ # script to execute

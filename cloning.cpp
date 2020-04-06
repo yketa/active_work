@@ -35,29 +35,29 @@ template<> void CloningSerial<System>::
 
 	if ( runIndex >= nRuns ) {
 		std::cerr << "Not enough runs in input file." << std::endl;
-    exit(0);
+    exit(1);
 	}
 
 	// FILE CHECKS
 	if ( nc != loadInput.read<int>((long int) 0) ) {
 		std::cerr << "Invalid number of clones." << std::endl;
-    exit(0);
+    exit(1);
 	}
 	if ( cloneMethod != loadInput.read<int>() ) {
 		std::cerr << "Invalid cloning method." << std::endl;
-    exit(0);
+    exit(1);
 	}
 	if ( tau != loadInput.read<int>() ) {
 		std::cerr << "Invalid cloning step size." << std::endl;
-    exit(0);
+    exit(1);
 	}
 	if ( sValue != loadInput.read<double>() ) {
 		std::cerr << "Invalid biasing parameter." << std::endl;
-    exit(0);
+    exit(1);
 	}
 	if ( loadInput.getFileSize() != headerLength + nRuns*runLength ) {
 		std::cerr << "Invalid file size." << std::endl;
-    exit(0);
+    exit(1);
 	}
 
 	// CLONING STATE
@@ -92,20 +92,20 @@ template<> void CloningSerial<System>::
 					+ i*cloneLength)                                                    // -- other clones
 				!= systems[i]->getNumberParticles() ) {
 				std::cerr << "Invalid number of particles." << std::endl;
-		    exit(0);
+		    exit(1);
 			}
 			if ( loadInput.read<double>() != systems[i]->getPersistenceLength() ) { // lp
 				std::cerr << "Invalid persistence length." << std::endl;
-		    exit(0);
+		    exit(1);
 			}
 			if ( loadInput.read<double>() != systems[i]->getPackingFraction() ) {   // phi
 				std::cerr << "Invalid packing fraction." << std::endl;
-		    exit(0);
+		    exit(1);
 			}
 			double g = loadInput.read<double>(); systems[i]->setTorqueParameter(g); // g
 			if ( loadInput.read<double>() != systems[i]->getTimeStep() ) {          // dt
 				std::cerr << "Invalid time step." << std::endl;
-		    exit(0);
+		    exit(1);
 			}
 		}
 
