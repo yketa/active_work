@@ -21,8 +21,6 @@ import numpy as np
 np.seterr(divide='ignore')
 
 import matplotlib as mpl
-if not(get_env('SHOW', default=False, vartype=bool)):
-	mpl.use('Agg')	# avoids crash if launching without display
 import matplotlib.pyplot as plt
 from matplotlib.colors import Normalize as ColorsNormalise
 from matplotlib.cm import ScalarMappable
