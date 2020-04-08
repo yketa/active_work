@@ -620,9 +620,9 @@ class Orientations(Dat):
             nBins, vmin=vmin, vmax=vmax, log=log,
             rescaled_to_max=rescaled_to_max)
 
-    def orientationsCor(self, int_max=None, nBoxes=None):
+    def orientationsCor(self, int_max=None, nBoxes=None, cylindrical=True):
         """
-        Compute spatial correlations of particles' orientations.
+        Compute spatial correlations of particles' orientations (and density).
 
         NOTE: Correlations are computed with FFT.
               (see https://yketa.github.io/DAMTP_2019_Wiki/#Fourier%20transform%20field%20correlation)
@@ -636,30 +636,56 @@ class Orientations(Dat):
         nBoxes : int
             Number of grid boxes in each direction. (default: None)
             NOTE: if nBoxes==None, then None is passed to self.toGrid.
+        cylindrical : bool
+            Return cylindrical average of correlations.
 
         Returns
         -------
-        Cuu : (*, 3) float Numpy array
+        [cylindrical]
+        Cuu : (*, 2) float Numpy array
             Array of (r, Cuu(r)) with Cuu(r) the cylindrically averaged spatial
-            correlations of particles' orientations.
+            correlations of orientation.
+        Cdd : (*, *) float Numpy array
+            Array of (r, Cdd(r)) with Cdd(r) the cylindrically averaged spatial
+            correlations of density.
+        [not(cylindrical)]
+        Cuu : (*, *) float Numpy array
+            2D grid of spatial orientation correlation.
+        Cdd : (*, *) float Numpy array
+            2D grid of spatial density correlation.
         """
 
-        orientationGrids = np.array(list(map(
-            lambda time, orientations:
-                self.toGrid(time, orientations, nBoxes=nBoxes,
-                    box_size=self.L, centre=None, average=True),
-            *(self._time0(int_max=int_max),
-                self.nDirections(int_max=int_max)))))
-
-        Cuu2D = np.sum(list(map(
-            lambda dim: np.mean(list(map(
+        grids = list(map(
+            lambda time, orientations: list(map(
                 lambda grid:
-                    (lambda FFT: np.real(np.fft.ifft2(np.conj(FFT)*FFT)))
-                        (np.fft.fft2(grid)),
-                orientationGrids[:, :, :, dim])), axis=0),
-            range(2))), axis=0)
+                    self.toGrid(time, grid, nBoxes=nBoxes,
+                        box_size=self.L, centre=None, average=False),   # do not average but sum
+                (orientations, np.full((self.N,), fill_value=1)))),
+            *(self._time0(int_max=int_max), self.nDirections(int_max=int_max))))
+        orientationGrids = np.array([_[0] for _ in grids])              # grids of orientation at different times
+        densityGrids = np.array([_[1] for _ in grids])                  # grids of density at different times
 
-        return g2Dto1D(Cuu2D/Cuu2D[0, 0], self.L)
+        cor = (lambda grid: # returns correlation grid of a 2D grid
+            (lambda FFT: np.real(np.fft.ifft2(np.conj(FFT)*FFT)))
+                (np.fft.fft2(grid)))
+
+        Cuu2D = np.sum(
+            list(map(
+                lambda dim:     # sum over dimensions
+                    np.mean(    # mean correlation over time
+                        list(map(cor, orientationGrids[:, :, :, dim])),
+                        axis=0),
+                range(2))),
+            axis=0)
+        Cdd2D = np.mean(        # mean correlation over time
+            list(map(cor, densityGrids)),
+            axis=0)
+
+        return tuple(map(
+            lambda C2D:
+                g2Dto1D(C2D/C2D[0, 0], self.L) if cylindrical   # cylindrical average
+                else C2D/C2D[0, 0],                             # 2D grid
+            (Cuu2D, Cdd2D)))
 
     def nu_pdf_th(self, *nu):
         """
