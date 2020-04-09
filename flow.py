@@ -173,8 +173,9 @@ class Displacements(Dat):
         """
 
         dt = np.array(dt)
-        time0 = np.linspace(self.skip, self.frames - dt.max() - 1, int_max, # array of initial times
-            endpoint=False, dtype=int)
+        time0 = np.array(list(OrderedDict.fromkeys(
+            np.linspace(self.skip, self.frames - dt.max() - 1, int_max, # array of initial times
+                endpoint=False, dtype=int))))
 
         displacements = np.empty((time0.size, dt.size, self.N, 2))
         for j in range(dt.size):
@@ -222,7 +223,7 @@ class Displacements(Dat):
         -------
         msd_sterr : (3, *) float numpy array
             Array of:
-                (0) time at which the mean square displacement is computed,
+                (0) lag time at which the mean square displacement is computed,
                 (1) mean square displacement,
                 (2) standard error of the computed mean square displacement.
         """
@@ -243,7 +244,9 @@ class Displacements(Dat):
             if self.N > 1:
                 disp -= disp.mean(axis=1).reshape(displacements.shape[0], 1, 2) # substract mean displacement of particles during each considered intervals
             disp.reshape(displacements.shape[0]*self.N, 2)
-            msd_sterr += [[dt[i], *mean_sterr(np.sum(disp**2, axis=-1))]]
+            msd_sterr += [[
+                dt[i],
+                *mean_sterr(np.sum(disp**2, axis=-1).flatten())]]
 
         return np.array(msd_sterr)
 
