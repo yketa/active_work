@@ -79,8 +79,9 @@ class _Dat(_Read):
         ----------
         filename : string
             Path to data file.
-        loadWork : bool
-            Load active work and order parameter arrays. (default: True)
+        loadWork : bool or 'r'
+            Load dump arrays. (default: True)
+            NOTE: if loadWork=='r', force re-extract dumps from data file.
         """
 
         # SIMULATION TYPE
@@ -127,7 +128,7 @@ class _Dat(_Read):
             raise ValueError("Invalid data file size.")
 
         # COMPUTED NORMALISED RATE OF ACTIVE WORK
-        if loadWork: self._loadWork()
+        self._loadWork(load=loadWork)
 
     def getWork(self, time0, time1):
         """
@@ -600,7 +601,7 @@ class _Dat(_Read):
             out=np.zeros(grid.shape), where=sumN!=0)
         return grid
 
-    def _loadWork(self):
+    def _loadWork(self, load=True):
         """
         Load active work, order parameter, and torque integrals dumps from
             * self.filename + '.work.pickle': normalised rate of active work,
@@ -614,11 +615,21 @@ class _Dat(_Read):
             * self.filename + '.torque.int2.pickle': second torque integral,
         if they exist or extract them from data file and then pickle them to
         files.
+
+        Parameters
+        ----------
+        load : bool or 'r'
+            Load dump arrays. (default: True)
+            NOTE: if loadWork=='r', force re-extract dumps from data file.
         """
+
+        if not(load): return
 
         # ACTIVE WORK
 
         try:    # try loading
+
+            if load == 'r': raise FileNotFoundError
 
             with open(self.filename + '.work.pickle', 'rb') as workFile:
                 self.activeWork = pickle.load(workFile)
@@ -644,6 +655,8 @@ class _Dat(_Read):
         # ACTIVE WORK (FORCE)
 
         try:    # try loading
+
+            if load == 'r': raise FileNotFoundError
 
             with open(self.filename + '.work.force.pickle', 'rb') as workFile:
                 self.activeWorkForce = pickle.load(workFile)
@@ -671,6 +684,8 @@ class _Dat(_Read):
 
         try:    # try loading
 
+            if load == 'r': raise FileNotFoundError
+
             with open(self.filename + '.work.ori.pickle', 'rb') as workFile:
                 self.activeWorkOri = pickle.load(workFile)
                 if self.activeWorkOri.size != self.numberWork:
@@ -696,6 +711,8 @@ class _Dat(_Read):
         # ORDER PARAMETER
 
         try:    # try loading
+
+            if load == 'r': raise FileNotFoundError
 
             with open(self.filename + '.order.pickle', 'rb') as workFile:
                 self.orderParameter = pickle.load(workFile)
@@ -725,6 +742,8 @@ class _Dat(_Read):
 
             try:    # try loading
 
+                if load == 'r': raise FileNotFoundError
+
                 with open(self.filename + '.order.vec.pickle', 'rb') as workFile:
                     self.orderParameterVec = pickle.load(workFile)
                     if self.orderParameterVec.size != 2*self.numberWork:
@@ -752,6 +771,8 @@ class _Dat(_Read):
 
             try:    # try loading
 
+                if load == 'r': raise FileNotFoundError
+
                 with open(self.filename + '.torque.int1.pickle', 'rb') as iFile:
                     self.torqueIntegral1 = pickle.load(iFile)
                     if self.torqueIntegral1.size != self.numberWork:
@@ -777,6 +798,8 @@ class _Dat(_Read):
             # SECOND TORQUE INTEGRAL
 
             try:    # try loading
+
+                if load == 'r': raise FileNotFoundError
 
                 with open(self.filename + '.torque.int2.pickle', 'rb') as iFile:
                     self.torqueIntegral2 = pickle.load(iFile)
@@ -939,8 +962,9 @@ class _Dat0(_Dat):
         ----------
         filename : string
             Path to data file.
-        loadWork : bool
-            Load active work and order parameter arrays. (default: True)
+        loadWork : bool or 'r'
+            Load dump arrays. (default: True)
+            NOTE: if loadWork=='r', force re-extract dumps from data file.
         """
 
         # SIMULATION TYPE
@@ -994,7 +1018,7 @@ class _Dat0(_Dat):
             raise ValueError("Invalid data file size.")
 
         # COMPUTED NORMALISED RATE OF ACTIVE WORK
-        if loadWork: self._loadWork()
+        self._loadWork(load=loadWork)
 
 class Dat(_Dat):
     """
@@ -1016,8 +1040,9 @@ class Dat(_Dat):
         ----------
         filename : string
             Path to data file.
-        loadWork : bool
-            Load active work and order parameter arrays. (default: True)
+        loadWork : bool or 'r'
+            Load dump arrays. (default: True)
+            NOTE: if loadWork=='r', force re-extract dumps from data file.
         """
 
         if get_env('FORCE_DAT', default=False, vartype=bool):       # enforce choice of data structure with custom relations between parameters
@@ -1045,8 +1070,9 @@ class DatR(_Read):
         ----------
         filename : string
             Path to data file.
-        loadOrder : bool
-            Load order parameter array. (default: True)
+        loadOrder : bool or 'r'
+            Load dump arrays. (default: True)
+            NOTE: if loadOrder=='r', force re-extract dumps from data file.
         """
 
         # FILE
@@ -1087,7 +1113,7 @@ class DatR(_Read):
             raise ValueError("Invalid data file size.")
 
         # COMPUTED ORDER PARAMETER
-        if loadOrder: self._loadOrder()
+        self._loadOrder(load=loadOrder)
 
     def getOrientations(self, time, *rotor):
         """
@@ -1199,18 +1225,28 @@ class DatR(_Read):
             + (np.max([time - 1, 0])//self.framesOrder)*self.orderLength)   # active work sums (taking into account the frame with index 0)
         return self._read('d')
 
-    def _loadOrder(self):
+    def _loadOrder(self, load=True):
         """
         Load order parameter dumps from
             * self.filename + '.order.pickle': order parameter,
             * self.filename + '.order.sq.pickle': squared order parameter,
         if they exist or extract them from data file and then pickle them to
         files.
+
+        Parameters
+        ----------
+        load : bool or 'r'
+            Load dump arrays. (default: True)
+            NOTE: if loadOrder=='r', force re-extract dumps from data file.
         """
+
+        if not(load): return
 
         # ORDER PARAMETER
 
         try:    # try loading
+
+            if load == 'r': raise FileNotFoundError
 
             with open(self.filename + '.order.pickle', 'rb') as orderFile:
                 self.orderParameter = pickle.load(orderFile)
@@ -1236,6 +1272,8 @@ class DatR(_Read):
         # SQUARED ORDER PARAMETER
 
         try:    # try loading
+
+            if load == 'r': raise FileNotFoundError
 
             with open(self.filename + '.order.sq.pickle', 'rb') as orderFile:
                 self.orderParameterSq = pickle.load(orderFile)
