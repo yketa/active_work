@@ -61,10 +61,10 @@ ifeq ($(CLONINGR),yes)
 	CPP=cloningR.cpp
 	LDFLAGS+=-fopenmp -lstdc++fs # compile with openMP and libstdc++fs library
 	MPIFLAGS+=-fopenmp           # compile with openMP
-ifeq ($(BIAS), 1)
+ifeq ($(BIAS),1)
 	CFLAGS+=-DBIAS=1
 	EXEC:=$(EXEC)_B1
-ifeq ($(CONTROLLED_DYNAMICS), yes)
+ifeq ($(CONTROLLED_DYNAMICS),yes)
 	CFLAGS+=-DCONTROLLED_DYNAMICS
 	EXEC:=$(EXEC)_C
 endif
@@ -106,7 +106,7 @@ ifeq ($(CELLLIST),yes)
 endif
 
 # HEUN'S SCHEEM
-ifeq ($(HEUN), yes)
+ifeq ($(HEUN),yes)
 	CFLAGS+=-DHEUN=true
 endif
 
@@ -174,7 +174,7 @@ $(OB)/test.o: test.cpp
 
 memcheck: dir $(OBJ)
 	$(CC) -g -o $(EXEC) $(OBJ) $(LDFLAGS)
-	valgrind --leak-check=yes --track-origins=yes --log-file=$(BU)/memcheck.output $(EXEC)
+	valgrind -s --leak-check=full --show-leak-kinds=all --track-origins=yes --log-file=$(BU)/memcheck.output $(EXEC)
 
 massif: dir $(OBJ)
 	$(CC) -g -o $(EXEC) $(OBJ) $(LDFLAGS)

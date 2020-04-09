@@ -26,7 +26,9 @@ from this directory, and rely on the following packages:
 
 which can be installed by running [`pip.sh`](https://github.com/yketa/active_work/blob/master/pip.sh), provided that `pip` is installed.
 
-Production of movies, via [`frame.py`](https://github.com/yketa/active_work/blob/master/frame.py), necessitates [`ffmpeg`](https://ffmpeg.org/download.html) — though other functionalities of the former can be used without the latter.
+Production of movies, via [`frame.py`](https://github.com/yketa/active_work/blob/master/frame.py), necessitates `ffmpeg` — though other functionalities of the former can be used without the latter.
+
+Memory error detection and profiling, using `make memcheck` and `make massif` (see [`Makefile`](https://github.com/yketa/active_work/blob/master/Makefile)), necessitates `valgrind`.
 
 ## Execution
 
