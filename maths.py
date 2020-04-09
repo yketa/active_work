@@ -129,7 +129,8 @@ def mean_sterr(values, remove=False):
     mean : float
         Mean of values.
     sterr : float
-        Standard error of values.
+        Standard error of values = std(...)/sqrt(len(...)).
+        NOTE: This is relevant if all values are independent.
     remove : bool
         Remove inf and -inf as well as nan. (default: False)
         NOTE: A warning will be issued if remove == False and such objects are
