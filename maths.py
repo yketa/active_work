@@ -123,20 +123,20 @@ def mean_sterr(values, remove=False):
     ----------
     values : float array
         Values.
-
-    Returns
-    -------
-    mean : float
-        Mean of values.
-    sterr : float
-        Standard error of values = std(...)/sqrt(len(...)).
-        NOTE: This is relevant if all values are independent.
     remove : bool
         Remove inf and -inf as well as nan. (default: False)
         NOTE: A warning will be issued if remove == False and such objects are
               encountered.
         NOTE: This is not guaranteed to work non-1D arrays as the shape may
               change.
+
+    Returns
+    -------
+    mean : float or float Numpy array
+        Mean of values.
+    sterr : float or float Numpy array
+        Standard error of values = std(...)/sqrt(len(...)).
+        NOTE: This is relevant if all values are independent.
     """
 
     values = np.array(values)
@@ -147,6 +147,33 @@ def mean_sterr(values, remove=False):
     if values.size == 0: return None, None
 
     return values.mean(axis=0), values.std(axis=0)/np.sqrt(values.shape[0])
+
+def aggregate(array, n):
+    """
+    Aggregate `array' by taking mean of bits of `n' consecutive values on last
+    axis.
+
+    Parameters
+    ----------
+    array : float array-like
+        Array to aggregate.
+    n : int
+        Size of bits to aggregate.
+
+    Returns
+    -------
+    out : float Numpy array
+        Aggregated array.
+    """
+
+    array = np.array(array)
+
+    return (np.array(
+        np.split(array, array.shape[-1]//n, axis=-1))
+        .transpose(
+            tuple(i for i in range(1, len(array.shape)))
+            + (0, len(array.shape)))
+        .mean(axis=-1))
 
 def cov(array1, array2):
     """
