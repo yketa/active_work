@@ -15,7 +15,7 @@ class WorkOrder(ActiveWork):
     Conjointly compute and analyse active work and order parameter.
 
     (see active_work.work.ActiveWork)
-    (see https://yketa.github.io/DAMTP_2019_Wiki/#ABP%20work%20and%20order%20LDP)
+    (see https://yketa.github.io/DAMTP_MSC_2019_Wiki/#ABP%20work%20and%20order%20LDP)
     """
 
     def __init__(self, filename, workPart='all', skip=1):
@@ -315,7 +315,7 @@ class WorkOrder(ActiveWork):
         on packs of size `n' of consecutive individual measures, at biasing
         parameter `s'.
 
-        (see https://yketa.github.io/DAMTP_2019_Wiki/#ABP%20work%20and%20order%20LDP)
+        (see https://yketa.github.io/DAMTP_MSC_2019_Wiki/#ABP%20work%20and%20order%20LDP)
 
         NOTE: This big master function is designed to avoid computing several
               times the same work and order arrays, which is time consuming.

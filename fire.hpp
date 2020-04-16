@@ -24,7 +24,7 @@ template<class SystemClass> void FIRE_WCA(
   int Nmin = 5) {
   // Uses the FIRE algorithm to minimise the WCA potential energy of a given
   // system.
-  // (see https://yketa.github.io/DAMTP_2019_Wiki/#FIRE%20algorithm)
+  // (see https://yketa.github.io/DAMTP_MSC_2019_Wiki/#FIRE%20algorithm)
 
   #ifdef DEBUG
   std::cout << "##FIRE minimisation algorithm" << std::endl;

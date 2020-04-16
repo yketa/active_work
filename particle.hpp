@@ -212,7 +212,7 @@ class System {
   /*  Contains all the details to simulate a system of active Brownian
    *  particles, with dimensionless parameters taken from Nemoto et al., PRE 99
    *  022605 (2019).
-   *  (see https://yketa.github.io/DAMTP_2019_Wiki/#Active%20Brownian%20particles)
+   *  (see https://yketa.github.io/DAMTP_MSC_2019_Wiki/#Active%20Brownian%20particles)
    *
    *  Parameters are stored in a binary file with the following structure:
    *
@@ -406,7 +406,7 @@ class System {
 class System0 {
   /*  Contains all the details to simulate a system of active Brownian
    *  particles.
-   *  (see https://yketa.github.io/DAMTP_2019_Wiki/#Active%20Brownian%20particles)
+   *  (see https://yketa.github.io/DAMTP_MSC_2019_Wiki/#Active%20Brownian%20particles)
    *
    *  Parameters are stored in a binary file with the following structure:
    *
@@ -568,7 +568,7 @@ class System0 {
 class Rotors {
   /*  Contains all the details to simulate a system of interacting Brownian
    *  rotors.
-   *  (see https://yketa.github.io/DAMTP_2019_Wiki/#N-interacting%20Brownian%20rotors)
+   *  (see https://yketa.github.io/DAMTP_MSC_2019_Wiki/#N-interacting%20Brownian%20rotors)
    *
    *  Parameters are stored in a binary file with the following structure:
    *

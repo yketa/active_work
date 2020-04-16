@@ -2,7 +2,7 @@
 Module flow provides classes to compute and analyse positions to characterise
 the structure of systems of ABPs.
 
-(see https://yketa.github.io/DAMTP_2019_Wiki/#ABP%20structure%20characteristics)
+(see https://yketa.github.io/DAMTP_MSC_2019_Wiki/#ABP%20structure%20characteristics)
 """
 
 import numpy as np
@@ -14,7 +14,7 @@ class Positions(Dat):
     """
     Compute and analyse positions from simulation data.
 
-    (see https://yketa.github.io/DAMTP_2019_Wiki/#Active%20Brownian%20particles)
+    (see https://yketa.github.io/DAMTP_MSC_2019_Wiki/#Active%20Brownian%20particles)
     """
 
     def __init__(self, filename, skip=1):
@@ -152,7 +152,7 @@ class Positions(Dat):
         (assuming isotropy).
 
         NOTE: Correlations are computed with FFT.
-              (see https://yketa.github.io/DAMTP_2019_Wiki/#Fourier%20transform%20field%20correlation)
+              (see https://yketa.github.io/DAMTP_MSC_2019_Wiki/#Fourier%20transform%20field%20correlation)
 
         Parameters
         ----------

@@ -1,11 +1,11 @@
-![Polydisperse ABPs with WCA potential](https://github.com/yketa/DAMTP_2019_Wiki/raw/master/Images/header.svg?sanitize=true)
+![Polydisperse ABPs with WCA potential](https://github.com/yketa/DAMTP_MSC_2019_Wiki/raw/master/Images/header.svg?sanitize=true)
 
 # Active work
-### Yann-Edwin Keta, DAMTP, University of Cambridge, 2019
+### Yann-Edwin Keta — DAMTP, University of Cambridge — 2019
 
 ## Introduction
 
-This repository contains scripts, for simulation and analysis purposes, developed for a research project, detailed in **[this wiki](https://yketa.github.io/DAMTP_2019_Wiki)**, concerned with active Brownian particles (ABPs) and the large deviations of the work of self-propelling forces (active work). [[Nemoto *et al.*, *Phys. Rev. E* **99**, 022605 (2019)](https://link.aps.org/doi/10.1103/PhysRevE.99.022605)]
+This repository contains scripts, for simulation and analysis purposes, developed for a research project, detailed in **[this wiki](https://yketa.github.io/DAMTP_MSC_2019_Wiki)**, concerned with active Brownian particles (ABPs) and the large deviations of the work of self-propelling forces (active work). [[Nemoto *et al.*, *Phys. Rev. E* **99**, 022605 (2019)](https://link.aps.org/doi/10.1103/PhysRevE.99.022605)]
 
 Simulation and cloning scripts are written in C++. Wrapper scripts to launch the latter are written in Python, and other Python classes and functions are available to read and analyse the generated data.
 
@@ -38,7 +38,7 @@ Given these have been compiled, they can be executed with the Python scripts lis
 
 ### Simulations of ABPs
 
-ABP model and simulation procedure is detailed in [this tiddler](https://yketa.github.io/DAMTP_2019_Wiki/#Active%20Brownian%20particles).
+ABP model and simulation procedure is detailed in [this tiddler](https://yketa.github.io/DAMTP_MSC_2019_Wiki/#Active%20Brownian%20particles).
 
 - Simulations with custom relations between parameters are launched using [`launch.py`](https://github.com/yketa/active_work/blob/master/launch.py).
 - Simulations with custom relations between parameters and for different values of the torque parameter are launched using [`launchG.py`](https://github.com/yketa/active_work/blob/master/launchG.py).
@@ -46,18 +46,18 @@ ABP model and simulation procedure is detailed in [this tiddler](https://yketa.g
 
 ### Simulations of interacting Brownian rotors
 
-Interacting Brownian rotors model is detailed in [this tiddler](https://yketa.github.io/DAMTP_2019_Wiki/#N-interacting%20Brownian%20rotors).
+Interacting Brownian rotors model is detailed in [this tiddler](https://yketa.github.io/DAMTP_MSC_2019_Wiki/#N-interacting%20Brownian%20rotors).
 
 - Simulations are launched using [`launchR.py`](https://github.com/yketa/active_work/blob/master/launchR.py).
 
 ### Cloning of ABPs
 
-Principle and computation scheme of the scaled cumulant generating function (SCGF) of the active work and corresponding averages in the biased ensemble are detailed in [this tiddler](https://yketa.github.io/DAMTP_2019_Wiki/#ABP%20cloning%20algorithm).
+Principle and computation scheme of the scaled cumulant generating function (SCGF) of the active work and corresponding averages in the biased ensemble are detailed in [this tiddler](https://yketa.github.io/DAMTP_MSC_2019_Wiki/#ABP%20cloning%20algorithm).
 
 - Cloning of trajectories of ABPs systems with custom relations between parameters, and biased with respect to either the polarisation or the active work, are launched using [`cloning.py`](https://github.com/yketa/active_work/blob/master/cloning.py).
 
 ### Cloning of non-interacting Brownian rotors
 
-Principle and computation scheme of the scaled cumulant generating function (SCGF) of the (squared) polarisation and corresponding averages in the biased ensemble are detailed in [this tiddler](https://yketa.github.io/DAMTP_2019_Wiki/#Brownian%20rotors%20cloning%20algorithm).
+Principle and computation scheme of the scaled cumulant generating function (SCGF) of the (squared) polarisation and corresponding averages in the biased ensemble are detailed in [this tiddler](https://yketa.github.io/DAMTP_MSC_2019_Wiki/#Brownian%20rotors%20cloning%20algorithm).
 
 - Cloning of trajectories of Brownian rotors are launched using [`cloningR.py`](https://github.com/yketa/active_work/blob/master/cloningR.py).

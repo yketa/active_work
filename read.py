@@ -410,7 +410,7 @@ class _Dat(_Read):
         Returns normalised zeroth integral in the expression of the modified
         active work for control-feedback modified dynamics from `time0' to
         `time1'.
-        (see https://yketa.github.io/DAMTP_2019_Wiki/#ABP%20cloning%20algorithm)
+        (see https://yketa.github.io/DAMTP_MSC_2019_Wiki/#ABP%20cloning%20algorithm)
 
         NOTE: Using Stratonovitch convention.
 
@@ -462,7 +462,7 @@ class _Dat(_Read):
         Returns normalised first integral in the expression of the modified
         active work for control-feedback modified dynamics from `time0' to
         `time1'.
-        (see https://yketa.github.io/DAMTP_2019_Wiki/#ABP%20cloning%20algorithm)
+        (see https://yketa.github.io/DAMTP_MSC_2019_Wiki/#ABP%20cloning%20algorithm)
 
         NOTE: Using Stratonovitch convention.
 
@@ -495,7 +495,7 @@ class _Dat(_Read):
         Returns normalised second integral in the expression of the modified
         active work for control-feedback modified dynamics from `time0' to
         `time1'.
-        (see https://yketa.github.io/DAMTP_2019_Wiki/#ABP%20cloning%20algorithm)
+        (see https://yketa.github.io/DAMTP_MSC_2019_Wiki/#ABP%20cloning%20algorithm)
 
         NOTE: Using Stratonovitch convention.
 

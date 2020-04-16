@@ -5,7 +5,7 @@ read output data files from these simulations.
 Bias is chosen with environment variable `CLONING_BIAS':
     (0) order parameter,
     (1) squared order parameter.
-(see https://yketa.github.io/DAMTP_2019_Wiki/#Brownian%20rotors%20cloning%20algorithm)
+(see https://yketa.github.io/DAMTP_MSC_2019_Wiki/#Brownian%20rotors%20cloning%20algorithm)
 """
 
 import numpy as np

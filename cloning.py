@@ -15,8 +15,8 @@ Controlled dynamics is chosen with environment variable `CONTROLLED_DYNAMICS':
         function of the order parameter norm,
     (3) Modified translational and rotational EOM, choosing free parameter as
         to minimise the SCGF.
-(see https://yketa.github.io/DAMTP_2019_Wiki/#ABP%20cloning%20algorithm%20%E2%80%94%20polarisation
-and https://yketa.github.io/DAMTP_2019_Wiki/#ABP%20cloning%20algorithm)
+(see https://yketa.github.io/DAMTP_MSC_2019_Wiki/#ABP%20cloning%20algorithm%20%E2%80%94%20polarisation
+and https://yketa.github.io/DAMTP_MSC_2019_Wiki/#ABP%20cloning%20algorithm)
 """
 
 import numpy as np

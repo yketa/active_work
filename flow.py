@@ -2,7 +2,7 @@
 Module flow provides classes to compute and analyse displacements, velocities,
 and orientations in order to characterise the flow of systems of ABPs.
 
-(see https://yketa.github.io/DAMTP_2019_Wiki/#ABP%20flow%20characteristics)
+(see https://yketa.github.io/DAMTP_MSC_2019_Wiki/#ABP%20flow%20characteristics)
 """
 
 import numpy as np
@@ -18,7 +18,7 @@ class Displacements(Dat):
     """
     Compute and analyse displacements from simulation data.
 
-    (see https://yketa.github.io/DAMTP_2019_Wiki/#Active%20Brownian%20particles)
+    (see https://yketa.github.io/DAMTP_MSC_2019_Wiki/#Active%20Brownian%20particles)
     """
 
     def __init__(self, filename, skip=1):
@@ -255,7 +255,7 @@ class Displacements(Dat):
         Returns value of theoretical mean squared displacement at lag time `dt'
         for a single ABP.
 
-        (see https://yketa.github.io/DAMTP_2019_Wiki/#One%20ABP)
+        (see https://yketa.github.io/DAMTP_MSC_2019_Wiki/#One%20ABP)
 
         Parameters
         ----------
@@ -307,7 +307,7 @@ class Velocities(Dat):
     """
     Compute and analyse velocities from simulation data.
 
-    (see https://yketa.github.io/DAMTP_2019_Wiki/#Active%20Brownian%20particles)
+    (see https://yketa.github.io/DAMTP_MSC_2019_Wiki/#Active%20Brownian%20particles)
     """
 
     def __init__(self, filename, skip=1):
@@ -413,7 +413,7 @@ class Velocities(Dat):
         """
         Returns kinetic energy spectrum.
 
-        (see https://yketa.github.io/DAMTP_2019_Wiki/#ABP%20flow%20characteristics)
+        (see https://yketa.github.io/DAMTP_MSC_2019_Wiki/#ABP%20flow%20characteristics)
 
         Parameters
         ----------
@@ -477,7 +477,7 @@ class Orientations(Dat):
     """
     Compute and analyse orientations from simulation data.
 
-    (see https://yketa.github.io/DAMTP_2019_Wiki/#Active%20Brownian%20particles)
+    (see https://yketa.github.io/DAMTP_MSC_2019_Wiki/#Active%20Brownian%20particles)
     """
 
     def __init__(self, filename, skip=1):
@@ -628,7 +628,7 @@ class Orientations(Dat):
         Compute spatial correlations of particles' orientations (and density).
 
         NOTE: Correlations are computed with FFT.
-              (see https://yketa.github.io/DAMTP_2019_Wiki/#Fourier%20transform%20field%20correlation)
+              (see https://yketa.github.io/DAMTP_MSC_2019_Wiki/#Fourier%20transform%20field%20correlation)
 
         Parameters
         ----------
@@ -695,7 +695,7 @@ class Orientations(Dat):
         Returns value of theoretical probability density function of the order
         parameter norm.
 
-        (see https://yketa.github.io/DAMTP_2019_Wiki/#N-interacting%20Brownian%20rotors)
+        (see https://yketa.github.io/DAMTP_MSC_2019_Wiki/#N-interacting%20Brownian%20rotors)
 
         Parameters
         ----------

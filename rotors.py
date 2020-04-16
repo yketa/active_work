@@ -2,7 +2,7 @@
 Module rotors provides classes and functions to compute and analyse
 orientational dynamics and statistics of interacting Brownian rotors.
 
-(see https://yketa.github.io/DAMTP_2019_Wiki/#N-interacting%20Brownian%20rotors)
+(see https://yketa.github.io/DAMTP_MSC_2019_Wiki/#N-interacting%20Brownian%20rotors)
 """
 
 import numpy as np
@@ -17,7 +17,7 @@ class Rotors(DatR):
     Compute and analyse orientational dynamics and statistics from simulation
     data.
 
-    (see https://yketa.github.io/DAMTP_2019_Wiki/#N-interacting%20Brownian%20rotors)
+    (see https://yketa.github.io/DAMTP_MSC_2019_Wiki/#N-interacting%20Brownian%20rotors)
     """
 
     def __init__(self, filename, skip=1):
@@ -104,7 +104,7 @@ class Rotors(DatR):
         Returns value of theoretical probability density function of the order
         parameter norm.
 
-        (see https://yketa.github.io/DAMTP_2019_Wiki/#N-interacting%20Brownian%20rotors)
+        (see https://yketa.github.io/DAMTP_MSC_2019_Wiki/#N-interacting%20Brownian%20rotors)
 
         Parameters
         ----------
@@ -146,7 +146,7 @@ class Mathieu:
     Provides estimates of the SCGF and the rate function of a single rotor from
     Mathieu functions.
 
-    (see https://yketa.github.io/DAMTP_2019_Wiki/#Brownian%20rotors%20LDP)
+    (see https://yketa.github.io/DAMTP_MSC_2019_Wiki/#Brownian%20rotors%20LDP)
     """
 
     def __init__(self, Dr):
@@ -206,7 +206,7 @@ def nu_pdf_th(N, g, Dr, *nu):
     Returns value of theoretical probability density function of the order
     parameter norm.
 
-    (see https://yketa.github.io/DAMTP_2019_Wiki/#N-interacting%20Brownian%20rotors)
+    (see https://yketa.github.io/DAMTP_MSC_2019_Wiki/#N-interacting%20Brownian%20rotors)
 
     Parameters
     ----------

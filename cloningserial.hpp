@@ -32,7 +32,7 @@
 template<class SystemClass> class CloningSerial {
   /*  Contains all the parameters relevant to the cloning algorithm and the
    *  clones themselves.
-   *  (see https://yketa.github.io/DAMTP_2019_Wiki/#Cloning%20algorithm)
+   *  (see https://yketa.github.io/DAMTP_MSC_2019_Wiki/#Cloning%20algorithm)
    */
 
   public:

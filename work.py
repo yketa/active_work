@@ -14,7 +14,7 @@ class ActiveWork(Dat):
     """
     Compute and analyse active work from simulation data.
 
-    (see https://yketa.github.io/DAMTP_2019_Wiki/#Active%20Brownian%20particles)
+    (see https://yketa.github.io/DAMTP_MSC_2019_Wiki/#Active%20Brownian%20particles)
     """
 
     def __init__(self, filename, workPart='all', skip=1):
