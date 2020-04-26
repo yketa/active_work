@@ -6,7 +6,7 @@ orientational dynamics and statistics of interacting Brownian rotors.
 """
 
 import numpy as np
-from scipy.special import mathieu_a
+from scipy.special import mathieu_a, mathieu_cem
 import scipy.optimize as optimize
 
 from active_work.read import DatR
@@ -144,9 +144,10 @@ class Rotors(DatR):
 class Mathieu:
     """
     Provides estimates of the SCGF and the rate function of a single rotor from
-    Mathieu functions.
+    Mathieu functions, as well as optimal control potential for the angle.
 
     (see https://yketa.github.io/DAMTP_MSC_2019_Wiki/#Brownian%20rotors%20LDP)
+    (see https://en.wikipedia.org/wiki/Mathieu_function)
     """
 
     def __init__(self, Dr):
@@ -161,13 +162,15 @@ class Mathieu:
 
         self.Dr = Dr
 
+        self._mathieu_order = 0 # order of Mathieu function
+
     def SCGF(self, *s):
         """
         Returns estimate of the SCGF.
 
         Parameters
         ----------
-        s : float
+        s : float 2-uple
             Biasing parameter.
 
         Returns
@@ -177,7 +180,9 @@ class Mathieu:
         """
 
         return np.array(list(map(
-            lambda _s: -(self.Dr/4)*mathieu_a(0, (2./self.Dr)*_s),
+            lambda _s: -(self.Dr/4.)*(
+                self._mathieu_characteristic_a(_s[0])
+                + self._mathieu_characteristic_a(_s[1])),
             s)))
 
     def rate(self, *p):
@@ -186,7 +191,7 @@ class Mathieu:
 
         Parameters
         ----------
-        p : float
+        p : float 2-uple
             Polarisation norm.
 
         Returns
@@ -196,10 +201,114 @@ class Mathieu:
         """
 
         return np.array(list(map(
-            lambda _p: -optimize.minimize(
-                lambda s: s*_p + self.SCGF(s)[0],
-                0)['fun'],
+            lambda _p: -np.array(optimize.minimize(
+                lambda s: np.dot(s, _p) + self.SCGF(s)[0],
+                (0, 0))['fun'], ndmin=1)[0],
             p)))
+
+    def optimal_potential(self, s, *theta):
+        """
+        Returns optimal control potential for biasing parameter `s'.
+
+        Parameters
+        ----------
+        s : float
+            Biasing parameter.
+        theta : float
+            Angles (in radians) at which to evaluate the potential.
+
+        Returns
+        -------
+        phi : float Numpy array
+            Optimal control potential.
+        """
+
+        return (np.array(list(map(
+            lambda _theta: -2*np.log(self._mathieu_function(s, _theta)),
+            theta)))
+            + 2*np.log(self._mathieu_function(s, 0)))   # normalisation
+
+    def optimal_potential_curvature(self, s):
+        """
+        Returns curvature of optimal control potential at theta = 0.
+
+        Parameters
+        ----------
+        s : float
+            Biasing parameter.
+
+        Returns
+        -------
+        k : float
+            Curvature at theta = 0.
+        """
+
+        return (1./2.)*(
+            self._mathieu_characteristic_a(s)
+            - 2*self._mathieu_characteristic_q(s))
+
+    def _mathieu_characteristic_q(self, s):
+        """
+        Returns characteristic value 'q' of the Mathieu function.
+
+        Notation from https://en.wikipedia.org/wiki/Mathieu_function.
+
+        Parameters
+        ----------
+        s : float
+            Biasing parameter.
+
+        Returns
+        -------
+        q : float
+            Characteristic value 'q' of the Mathieu function.
+        """
+
+        return (2.*s)/self.Dr
+
+    def _mathieu_characteristic_a(self, s):
+        """
+        Returns characteristic value 'a' of the Mathieu function.
+
+        Notation from https://en.wikipedia.org/wiki/Mathieu_function.
+
+        Parameters
+        ----------
+        s : float
+            Biasing parameter.
+
+        Returns
+        -------
+        a : float
+            Characteristic value 'a' of the Mathieu function.
+        """
+
+        return mathieu_a(
+            self._mathieu_order,
+            self._mathieu_characteristic_q(s))
+
+    def _mathieu_function(self, s, theta):
+        """
+        Returns Mathieu function evaluated at angle `theta
+
+        Notation from https://en.wikipedia.org/wiki/Mathieu_function.
+
+        Parameters
+        ----------
+        s : float
+            Biasing parameter.
+        theta : float
+            Angle (in radians) at which to evaluate.
+
+        Returns
+        -------
+        ce : float
+            Mathieu function evaluated at `theta'.
+        """
+
+        return mathieu_cem(
+            self._mathieu_order, self._mathieu_characteristic_q(s),
+            (180./np.pi)*theta/2.)[0]
 
 def nu_pdf_th(N, g, Dr, *nu):
     """
