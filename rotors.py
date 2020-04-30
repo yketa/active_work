@@ -8,6 +8,7 @@ orientational dynamics and statistics of interacting Brownian rotors.
 import numpy as np
 from scipy.special import mathieu_a, mathieu_cem
 import scipy.optimize as optimize
+from scipy.misc import derivative
 
 from active_work.read import DatR
 from active_work.maths import Distribution
@@ -162,11 +163,81 @@ class Mathieu:
 
         self.Dr = Dr
 
+        # physical parameters
         self._mathieu_order = 0 # order of Mathieu function
+
+        # numerical parameters
+        self.width_inv_search = 5   # width (in units of Dr) of the interval to search when inverting functions
+        self.dx = 1e-6              # accuracy for derivative
+
+    def SCGFX(self, *s):
+        """
+        Returns SCGF of the polarisation along x-axis.
+
+        Parameters
+        ----------
+        s : float
+            Biasing parameter.
+
+        Returns
+        -------
+        psi : float Numpy array
+            Scaled cumulant generating function.
+        """
+
+        return np.array(list(map(
+            lambda _s: -(self.Dr/4.)*(
+                self._mathieu_characteristic_a(_s)),
+            s)))
+
+    def pX(self, *s):
+        """
+        Returns biased average of polarisation along x-axis from derivative
+        of SCGF.
+
+        Parameters
+        ----------
+        s : float
+            Biasing parameter.
+
+        Returns
+        -------
+        px : float Numpy array
+            Biased average of polarisation along x-axis.
+        """
+
+        return np.array(list(map(
+            lambda _s: -derivative(lambda _: self.SCGFX(_)[0], _s, dx=self.dx),
+            s)))
+
+    def sPX(self, *px):
+        """
+        Returns biasing parameter which gives biased average of polarisation
+        along x-axis.
+
+        Parameters
+        ----------
+        px : float Numpy array
+            Biased average of polarisation along x-axis.
+
+        Returns
+        -------
+        s : float Numpy array
+            Biasing parameter.
+        """
+
+        return np.array(list(map(
+            lambda _px:
+                optimize.root_scalar(
+                    lambda _: self.pX(_)[0] - _px,
+                    x0=-self.width_inv_search*self.Dr,
+                    x1=self.width_inv_search*self.Dr
+                ).root,
+            px)))
 
     def SCGF(self, *s):
         """
-        Returns estimate of the SCGF.
+        Returns SCGF of the vectorial polarisation.
 
         Parameters
         ----------
@@ -179,20 +250,37 @@ class Mathieu:
             Scaled cumulant generating function.
         """
 
+        return self.SCGFX(*np.sqrt((np.array(s)**2).sum(axis=-1)))
+
+    def rateX(self, *p):
+        """
+        Returns rate function of the polarisation along x-axis.
+
+        Parameters
+        ----------
+        p : float
+            Polarisation along x-axis.
+
+        Returns
+        -------
+        I : float Numpy array
+            Rate function.
+        """
+
         return np.array(list(map(
-            lambda _s: -(self.Dr/4.)*(
-                self._mathieu_characteristic_a(_s[0])
-                + self._mathieu_characteristic_a(_s[1])),
-            s)))
+            lambda _p: -np.array(optimize.minimize(
+                lambda s: s*p + self.SCGFX(s)[0],
+                (0, 0))['fun'], ndmin=1)[0],
+            p)))
 
     def rate(self, *p):
         """
-        Returns estimate of the rate function.
+        Returns rate function of the vectorial polarisation.
 
         Parameters
         ----------
         p : float 2-uple
-            Polarisation norm.
+            Polarisation.
 
         Returns
         -------
@@ -208,7 +296,7 @@ class Mathieu:
 
     def optimal_potential(self, s, *theta):
         """
-        Returns optimal control potential for biasing parameter `s'.
+        Returns optimal control potential for biasing parameter `s' (on x-axis).
 
         Parameters
         ----------
@@ -230,7 +318,8 @@ class Mathieu:
 
     def optimal_potential_curvature(self, s):
         """
-        Returns curvature of optimal control potential at theta = 0.
+        Returns curvature of optimal control potential at theta = 0 for biasing
+        parameter `s' (on x-axis).
 
         Parameters
         ----------
@@ -249,7 +338,8 @@ class Mathieu:
 
     def _mathieu_characteristic_q(self, s):
         """
-        Returns characteristic value 'q' of the Mathieu function.
+        Returns characteristic value 'q' of the Mathieu function for biasing
+        parameter `s'.
 
         Notation from https://en.wikipedia.org/wiki/Mathieu_function.
 
@@ -268,7 +358,8 @@ class Mathieu:
 
     def _mathieu_characteristic_a(self, s):
         """
-        Returns characteristic value 'a' of the Mathieu function.
+        Returns characteristic value 'a' of the Mathieu function for biasing
+        parameter `s'.
 
         Notation from https://en.wikipedia.org/wiki/Mathieu_function.
 
@@ -289,7 +380,8 @@ class Mathieu:
 
     def _mathieu_function(self, s, theta):
         """
-        Returns Mathieu function evaluated at angle `theta
+        Returns Mathieu function evaluated at angle `theta' for biasing
+        parameter `s'.
 
         Notation from https://en.wikipedia.org/wiki/Mathieu_function.
 
