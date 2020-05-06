@@ -21,7 +21,7 @@ from this directory, and rely on the following packages:
 
 - `matplotlib`: plotting,
 - `numpy`: mathematical functions and array manipulation,
-- `scipy`: grid interpolation ([`scde.py`](https://github.com/yketa/active_work/blob/master/scde.py)),
+- `scipy`: various optimisation methods and special functions,
 - `fastkde`: kernel density estimation ([`scde.py`](https://github.com/yketa/active_work/blob/master/scde.py)),
 
 which can be installed by running [`pip.sh`](https://github.com/yketa/active_work/blob/master/pip.sh), provided that `pip` is installed.
