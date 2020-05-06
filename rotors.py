@@ -6,12 +6,17 @@ orientational dynamics and statistics of interacting Brownian rotors.
 """
 
 import numpy as np
-from scipy.special import mathieu_a, mathieu_cem
+import scipy.special as special
 import scipy.optimize as optimize
-from scipy.misc import derivative
+import scipy.misc as misc
+import scipy.integrate as integrate
 
 from active_work.read import DatR
 from active_work.maths import Distribution
+
+############
+### DATA ###
+############
 
 class Rotors(DatR):
     """
@@ -142,6 +147,41 @@ class Rotors(DatR):
         return np.linspace(
             self.skip, self.frames - 1, int(int_max), endpoint=False, dtype=int)
 
+def nu_pdf_th(N, g, Dr, *nu):
+    """
+    Returns value of theoretical probability density function of the order
+    parameter norm.
+
+    (see https://yketa.github.io/DAMTP_MSC_2019_Wiki/#N-interacting%20Brownian%20rotors)
+
+    Parameters
+    ----------
+    N : int
+        Number of rotors.
+    g : float
+        Aligning torque parameter.
+    Dr : float
+        Rotational diffusivity.
+    nu : float
+        Values of the order parameter norm at which to evaluate the
+        probability density function.
+
+    Returns
+    -------
+    pdf : (*,) float numpy array
+        Probability density function.
+    """
+
+    Z = (1 - np.exp(-N*(1 + g/Dr)))/(2*N*(1 + g/Dr))    # partition function
+
+    return np.array(list(map(
+        lambda _nu: _nu*np.exp(-N*(1 + g/Dr)*(_nu**2))/Z,
+        nu)))
+
+###############################
+### THEORETICAL PREDICTIONS ###
+###############################
+
 class Mathieu:
     """
     Provides estimates of the SCGF and the rate function of a single rotor from
@@ -207,7 +247,8 @@ class Mathieu:
         """
 
         return np.array(list(map(
-            lambda _s: -derivative(lambda _: self.SCGFX(_)[0], _s, dx=self.dx),
+            lambda _s:
+                -misc.derivative(lambda _: self.SCGFX(_)[0], _s, dx=self.dx),
             s)))
 
     def sPX(self, *px):
@@ -270,7 +311,7 @@ class Mathieu:
         return np.array(list(map(
             lambda _p: -np.array(optimize.minimize(
                 lambda s: s*p + self.SCGFX(s)[0],
-                (0, 0))['fun'], ndmin=1)[0],
+                (0, 0)).fun, ndmin=1)[0],
             p)))
 
     def rate(self, *p):
@@ -374,7 +415,7 @@ class Mathieu:
             Characteristic value 'a' of the Mathieu function.
         """
 
-        return mathieu_a(
+        return special.mathieu_a(
             self._mathieu_order,
             self._mathieu_characteristic_q(s))
 
@@ -398,37 +439,350 @@ class Mathieu:
             Mathieu function evaluated at `theta'.
         """
 
-        return mathieu_cem(
+        return special.mathieu_cem(
             self._mathieu_order, self._mathieu_characteristic_q(s),
             (180./np.pi)*theta/2.)[0]
 
-def nu_pdf_th(N, g, Dr, *nu):
+class VariationalPolarisationSquared:
     """
-    Returns value of theoretical probability density function of the order
-    parameter norm.
+    Provides estimates of the SCGF and the rate function for independent
+    Brownian rotors biased with respect to their squared polarisation, following
+    a variational approach based on the following ansatz for the distribution of
+    orientations
+
+        P[\\{\\theta_i\\}] \\propto \\exp(h(s) \\sum_i \\cos\\theta_i)
+
+    which is optimised with respect to the distribution parameter h(s).
+
+    (see https://yketa.github.io/DAMTP_MSC_2019_Wiki/#Brownian%20rotors%20LDP)
+    """
+
+    def __init__(self, Dr):
+        """
+        Defines parameters.
+
+        Parameters
+        ----------
+        Dr : float
+            Rotational diffusivity.
+        """
+
+        self.Dr = Dr
+
+        # numerical parameters
+        self.width_inv_search = 5   # width (in units of Dr) of the interval to search when inverting functions
+        self.dx = 1e-6              # accuracy for derivative
+
+    def SCGF(self, *s):
+        """
+        Returns maximised lower bound to the scaled cumulant generating
+        function.
+
+        Parameters
+        ----------
+        s : float
+            Biasing parameter.
+
+        Returns
+        -------
+        psi : float Numpy array
+            Scaled cumulant generating function.
+        """
+
+        return np.array(list(map(
+            lambda _s: np.array(self._maximise_SCGF_bound(_s).fun, ndmin=1)[0],
+            s)))
+
+    def h(self, *s):
+        """
+        Returns optimised distribution parameter.
+
+        Parameters
+        ----------
+        s : float
+            Biasing parameter.
+
+        Returns
+        -------
+        h : float Numpy array
+            Distribution parameter.
+        """
+
+        return np.array(list(map(
+            lambda _s: np.array(self._maximise_SCGF_bound(_s).x, ndmin=1)[0],
+            s)))
+
+    def p(self, *s):
+        """
+        Returns estimate of the biased average of the (squared) polarisation
+        from the derivative of the bound to the SCGF.
+
+        Parameters
+        ----------
+        s : float
+            Biasing parameter.
+
+        Returns
+        -------
+        p : float Numpy array
+            Biased average of the (squared) polarisation.
+        """
+
+        return np.array(list(map(
+            lambda _s:
+                -misc.derivative(lambda _: self.SCGF(_)[0], _s, dx=self.dx),
+            s)))
+
+    def s(self, *p):
+        """
+        Returns biasing parameter associated to estimate of the biased average
+        of the (squared) polarisation from the derivative of the bound to the
+        SCGF.
+
+        Parameters
+        ----------
+        p : float
+            (Squared) polarisation.
+
+        Returns
+        -------
+        s : float Numpu array
+            Biasing parameter.
+        """
+
+        return np.array(list(map(
+            lambda _p:
+                optimize.root_scalar(
+                    lambda _: self.p(_)[0] - _p,
+                    x0=-self.width_inv_search*self.Dr,
+                    x1=self.width_inv_search*self.Dr
+                ).root,
+            p)))
+
+    def rate(self, *p):
+        """
+        Returns maximised upper bound to the rate function.
+
+        Parameters
+        ----------
+        p : float
+            (Squared) polarisation.
+
+        Returns
+        -------
+        I : float Numpy array
+            Rate function.
+        """
+
+        return np.array(list(map(
+            lambda _p: -np.array(optimize.minimize_scalar(
+                lambda _: self._rate_bound(_p, _)).fun,
+                ndmin=1)[0],
+            p)))
+
+    def _rate_bound(self, p, x):
+        """
+        Function which minimum opposite on `x' corresponds to the upper bound
+        to the rate function for (squared) polarisation `p' following our
+        variational approach.
+
+        Parameters
+        ----------
+        p : float
+            (Squared) polarisation.
+        x : float
+            Biasing parameter.
+
+        Returns
+        -------
+        B : float
+            Evaluated bound.
+        """
+
+        return x*p + self.SCGF(x)[0]
+
+    def _maximise_SCGF_bound(self, s):
+        """
+        Maximises bound to the SCGF for biasing parameter `s' following our
+        variational approach.
+
+        Parameters
+        ----------
+        s : float
+            Biasing parameter.
+
+        Returns
+        -------
+        opt : scipy.optimize.OptimizeResult
+            Optimisation result.
+        """
+
+        opt = optimize.minimize_scalar(lambda _: -self._SCGF_bound(s, _))
+        opt.fun = -opt.fun      # the opposite of the functon is minimised
+        opt.x = np.abs(opt.x)/2 # self._SCGF_bound is a function of 2 h(s) and is furthermore even when biasing wrt the squared polarisation and we are interested in the positive solution
+
+        return opt
+
+    def _SCGF_bound(self, s, x):
+        """
+        Function which maximum on `x' corresponds to the lower bound to the SCGF
+        for biasing parameter `s' following our variational approach.
+
+        Parameters
+        ----------
+        s : float
+            Biasing parameter.
+        x : float
+            Double of the distribution parameter.
+
+        Returns
+        -------
+        B : float
+            Evaluated bound.
+        """
+
+        return (-self.Dr*x/4*special.iv(1.0, x)/special.iv(0.0, x)
+            - s*(special.iv(1.0, x)**2)/(special.iv(0.0, x)**2))
+
+class VariationalPolarisation(VariationalPolarisationSquared):
+    """
+    Provides estimates of the SCGF and the rate function for independent
+    Brownian rotors biased with respect to their polarisation, following a
+    variational approach based on the following ansatz for the distribution of
+    orientations
+
+        P[\\{\\theta_i\\}] \\propto \\exp(h(s) \\sum_i \\cos\\theta_i)
+
+    which is optimised with respect to the distribution parameter h(s).
+
+    (see https://yketa.github.io/DAMTP_MSC_2019_Wiki/#Brownian%20rotors%20LDP)
+    """
+
+    def g(self, *p):
+        """
+        Returns torque parameter associated to biased average of polarisation
+        `p'.
+
+        Parameters
+        ----------
+        p : float
+            Polarisation.
+
+        Returns
+        -------
+        g : float
+            Torque parameter.
+        """
+
+        return np.array(list(map(
+            lambda _: -self.Dr*self.h(self.s(_)[0])[0]/(2*_),
+            p)))
+
+    def _SCGF_bound(self, s, x):
+        """
+        Function which maximum on `x' corresponds to the lower bound to the SCGF
+        for biasing parameter `s' following our variational approach.
+
+        Parameters
+        ----------
+        s : float
+            Biasing parameter.
+        x : float
+            Double of the distribution parameter.
+
+        Returns
+        -------
+        B : float
+            Evaluated bound.
+        """
+
+        return (-self.Dr*x/4*special.iv(1.0, x)/special.iv(0.0, x)
+            - s*(special.iv(1.0, x))/(special.iv(0.0, x)))
+
+class MeanFieldRotors:
+    """
+    Provides estimates of the average polarisation for a mean-field model of
+    rotors with aligning torque.
 
     (see https://yketa.github.io/DAMTP_MSC_2019_Wiki/#N-interacting%20Brownian%20rotors)
-
-    Parameters
-    ----------
-    N : int
-        Number of rotors.
-    g : float
-        Aligning torque parameter.
-    Dr : float
-        Rotational diffusivity.
-    nu : float
-        Values of the order parameter norm at which to evaluate the
-        probability density function.
-
-    Returns
-    -------
-    pdf : (*,) float numpy array
-        Probability density function.
     """
 
-    Z = (1 - np.exp(-N*(1 + g/Dr)))/(2*N*(1 + g/Dr))    # partition function
+    def __init__(self, Dr):
+        """
+        Defines parameters.
 
-    return np.array(list(map(
-        lambda _nu: _nu*np.exp(-N*(1 + g/Dr)*(_nu**2))/Z,
-        nu)))
+        Parameters
+        ----------
+        Dr : float
+            Rotational diffusivity.
+        """
+
+        self.Dr = Dr
+
+    def nu(self, *g):
+        """
+        Returns average polarisation for a given torque parameter `g'.
+
+        Parameters
+        ----------
+        g : float
+            Torque parameter.
+
+        Returns
+        -------
+        p : float Numpy array
+            Average polarisation.
+        """
+
+        return np.array(list(map(
+            lambda _g: optimize.fsolve(
+                lambda _: _ - self._polarisation(_, _g), x0=0.5)[0],
+            g)))
+
+    def _boltzmann(self, nu, g, theta):
+        """
+        Returns Boltzmann coefficient for angle `theta' given the polarisation
+        `nu' and the torque parameter `g'.
+
+        Parameters
+        ----------
+        nu : float
+            Polarisation.
+        g : float
+            Torque parameter.
+        theta : float
+            Angle.
+
+        Returns
+        -------
+        b : float
+            Boltzmann coefficient.
+        """
+
+        return np.exp(-2*g*nu*np.cos(theta)/self.Dr)
+
+    def _polarisation(self, nu, g):
+        """
+        Returns average polarisation given the polarisation `nu' and the
+        torque parameter `g'.
+
+        NOTE: This function is meant to be used in order to determine the
+              polarisation self-consistently.
+
+        Parameters
+        ----------
+        nu : float
+            Polarisation.
+        g : float
+            Torque parameter.
+
+        Returns
+        -------
+        p : float
+            Average polarisation.
+        """
+
+        Z = integrate.quad(lambda _: self._boltzmann(nu, g, _), 0, 2*np.pi)[0]  # partition function
+
+        return integrate.quad(
+            lambda _: np.cos(_)*self._boltzmann(nu, g, _), 0, 2*np.pi)[0]/Z
