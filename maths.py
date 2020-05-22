@@ -8,6 +8,7 @@ import numpy as np
 from numpy.polynomial.polynomial import polyadd, polypow
 import math
 from collections import OrderedDict
+from scipy import optimize
 
 from active_work.scde import PDF
 
@@ -115,7 +116,7 @@ def amplogwidth(arr, factor=2):
 
     return mean - factor*std, mean + factor*std
 
-def mean_sterr(values, remove=False):
+def mean_sterr(values, remove=False, max=None):
     """
     Returns mean and standard error of values.
 
@@ -129,6 +130,10 @@ def mean_sterr(values, remove=False):
               encountered.
         NOTE: This is not guaranteed to work non-1D arrays as the shape may
               change.
+    max : float or None
+        Remove data which is strictly above max in absolute value.
+        (default: None)
+        NOTE: max != None will trigger remove = True.
 
     Returns
     -------
@@ -139,11 +144,14 @@ def mean_sterr(values, remove=False):
         NOTE: This is relevant if all values are independent.
     """
 
+    if max != None: remove = True
+
     values = np.array(values)
     if remove: values = (
         (lambda _: _[~np.isinf(_)])(    # remove inf
         (lambda __: __[~np.isnan(__)])( # remove nan
         values)))
+    if max != None: values = values[np.abs(values) <= max]
     if values.size == 0: return None, None
 
     return values.mean(axis=0), values.std(axis=0)/np.sqrt(values.shape[0])
@@ -322,6 +330,94 @@ def angle(dx, dy):
     """
 
     return math.atan2(dy, dx)
+
+class CurveFit:
+    """
+    Fit a 1-variable scalar function to data points and evaluate with
+    uncertainty. (see scipy.optimize.curve_fit)
+    """
+
+    def __init__(self, func, xdata, ydata, jac=None, **kwargs):
+        """
+        Fit curve to data points. (see scipy.optimize.curve_fit)
+
+        Parameters
+        ----------
+        func : callable scalar function
+            Model function, f(x, ...), taking the independent variable as the
+            first argument and the parameters to fit as separate remaining
+            arguments.
+        xdata : float array-like
+            x-data to fit.
+        ydata : float array-like
+            y-data to fit.
+        jac : callable 1D-array-like function or None
+            Jacobian matrix of the model function with respect to parameters.
+            (default: None)
+            NOTE: standard deviations will not be computed if jac == None.
+
+        Optional keyword arguments
+        --------------------------
+        Additional keyword arguments will be passed to scipy.optimize.curve_fit.
+        """
+
+        self.func = func
+        self.jac = jac
+        self.xdata = np.array(xdata)
+        self.ydata = np.array(ydata)
+        self.curve_fit_kwargs = kwargs
+
+        self.popt, self.pcov = optimize.curve_fit(
+            self.func, self.xdata, self.ydata,
+            #jac=self.jac,
+            **self.curve_fit_kwargs)
+
+    def eval(self, *x):
+        """
+        Evaluate fitted curve with standard deviation.
+
+        Parameters
+        ----------
+        x : float
+            x-data.
+
+        Returns
+        -------
+        y : float Numpy array
+            Fitted y-data.
+        sigma : float Numpy array
+            Uncertainty on y-data.
+        """
+
+        y = np.array(list(map(lambda _: self.func(_, *self.popt), x)))
+        sigma = np.array(list(map(lambda _: self._sigma(_), x)))
+
+        return y, sigma
+
+    def _sigma(self, x):
+        """
+        Evaluate standard deviation at point `x'.
+
+        Parameters
+        ----------
+        x : float
+            x-data.
+
+        Returns
+        -------
+        sigma : float
+            Standard deviation at `x'.
+            NOTE: returns 0 if self.jac == None.
+        """
+
+        if self.jac is None: return 0
+
+        return np.sqrt(
+            np.dot(
+                self.jac(x, *self.popt),
+                np.dot(
+                    self.pcov,
+                    np.transpose(self.jac(x, *self.popt)))))
 
 ###################
 ### POLYNOMIALS ###
