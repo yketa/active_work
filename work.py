@@ -8,7 +8,8 @@ from collections import OrderedDict
 from operator import itemgetter
 
 from active_work.read import Dat
-from active_work.maths import Distribution, mean_sterr, linspace, logspace
+from active_work.maths import Distribution, mean_sterr, linspace, logspace,\
+    CurveFit
 
 class ActiveWork(Dat):
     """
@@ -81,6 +82,45 @@ class ActiveWork(Dat):
             workAvegared += [self.workArray[i:i + n].mean()]
 
         return np.array(workAvegared)
+
+    def varWork(self, n_max=100, int_max=100, min=None, max=None, log=True):
+        """
+        Parameters
+        ----------
+        n_max : int
+            Maximum number of values at which to evaluate the variance.
+            (default: 100)
+        int_max : int or None
+            Maximum number of different intervals to consider in order to
+            compute the mean which appears in the variance expression.
+            (default: None)
+            NOTE: if int_max == None, then a maximum number of intervalls will
+                  be considered.
+        min : int or None
+            Minimum value at which to compute the variance. (default: None)
+            NOTE: this value is passed as `min' to self.n.
+        max : int or None
+            Maximum value at which to compute the correlation. (default: None)
+            NOTE: this value is passed as `max' to self.n.
+        log : bool
+            Logarithmically space values at which the variance is computed.
+            (default: True)
+
+        Returns
+        -------
+        var : (*, 2) float Numpy array
+            Array of variance:
+                (0) absolute time over which the work is averaged,
+                (1) computed variance on this interval.
+        """
+
+        var = []
+        for n in self._n(n_max=n_max, min=min, max=max, log=log):
+            var += [[
+                n*self.dumpPeriod*self.framesWork*self.dt,
+                self.nWork(n, int_max=int_max).var()]]
+
+        return np.array(var)
 
     def nWorkPDF(self, n):
         """
@@ -749,3 +789,89 @@ class ActiveWork(Dat):
         try: self.workArray = self.workDict[workPart]
         except KeyError: raise ValueError(
             'Part \'%s\' is not known.' % workPart)
+
+class FittingWorkForceVariance(CurveFit):
+    """
+    Fit work force variance at different number of particles and persistence
+    lengths.
+    """
+
+    def __init__(self, Fx, Fy, gamma=None):
+        """
+        Fit curve to data points.
+
+        Parameters
+        ----------
+        Fx : float array-like
+            Product of rotational diffusivity and lag time, D_r \\tau.
+        Fy : float array-like
+            Product of number of particles, square root of diffusivity, lag time
+            and variance, N \\sqrt{D_r} \\tau <\\delta w_f^2(t_0; \\tau)>.
+        gamma : float or None
+            Arbitrarily fix the value of gamma. (default: None)
+            NOTE: if gamma == None then its value is fitted.
+        """
+
+        self.Fx = np.array(Fx)
+        self.Fy = np.array(Fy)
+
+        if gamma is None:
+            super().__init__(
+                self._masterFunc,
+                self.Fx, self.Fy,
+                jac=self._masterJac)
+            self.gamma = self.popt[1]
+        else:
+            super().__init__(
+                lambda DrTau, A: self._masterFunc(DrTau, A, gamma),
+                self.Fx, self.Fy,
+                jac=lambda DrTau, A: self._masterJac(DrTau, A, gamma)[:1])
+            self.gamma = gamma
+
+        self.A = self.popt[0]
+
+    def _masterFunc(self, DrTau, A, gamma):
+        """
+        Fitting function.
+
+        Parameters
+        ----------
+        DrTau : float
+            Product of rotational diffusivity and lag time.
+        A : float
+            Long-time variance parameter.
+        gamma : float
+            Time-rescaling parameter.
+
+        Returns
+        -------
+        F : float
+            Evaluated fitting function.
+        """
+
+        return (2*A/gamma)*(1 - (1/(gamma*DrTau))*(1 - np.exp(-gamma*DrTau)))
+
+    def _masterJac(self, DrTau, A, gamma):
+        """
+        Jacobian matrix of fitting function with respect to parameters.
+
+        Parameters
+        ----------
+
+        DrTau : float
+            Product of rotational diffusivity and lag time.
+        A : float
+            Long-time variance parameter.
+        gamma : float
+            Time-rescaling parameter.
+
+        Returns
+        -------
+        J : (2,) float Numpy array
+            Evaluated Jacobian matrix.
+        """
+
+        return np.array([
+            (2/gamma)*(1 - (1/(gamma*DrTau))*(1 - np.exp(-gamma*DrTau))),
+            -(2*A/(gamma**2))*(1 + np.exp(-gamma*DrTau))
+                + (2*A/((gamma**3)*DrTau))*(1 - np.exp(-gamma*DrTau))])
