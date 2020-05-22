@@ -96,7 +96,7 @@ class CloningOutput:
                 self.I[i, j, 0] = order
                 self.I[i, j, 1] = -sValue*order - SCGF
 
-    def meanSterr(self, remove=False):
+    def meanSterr(self, remove=False, max=None):
         """
         Returns array of mean and standard error of measured data.
 
@@ -106,6 +106,10 @@ class CloningOutput:
             Remove inf and -inf as well as nan. (default: False)
             NOTE: A warning will be issued if remove == False and such objects
                   are encountered.
+        max : float or None
+            Remove data which is strictly above max in absolute value.
+            (default: None)
+            NOTE: max != None will trigger remove = True.
 
         Returns
         -------
@@ -133,6 +137,8 @@ class CloningOutput:
               (3) Standard error on rate function.
         """
 
+        if max != None: remove = True
+
         SCGF = np.empty((self.sValues.size, 3))
         activeWork = np.empty((self.sValues.size, 3))
         activeWorkForce = np.empty((self.sValues.size, 3))
@@ -142,22 +148,22 @@ class CloningOutput:
         for i in range(self.sValues.size):
             SCGF[i] = [
                 self.sValues[i],
-                *mean_sterr(self.SCGF[i], remove=remove)]
+                *mean_sterr(self.SCGF[i], remove=remove, max=max)]
             activeWork[i] = [
                 self.sValues[i],
-                *mean_sterr(self.activeWork[i], remove=remove)]
+                *mean_sterr(self.activeWork[i], remove=remove, max=max)]
             activeWorkForce[i] = [
                 self.sValues[i],
-                *mean_sterr(self.activeWorkForce[i], remove=remove)]
+                *mean_sterr(self.activeWorkForce[i], remove=remove, max=max)]
             activeWorkOri[i] = [
                 self.sValues[i],
-                *mean_sterr(self.activeWorkOri[i], remove=remove)]
+                *mean_sterr(self.activeWorkOri[i], remove=remove, max=max)]
             orderParameter[i] = [
                 self.sValues[i],
-                *mean_sterr(self.orderParameter[i], remove=remove)]
+                *mean_sterr(self.orderParameter[i], remove=remove, max=max)]
             I[i] = [
-                *mean_sterr(self.I[i, :, 0], remove=remove),
-                *mean_sterr(self.I[i, :, 1], remove=remove)]
+                *mean_sterr(self.I[i, :, 0], remove=remove, max=max),
+                *mean_sterr(self.I[i, :, 1], remove=remove, max=max)]
 
         return (SCGF,
             activeWork, activeWorkForce, activeWorkOri, orderParameter,
@@ -168,7 +174,7 @@ class _CloningOutput(_Read):
     Read data from a single cloning simulation.
     """
 
-    def __init__(self, filename):
+    def __init__(self, filename, repair=False):
         """
         Get data.
 
@@ -176,10 +182,17 @@ class _CloningOutput(_Read):
         ----------
         filename : string
             Path to data file.
+        repair : bool
+            Extract data even when the number of runs is lesser than expected.
+            (default: False)
+            NOTE: Replaces missing data with None.
         """
 
         # FILE
         super().__init__(filename)
+
+        # REPAIR
+        self.repair = repair
 
         # HEADER INFORMATION
         self.tmax = self._read('d')         # dimensionless time simulated
@@ -200,7 +213,10 @@ class _CloningOutput(_Read):
         self.runLength = 6*self._bpe('d')       # length the data of a run takes
 
         # FILE CORRUPTION CHECK
-        if self.fileSize != self.headerLength + self.nRuns*self.runLength:
+        if (
+            (self.fileSize != self.headerLength + self.nRuns*self.runLength
+                and not(self.repair))                                       # not the correct number of runs in non-repair mode
+            or (self.fileSize - self.headerLength)%self.runLength != 0):    # not an integer number of runs
             raise ValueError("Invalid data file size.")
 
         # MEASUREMENTS
@@ -211,12 +227,21 @@ class _CloningOutput(_Read):
         self.orderParameter = np.empty((self.nRuns,))   # order parameter
         self.walltime = np.empty((self.nRuns,))         # time taken for each run
         for i in range(self.nRuns):
-            self.tSCGF[i] = self._read('d')
-            self.activeWork[i] = self._read('d')
-            self.activeWorkForce[i] = self._read('d')
-            self.activeWorkOri[i] = self._read('d')
-            self.orderParameter[i] = self._read('d')
-            self.walltime[i] = self._read('d')
+            if (self.repair and
+                i >= (self.fileSize - self.headerLength)//self.runLength == 0):
+                self.tSCGF[i] = None
+                self.activeWork[i] = None
+                self.activeWorkForce[i] = None
+                self.activeWorkOri[i] = None
+                self.orderParameter[i] = None
+                self.walltime[i] = None
+            else:
+                self.tSCGF[i] = self._read('d')
+                self.activeWork[i] = self._read('d')
+                self.activeWorkForce[i] = self._read('d')
+                self.activeWorkOri[i] = self._read('d')
+                self.orderParameter[i] = self._read('d')
+                self.walltime[i] = self._read('d')
 
 class TorqueDump:
     """
