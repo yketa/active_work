@@ -74,7 +74,7 @@ class DatG:
                     1./self.N - torqueIntegral1
                     - gValue*self.lp*torqueIntegral2)
 
-    def meanSterr(self, remove=False):
+    def meanSterr(self, remove=False, max=None):
         """
         Returns array of mean and standard error of measured data.
 
@@ -84,6 +84,10 @@ class DatG:
             Remove inf and -inf as well as nan. (default: False)
             NOTE: A warning will be issued if remove == False and such objects
                   are encountered.
+        max : float or None
+            Remove data which is strictly above max in absolute value.
+            (default: None)
+            NOTE: max != None will trigger remove = True.
 
         Returns
         -------
@@ -123,25 +127,25 @@ class DatG:
         for i in range(self.gValues.size):
             activeWork[i] = [
                 self.gValues[i],
-                *mean_sterr(self.activeWork[i], remove=remove)]
+                *mean_sterr(self.activeWork[i], remove=remove, max=max)]
             activeWorkForce[i] = [
                 self.gValues[i],
-                *mean_sterr(self.activeWorkForce[i], remove=remove)]
+                *mean_sterr(self.activeWorkForce[i], remove=remove, max=max)]
             activeWorkOri[i] = [
                 self.gValues[i],
-                *mean_sterr(self.activeWorkOri[i], remove=remove)]
+                *mean_sterr(self.activeWorkOri[i], remove=remove, max=max)]
             orderParameter[i] = [
                 self.gValues[i],
-                *mean_sterr(self.orderParameter[i], remove=remove)]
+                *mean_sterr(self.orderParameter[i], remove=remove, max=max)]
             torqueIntegral1[i] = [
                 self.gValues[i],
-                *mean_sterr(self.torqueIntegral1[i], remove=remove)]
+                *mean_sterr(self.torqueIntegral1[i], remove=remove, max=max)]
             torqueIntegral2[i] = [
                 self.gValues[i],
-                *mean_sterr(self.torqueIntegral2[i], remove=remove)]
+                *mean_sterr(self.torqueIntegral2[i], remove=remove, max=max)]
             Lambda[i] = [
-                *mean_sterr(self.Lambda[i, :, 0], remove=remove),
-                *mean_sterr(self.Lambda[i, :, 1], remove=remove)]
+                *mean_sterr(self.Lambda[i, :, 0], remove=remove, max=max),
+                *mean_sterr(self.Lambda[i, :, 1], remove=remove, max=max)]
 
         return (activeWork, activeWorkForce, activeWorkOri, orderParameter,
             torqueIntegral1, torqueIntegral2, Lambda)

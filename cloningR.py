@@ -78,7 +78,7 @@ class CloningOutput:
                 self.I[i, j, 0] = order
                 self.I[i, j, 1] = -sValue*order - SCGF
 
-    def meanSterr(self, remove=False):
+    def meanSterr(self, remove=False, max=None):
         """
         Returns array of mean and standard error of measured data.
 
@@ -88,6 +88,10 @@ class CloningOutput:
             Remove inf and -inf as well as nan. (default: False)
             NOTE: A warning will be issued if remove == False and such objects are
                   encountered.
+        max : float or None
+            Remove data which is strictly above max in absolute value.
+            (default: None)
+            NOTE: max != None will trigger remove = True.
 
         Returns
         -------
@@ -118,16 +122,16 @@ class CloningOutput:
         for i in range(self.sValues.size):
             SCGF[i] = [
                 self.sValues[i],
-                *mean_sterr(self.SCGF[i], remove=remove)]
+                *mean_sterr(self.SCGF[i], remove=remove, max=max)]
             orderParameter[i] = [
                 self.sValues[i],
-                *mean_sterr(self.orderParameter[i], remove=remove)]
+                *mean_sterr(self.orderParameter[i], remove=remove, max=max)]
             orderParameterSq[i] = [
                 self.sValues[i],
-                *mean_sterr(self.orderParameterSq[i], remove=remove)]
+                *mean_sterr(self.orderParameterSq[i], remove=remove, max=max)]
             I[i] = [
-                *mean_sterr(self.I[i, :, 0], remove=remove),
-                *mean_sterr(self.I[i, :, 1], remove=remove)]
+                *mean_sterr(self.I[i, :, 0], remove=remove, max=max),
+                *mean_sterr(self.I[i, :, 1], remove=remove, max=max)]
 
         return SCGF, orderParameter, orderParameterSq, I
 
