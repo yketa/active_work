@@ -5,6 +5,8 @@ correlations with orientation.
 
 import numpy as np
 
+from collections import OrderedDict
+
 from active_work.read import Dat
 from active_work.maths import linspace, logspace, mean_sterr
 
@@ -27,7 +29,7 @@ class Force(Dat):
             NOTE: This can be changed at any time by setting self.skip.
         """
 
-        super().__init__(filename)  # initialise with super class
+        super().__init__(filename, loadWork=False)  # initialise with super class
 
         self.skip = skip    # skip the `skip' first measurements of the active work in the analysis
 
@@ -102,12 +104,13 @@ class Force(Dat):
         time0 = linspace(self.skip, self.frames - max - 1, int_max)
 
         cor = []
+        forcesIni = (
+            (lambda l: (np.array(l)
+                - np.mean(l, axis=1).reshape(time0.size, 1)).flatten())(    # fluctuations of the force scalar the orientation at t0
+                list(map(
+                    lambda t: self._ForceOrientation(t),
+                    time0))))
         for tau in dt:
-            forcesIni = (
-                (lambda l:
-                    np.array(l) - np.mean(l, axis=1).reshape(time0.size, 1, 2))(    # fluctuations of the force at t0
-                list(map(lambda t: self.getForce(t), time0)))).reshape(
-                    (self.N*time0.size, 2))
             forcesFin = (
                 (lambda l:
                     np.array(l) - np.mean(l, axis=1).reshape(time0.size, 1, 2))(    # fluctuations of the force at t0 + tau
@@ -120,6 +123,82 @@ class Force(Dat):
                 + list(map(lambda x, y: np.dot(x, y),
                     *(forcesFin, forcesFin))))
             cor += [[tau, *mean_sterr(forcesForces), np.mean(forcesNormSq)]]
+
+        return np.array(cor)
+
+    def corForceVelocity(self,
+        n_max=100, int_max=None, min=1, max=None, log=False):
+        """
+        Returns correlations of the scalar product of force and velocity.
+
+        Parameters
+        ----------
+        n_max : int
+            Maximum number of values at which to evaluate the correlation.
+            (default: 100)
+        int_max : int or None
+            Maximum number of different intervals to consider in order to
+            compute the mean which appears in the correlation expression.
+            (default: None)
+            NOTE: if int_max == None, then a maximum number of disjoint
+                  intervals will be considered.
+        min : int or None
+            Minimum value at which to compute the correlation. (default: 1)
+        max : int or None
+            Maximum value at which to compute the correlation. (default: None)
+            NOTE: if max == None, then n_max = self.frames - self.skip - 1.
+        log : bool
+            Logarithmically space values at which the correlations are
+            computed. (default: False)
+
+        Returns
+        -------
+        cor : (3, *) numpy array
+            Array of:
+                (0) value at which the correlation is computed,
+                (1) mean of the computed correlation,
+                (2) standard error of the computed correlation,
+                (3) product of the standard deviations of the scalar product
+                    at initial and final times.
+        """
+
+        min = 1 if min == None else int(min)
+        max = self.frames - self.skip - 1 if max == None else int(max)
+        int_max = ((self.frames - self.skip - 1)//max if int_max == None
+            else int(int_max))
+
+        if log: space = logspace
+        else: space = linspace
+
+        dt = space(min, max, n_max)
+        time0 = linspace(self.skip, self.frames - max - 1, int_max)
+
+        cor = []
+        forcesVelocitesIni = (
+            (lambda l:
+                np.array(l) - np.mean(l, axis=1).reshape(time0.size, 1))(   # fluctuations of the scalar product of force and velocity at t0
+                list(map(
+                    lambda t: list(map(
+                        lambda f, v: np.dot(f, v),
+                        *(self.getForce(t),
+                            self.getVelocities(t, norm=False)))),
+                    time0)))).flatten()
+        print(forcesVelocitesIni)
+        for tau in dt:
+            forcesVelocitesFin = (
+                (lambda l:
+                    np.array(l) - np.mean(l, axis=1).reshape(time0.size, 1))(   # fluctuations of the scalar product of force and velocity at t0 + tau
+                    list(map(
+                        lambda t: list(map(
+                            lambda f, v: np.dot(f, v),
+                            *(self.getForce(t),
+                                self.getVelocities(t, norm=False)))),
+                        time0 + tau)))).flatten()
+            print(forcesVelocitesFin)
+            cor += [[
+                tau,
+                *mean_sterr(forcesVelocitesIni*forcesVelocitesFin),
+                forcesVelocitesIni.std()*forcesVelocitesFin.std()]]
 
         return np.array(cor)
 
@@ -155,7 +234,8 @@ class Force(Dat):
                 (0) value at which the correlation is computed,
                 (1) mean of the computed correlation,
                 (2) standard error of the computed correlation,
-                (3) variance of the force scalar orientation.
+                (3) product of the standard deviations of the force scalar
+                    orientation at initial and final times.
         """
 
         min = 1 if min == None else int(min)
@@ -170,24 +250,50 @@ class Force(Dat):
         time0 = linspace(self.skip, self.frames - max - 1, int_max)
 
         cor = []
+        forcesIni = (
+            (lambda l: (np.array(l)
+                - np.mean(l, axis=1).reshape(time0.size, 1)).flatten())(    # fluctuations of the force scalar the orientation at t0
+                list(map(
+                    lambda t: self._ForceOrientation(t),
+                    time0)))).flatten()
         for tau in dt:
-            forcesIni = (
-                (lambda l: (np.array(l)
-                    - np.mean(l, axis=1).reshape(time0.size, 1)).flatten())(    # fluctuations of the force scalar the orientation at t0
-                    list(map(
-                        lambda t: self._ForceOrientation(t),
-                        time0))))
             forcesFin = (
                 (lambda l: (np.array(l)
                     - np.mean(l, axis=1).reshape(time0.size, 1)).flatten())(    # fluctuations of the force scalar the orientation at t0 + tau
                     list(map(
                         lambda t: self._ForceOrientation(t + tau),
-                        time0))))
+                        time0)))).flatten()
             forcesForces = forcesIni*forcesFin
             cor += [[tau, *mean_sterr(forcesForces),
-                np.append(forcesIni, forcesFin).var()]]
+                forcesIni.std()*forcesFin.std()]]
 
         return np.array(cor)
+
+    def varForceOrientation(self, int_max=100):
+        """
+        Returns variance of the scalar product of force and particle direction.
+
+        Parameters
+        ----------
+        int_max : float
+            Number of times at which to compute the scalar product of force
+            and particle direction. (default: 100)
+
+        Returns
+        -------
+        var : float
+            Computed variance.
+        """
+
+        time0 = np.array(list(OrderedDict.fromkeys(
+            np.linspace(
+                self.skip, self.frames - 1, int(int_max),
+                endpoint=False, dtype=int))))
+
+        forceOrientation = np.array(list(map(
+            self._ForceOrientation, time0)))
+
+        return forceOrientation.var()
 
     def _ForceOrientation(self, time):
         """
