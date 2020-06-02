@@ -172,12 +172,14 @@ class StdOut:
 def mkdir(directory, replace=False):
     """
     Creates directory if not existing, erases and recreates it if replace is
-    set to be True.
+    set to True.
 
     Parameters
     ----------
     directory : string
         Name of directory.
+    replace : bool
+        Erase and recreate directory. (default: False)
     """
 
     if pathexists(directory) and replace: rmr(directory)
