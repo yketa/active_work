@@ -61,7 +61,7 @@ class Positions(Dat):
         nBoxes = int(nBoxes)
 
         return self.toGrid(time,
-            np.full((self.N,), fill_value=1./((self.L/nBoxes)**2)),
+            np.full((self.N,), fill_value=1),
             nBoxes=nBoxes, box_size=self.L, centre=(0, 0), average=False)
 
     def nPositions(self, int_max=None):
@@ -123,15 +123,17 @@ class Positions(Dat):
                   WARNING: This can be very big.
         nBoxes : int
             Number of grid boxes in each direction. (default: None)
-            NOTE: if nBoxes==None, then None is passed to
-                  self.getParticleDensity.
+            NOTE: if nBoxes==None, then nBoxes = int(sqrt(self.N)).
 
         Returns
         -------
-        S : (*, 3) float Numpy array
+        S : (*, 2) float Numpy array
             Array of (k, S(k)) with S(k) the cylindrically averaged structure
             factor at wavevector k.
         """
+
+        if nBoxes == None: nBoxes = np.sqrt(self.N)
+        nBoxes = int(nBoxes)
 
         particleDensity = self.nParticleDensity(int_max=int_max, nBoxes=nBoxes)
 
