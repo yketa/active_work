@@ -310,8 +310,8 @@ class Mathieu:
 
         return np.array(list(map(
             lambda _p: -np.array(optimize.minimize(
-                lambda s: s*p + self.SCGFX(s)[0],
-                (0, 0)).fun, ndmin=1)[0],
+                lambda s: s*_p + self.SCGFX(s)[0],
+                0).fun, ndmin=1)[0],
             p)))
 
     def rate(self, *p):
