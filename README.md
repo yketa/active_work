@@ -20,6 +20,7 @@ echo "export PYTHONPATH=\$PYTHONPATH:${PWD}/.." >> ~/.bashrc
 from this directory, and rely on the following packages:
 
 - `matplotlib`: plotting,
+- `seaborn`: color palettes,
 - `numpy`: mathematical functions and array manipulation,
 - `scipy`: various optimisation methods and special functions,
 - `fastkde`: kernel density estimation ([`scde.py`](https://github.com/yketa/active_work/blob/master/scde.py)),

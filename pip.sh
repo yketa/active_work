@@ -19,6 +19,7 @@ PIP=${PIP-pip}
 PACKAGES=(      # packages to install (order matters)
   # ALL PURPOSES
   'matplotlib'  # plotting
+  'seaborn'     # color palettes
   'numpy>=1.16' # mathematical functions and array manipulation
   # SELF-CONSISTENT DENSITY ESTIMATION
   'scipy'       # grid interpolation

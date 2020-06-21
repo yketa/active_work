@@ -14,6 +14,8 @@ import matplotlib.cm as cmx
 import matplotlib as mpl
 cmap = plt.cm.jet
 
+import seaborn as sns
+
 # DEFAULT VARIABLES
 
 _markers = mpl.markers.MarkerStyle.filled_markers   # default markers list
@@ -55,7 +57,7 @@ def set_font_size(font_size):
 
     mpl.rcParams.update({'font.size': font_size})
 
-def list_colormap(value_list, colormap='jet', sort=True):
+def list_colormap(value_list, colormap='colorblind', sort=True):
     """
     Creates hash table of colors from colormap, defined according to value_list
     index, with value_list elements as keys.
@@ -64,8 +66,8 @@ def list_colormap(value_list, colormap='jet', sort=True):
     ----------
     value_list : list
         List of values.
-    colormap : matplotlib colormap
-        Colormap to use. (default: 'jet')
+    colormap : matplotlib colormap or seaborn color palette
+        Colormap or color palette to use. (default: 'colorblind')
     sort : bool
         Sort list of values before assigning colors. (default: True)
 
@@ -78,12 +80,21 @@ def list_colormap(value_list, colormap='jet', sort=True):
     value_list = list(OrderedDict.fromkeys(value_list))
     if sort: value_list = sorted(value_list)
 
-    cmap = plt.get_cmap(colormap)                               # colormap
-    norm = colors.Normalize(vmin=0, vmax=len(value_list) + 1)   # normalise colormap according to list index
-    scalarMap = cmx.ScalarMappable(norm=norm, cmap=cmap)        # associates scalar to color
+    try:    # matplotlib colormap
 
-    return {value_list[index]: scalarMap.to_rgba(index + 1)
-        for index in range(len(value_list))}
+        cmap = plt.get_cmap(colormap)                               # colormap
+        norm = colors.Normalize(vmin=0, vmax=len(value_list) + 1)   # normalise colormap according to list index
+        scalarMap = cmx.ScalarMappable(norm=norm, cmap=cmap)        # associates scalar to color
+
+        return {value_list[index]: scalarMap.to_rgba(index + 1)
+            for index in range(len(value_list))}
+
+    except ValueError:  # seaborn palette
+
+        return {value: color
+            for value, color in zip(
+                value_list,
+                sns.color_palette(colormap, len(value_list)))}
 
 def list_markers(value_list, marker_list=_markers, sort=True):
     """
