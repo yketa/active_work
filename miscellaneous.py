@@ -26,7 +26,7 @@ class RTPring:
 
     def Phi(self, Lambda):
         """
-        Rescaled scaled cumulant generating function (SCGF).
+        Rescaled cumulant generating function (CGF).
 
         Parameters
         ----------
@@ -112,7 +112,7 @@ class RTPring:
         Parameters
         ----------
         Phi : float
-            Rescaled scaled cumulant generating function (SCGF).
+            Rescaled cumulant generating function (CGF).
         Lambda : float
             Rescaled biasing parameter.
 
