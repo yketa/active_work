@@ -92,7 +92,7 @@ class RTPring:
 
         rL = np.array(rL)
 
-        prefactor = (2./3.)*self.Gamma(Lambda)
+        prefactor = (1./4.)*self.Gamma(Lambda)
 
         if Lambda == 0: return np.full(rL.shape, fill_value=prefactor)
 
