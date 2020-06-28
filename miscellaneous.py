@@ -23,10 +23,51 @@ class RTPring:
         """
 
         self._zero = 1e-16
+        self.none = np.nan
 
-    def Phi(self, Lambda):
+        self.lambdaLmin = -20
+
+    def s(self, L, psi):
         """
-        Rescaled cumulant generating function (CGF).
+        Biasing parameter rescaled by the product of persistence length and
+        propulsion velocity as a function of the cumulant generating function
+        (CGF) scaled by the persistence time.
+
+        Parameters
+        ----------
+        L : float
+            Ring length rescaled by the persistence length.
+        psi : float
+            CGF rescaled by the persistence time.
+
+        Returns
+        -------
+        s : float
+            Associated biasing parameter rescaled by the product of persistence
+            length and propulsion velocity
+        """
+
+        if psi == 0: return 0
+
+        k = np.sqrt(np.abs(psi*(psi/2. + 2)))
+
+        s = (psi*(psi + 4))/(2*psi + 4)
+
+        if psi > 0: tan = np.tanh
+        if psi < 0: tan = np.tan
+
+        den = psi*(psi + 2)*(psi + 4) + k*((psi + 2)**2)/tan(k*L/2.)
+        if den < 0: return self.none
+
+        s += (psi*(psi + 4))/den
+
+        if s < self.lambdaLmin: return self.none
+        if s*psi < 0 : return self.none
+        return s
+
+    def Psi(self, Lambda):
+        """
+        Rescaled cumulant generating function (CGF) in the scaling regime.
 
         Parameters
         ----------
@@ -35,7 +76,7 @@ class RTPring:
 
         Returns
         -------
-        Phi : float
+        Psi : float
             Rescaled SCGF.
         """
 
@@ -55,7 +96,8 @@ class RTPring:
 
     def Gamma(self, Lambda):
         """
-        Rescaled sticking probability of parallel particles.
+        Rescaled sticking probability of parallel particles in the scaling
+        regime.
 
         Parameters
         ----------
@@ -70,12 +112,12 @@ class RTPring:
 
         if Lambda == 0: return 1    # wild guess
 
-        return self.Phi(Lambda)/Lambda
+        return self.Psi(Lambda)/Lambda
 
     def LEpsilon(self, Lambda, *rL):
         """
         Product of ring length and regular part of the probability density
-        function.
+        function in the scaling regime.
 
         Parameters
         ----------
@@ -96,22 +138,22 @@ class RTPring:
 
         if Lambda == 0: return np.full(rL.shape, fill_value=prefactor)
 
-        phi = self.Phi(Lambda)
+        psi = self.Psi(Lambda)
 
         if Lambda > 0:
-            return (prefactor*np.cosh(np.sqrt(phi)*(1 - 2*rL))
-                /np.cosh(np.sqrt(phi)))
+            return (prefactor*np.cosh(np.sqrt(psi)*(1 - 2*rL))
+                /np.cosh(np.sqrt(psi)))
         if Lambda < 0:
-            return (prefactor*np.cos(np.sqrt(-phi)*(1 - 2*rL))
-                /np.cos(np.sqrt(-phi)))
+            return (prefactor*np.cos(np.sqrt(-psi)*(1 - 2*rL))
+                /np.cos(np.sqrt(-psi)))
 
-    def _scaling_function(self, Phi, Lambda):
+    def _scaling_function(self, Psi, Lambda):
         """
-        Function which root for a given `Lambda` gives the corresponding `Phi`.
+        Function which root for a given `Lambda` gives the corresponding `Psi`.
 
         Parameters
         ----------
-        Phi : float
+        Psi : float
             Rescaled cumulant generating function (CGF).
         Lambda : float
             Rescaled biasing parameter.
@@ -126,9 +168,9 @@ class RTPring:
 
         if Lambda > 0:
             return (
-                1./(np.tanh(np.sqrt(np.abs(Phi)))*np.sqrt(np.abs(Phi)))
+                1./(np.tanh(np.sqrt(np.abs(Psi)))*np.sqrt(np.abs(Psi)))
                 - 1./Lambda)
         if Lambda < 0:
             return (
-                1./(np.tan(np.sqrt(np.abs(Phi)))*np.sqrt(np.abs(Phi)))
+                1./(np.tan(np.sqrt(np.abs(Psi)))*np.sqrt(np.abs(Psi)))
                 + 1./Lambda)
