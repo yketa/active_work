@@ -49,21 +49,60 @@ class RTPring:
 
         if psi == 0: return 0
 
-        k = np.sqrt(np.abs(psi*(psi/2. + 2)))
+        k = self._k(psi)
 
-        s = (psi*(psi + 4))/(2*psi + 4)
+        try:
+
+            s = (psi*(psi + 4))/(2*psi + 4)
+
+            if psi > 0: tan = np.tanh
+            if psi < 0: tan = np.tan
+
+            den = psi*(psi + 2)*(psi + 4) + k*((psi + 2)**2)/tan(k*L/2.)
+            if den < 0: return self.none
+
+            s += (psi*(psi + 4))/den
+
+            if s < self.lambdaLmin: return self.none
+            if s*psi < 0 : return self.none
+            return s
+
+        except ZeroDivisionError:
+
+            return self.none
+
+    def nu(self, L, psi):
+        """
+        Polarisation of the RTPs.
+
+        Parameters
+        ----------
+        L : float
+            Ring length rescaled by the persistence length.
+        psi : float
+            CGF rescaled by the persistence time.
+
+        Returns
+        -------
+        nu : float
+            Polarisation.
+        """
+
+        if psi == 0: return 0
+
+        s = self.s(L, psi)
+        if s is self.none: return self.none
+        k = self._k(psi)
+
+        nu = (-psi**2)/(2*s*(psi + 2))
 
         if psi > 0: tan = np.tanh
         if psi < 0: tan = np.tan
 
-        den = psi*(psi + 2)*(psi + 4) + k*((psi + 2)**2)/tan(k*L/2.)
-        if den < 0: return self.none
+        den = psi*(psi + 4) + k*(psi + 2)/tan(k*L/2.)
+        nu *= (1 + 2./den)
 
-        s += (psi*(psi + 4))/den
-
-        if s < self.lambdaLmin: return self.none
-        if s*psi < 0 : return self.none
-        return s
+        return nu
 
     def Psi(self, Lambda):
         """
@@ -174,3 +213,20 @@ class RTPring:
             return (
                 1./(np.tan(np.sqrt(np.abs(Psi)))*np.sqrt(np.abs(Psi)))
                 + 1./Lambda)
+
+    def _k(self, psi):
+        """
+        Modulus of the scaled exponential length scale.
+
+        Parameters
+        ----------
+        psi : float
+            CGF rescaled by the persistence time.
+
+        Returns
+        -------
+        k : float
+            Scaled exponential length scale.
+        """
+
+        return np.sqrt(np.abs(psi*(psi/2. + 2)))
