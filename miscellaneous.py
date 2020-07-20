@@ -71,9 +71,42 @@ class RTPring:
 
             return self.none
 
-    def nu(self, L, psi):
+    def nu(self, psi):
         """
         Polarisation of the RTPs.
+
+        Parameters
+        ----------
+        psi : float
+            CGF rescaled by the persistence time.
+
+        Returns
+        -------
+        nu : float
+            Polarisation.
+        """
+
+        if psi == 0: return 0
+
+        return -psi/(psi + 4)
+
+        # s = self.s(L, psi)
+        # if s is self.none: return self.none
+        # k = self._k(psi)
+        #
+        # nu = (-psi**2)/(2*s*(psi + 2))
+        #
+        # if psi > 0: tan = np.tanh
+        # if psi < 0: tan = np.tan
+        #
+        # den = psi*(psi + 4) + k*(psi + 2)/tan(k*L/2.)
+        # nu *= (1 + 2./den)
+        #
+        # return nu
+
+    def nuAve(self, L, psi):
+        """
+        Polarisation of the RTPs computed with the full-time distribution.
 
         Parameters
         ----------
@@ -90,19 +123,48 @@ class RTPring:
 
         if psi == 0: return 0
 
-        s = self.s(L, psi)
-        if s is self.none: return self.none
+        omega = self._omega(psi)
         k = self._k(psi)
 
-        nu = (-psi**2)/(2*s*(psi + 2))
+        if psi < 0:
 
-        if psi > 0: tan = np.tanh
-        if psi < 0: tan = np.tan
+            num = (
+                omega/k - (psi + 2.)/2.
+                + (omega/k - (psi + 2.))*omega*np.tan(k*L/2.)
+                - (1./2.)*(psi + 2.)*(omega**2)*(np.tan(k*L/2.)**2)
+                + ((omega**2)/(2*(k**3)) - (1 + omega**2)/(2*k))*(
+                    np.sin(k*L)/(1 + np.cos(k*L)))
+                + ((L*(omega**2))/(k**2) - L*(1 - omega**2))/(
+                    2*(1 + np.cos(k*L))))
+            den = (
+                omega/k + (psi + 2.)/2.
+                + (omega/k + (psi + 2.))*omega*np.tan(k*L/2.)
+                + (1./2.)*(psi + 2.)*(omega**2)*(np.tan(k*L/2.)**2)
+                + ((omega**2)/(2*(k**3)) + (1 + omega**2)/(2*k))*(
+                    np.sin(k*L)/(1 + np.cos(k*L)))
+                + ((L*(omega**2))/(k**2) + L*(1 - omega**2))/(
+                    2*(1 + np.cos(k*L))))
 
-        den = psi*(psi + 4) + k*(psi + 2)/tan(k*L/2.)
-        nu *= (1 + 2./den)
+        if psi > 0:
 
-        return nu
+            num = (
+                omega/k - (psi + 2.)/2.
+                + (omega/k - (psi + 2.))*omega*np.tanh(k*L/2.)
+                - (1./2.)*(psi + 2.)*(omega**2)*(np.tanh(k*L/2.)**2)
+                + ((omega**2)/(2*(k**3)) - (1 - omega**2)/(2*k))*(
+                    np.sinh(k*L)/(1 + np.cosh(k*L)))
+                + ((L*(omega**2))/(k**2) - L*(1 + omega**2))/(
+                    2*(1 + np.cosh(k*L))))
+            den = (
+                omega/k + (psi + 2.)/2.
+                + (omega/k + (psi + 2.))*omega*np.tanh(k*L/2.)
+                + (1./2.)*(psi + 2.)*(omega**2)*(np.tanh(k*L/2.)**2)
+                + ((omega**2)/(2*(k**3)) + (1 - omega**2)/(2*k))*(
+                    np.sinh(k*L)/(1 + np.cosh(k*L)))
+                + ((L*(omega**2))/(k**2) + L*(1 + omega**2))/(
+                    2*(1 + np.cosh(k*L))))
+
+        return num/den
 
     def Psi(self, Lambda):
         """
@@ -230,3 +292,20 @@ class RTPring:
         """
 
         return np.sqrt(np.abs(psi*(psi/2. + 2)))
+
+    def _omega(self, psi):
+        """
+        Modulus of the coeffcient \\Omega = 2 k l / (\\tau \\psi + 2).
+
+        Parameters
+        ----------
+        psi : float
+            CGF rescaled by the persistence time.
+
+        Returns
+        -------
+        k : float
+            Coefficient omega.
+        """
+
+        return 2*self._k(psi)/(psi + 2)
