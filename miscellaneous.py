@@ -86,23 +86,9 @@ class RTPring:
             Polarisation.
         """
 
-        if psi == 0: return 0
+        if psi == 0: return 1./2.
 
-        return -psi/(psi + 4)
-
-        # s = self.s(L, psi)
-        # if s is self.none: return self.none
-        # k = self._k(psi)
-        #
-        # nu = (-psi**2)/(2*s*(psi + 2))
-        #
-        # if psi > 0: tan = np.tanh
-        # if psi < 0: tan = np.tan
-        #
-        # den = psi*(psi + 4) + k*(psi + 2)/tan(k*L/2.)
-        # nu *= (1 + 2./den)
-        #
-        # return nu
+        return 2./(psi + 4)
 
     def nuAve(self, L, psi):
         """
@@ -121,50 +107,33 @@ class RTPring:
             Polarisation.
         """
 
-        if psi == 0: return 0
+        if psi == 0: return 1./2.
 
-        omega = self._omega(psi)
         k = self._k(psi)
+        omega = 2*self._k(psi)/(psi + 2)
 
         if psi < 0:
 
-            num = (
-                omega/k - (psi + 2.)/2.
-                + (omega/k - (psi + 2.))*omega*np.tan(k*L/2.)
-                - (1./2.)*(psi + 2.)*(omega**2)*(np.tan(k*L/2.)**2)
-                + ((omega**2)/(2*(k**3)) - (1 + omega**2)/(2*k))*(
-                    np.sin(k*L)/(1 + np.cos(k*L)))
-                + ((L*(omega**2))/(k**2) - L*(1 - omega**2))/(
-                    2*(1 + np.cos(k*L))))
-            den = (
-                omega/k + (psi + 2.)/2.
-                + (omega/k + (psi + 2.))*omega*np.tan(k*L/2.)
-                + (1./2.)*(psi + 2.)*(omega**2)*(np.tan(k*L/2.)**2)
-                + ((omega**2)/(2*(k**3)) + (1 + omega**2)/(2*k))*(
-                    np.sin(k*L)/(1 + np.cos(k*L)))
-                + ((L*(omega**2))/(k**2) + L*(1 - omega**2))/(
-                    2*(1 + np.cos(k*L))))
+            omegasq = -omega**2
+            sin = np.sin
+            cos = np.cos
 
         if psi > 0:
 
-            num = (
-                omega/k - (psi + 2.)/2.
-                + (omega/k - (psi + 2.))*omega*np.tanh(k*L/2.)
-                - (1./2.)*(psi + 2.)*(omega**2)*(np.tanh(k*L/2.)**2)
-                + ((omega**2)/(2*(k**3)) - (1 - omega**2)/(2*k))*(
-                    np.sinh(k*L)/(1 + np.cosh(k*L)))
-                + ((L*(omega**2))/(k**2) - L*(1 + omega**2))/(
-                    2*(1 + np.cosh(k*L))))
-            den = (
-                omega/k + (psi + 2.)/2.
-                + (omega/k + (psi + 2.))*omega*np.tanh(k*L/2.)
-                + (1./2.)*(psi + 2.)*(omega**2)*(np.tanh(k*L/2.)**2)
-                + ((omega**2)/(2*(k**3)) + (1 - omega**2)/(2*k))*(
-                    np.sinh(k*L)/(1 + np.cosh(k*L)))
-                + ((L*(omega**2))/(k**2) + L*(1 + omega**2))/(
-                    2*(1 + np.cosh(k*L))))
+            omegasq = omega**2
+            sin = np.sinh
+            cos = np.cosh
 
-        return num/den
+        nu = (
+            (2*(omega/k)*(1 + cos(k*L)) + 2*(omegasq/k)*sin(k*L)
+                + (4/((psi + 2)**2))*(sin(k*L)/k + L))
+            /(2*(omega/k)*(1 + cos(k*L)) + (2 + (psi + 2)**2)*(omegasq/k)*sin(k*L)
+                + (psi + 2)*(1 - omegasq) + (psi + 2)*(1 + omegasq)*cos(k*L)
+                + (4/((psi + 2)**2) + (1 - omegasq))*sin(k*L)/k
+                + (4/((psi + 2)**2) + (1 + omegasq))*L)
+        )
+
+        return nu
 
     def Psi(self, Lambda):
         """
@@ -291,21 +260,4 @@ class RTPring:
             Scaled exponential length scale.
         """
 
-        return np.sqrt(np.abs(psi*(psi/2. + 2)))
-
-    def _omega(self, psi):
-        """
-        Modulus of the coeffcient \\Omega = 2 k l / (\\tau \\psi + 2).
-
-        Parameters
-        ----------
-        psi : float
-            CGF rescaled by the persistence time.
-
-        Returns
-        -------
-        k : float
-            Coefficient omega.
-        """
-
-        return 2*self._k(psi)/(psi + 2)
+        return np.sqrt(np.abs(psi*(psi/4. + 1)))
